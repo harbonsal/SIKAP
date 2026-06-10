@@ -121,6 +121,10 @@ export default function Login({ status, canResetPassword }) {
                     </PrimaryButton>
                 </div>
             </form>
+
+            <div className="mt-8 text-center text-xs text-gray-500 dark:text-gray-400">
+                🚀 SIKAP Auto-Deploy Connected
+            </div>
         </GuestLayout>
     );
 }
