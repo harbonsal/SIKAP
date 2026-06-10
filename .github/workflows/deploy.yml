@@ -40,6 +40,9 @@ jobs:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          protocol: ftp
+          security: loose
           # Direktori tujuan di cPanel (opsional). Kosongkan jika FTP user langsung menunjuk ke root folder aplikasi SIKAP.
           # server-dir: /public_html/
           
