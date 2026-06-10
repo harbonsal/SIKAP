@@ -1,0 +1,1 @@
+function r(n,t,i){if(!n||n==="-"||n===0||n==="0")return!1;const u=Number(n);if(isNaN(u))return!1;const e=i?.[t]?.kkm_value||70;return u<e}function f(n){if(n==null||n==="-")return"-";const t=Number(n);return isNaN(t)?n:t===0?"0":Number.isInteger(t)?t.toString():t.toFixed(1)}export{f,r as i};

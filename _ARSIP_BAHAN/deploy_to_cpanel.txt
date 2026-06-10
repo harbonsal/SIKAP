@@ -1,0 +1,69 @@
+# ========================================
+# PANDUAN DEPLOYMENT KE CPANEL
+# Perbaikan Perhitungan Nilai Ijazah
+# ========================================
+
+## FILE YANG PERLU DI-UPLOAD:
+sikap_ijazah_fix_20260514_024757.zip
+
+## LANGKAH-LANGKAH:
+
+### 1. BACKUP FILE LAMA (WAJIB!)
+   - Login ke cPanel
+   - File Manager > public_html/app/Http/Controllers/
+   - Klik kanan IjazahSettingsController.php
+   - Download (simpan sebagai backup)
+   - Atau rename menjadi: IjazahSettingsController.php.backup
+
+### 2. UPLOAD ZIP FILE
+   - Upload sikap_ijazah_fix_20260514_024757.zip ke folder: public_html/
+   - Klik kanan ZIP file > Extract
+   - File akan otomatis ter-extract ke lokasi yang benar
+
+### 3. HAPUS ZIP FILE (OPSIONAL)
+   - Setelah extract, hapus file ZIP untuk menghemat space
+
+### 4. CLEAR CACHE (PENTING!)
+   - cPanel > Terminal
+   - Jalankan command:
+     cd public_html
+     php artisan optimize:clear
+
+   Atau satu per satu:
+     php artisan config:clear
+     php artisan cache:clear
+     php artisan view:clear
+     php artisan route:clear
+
+### 5. TEST APLIKASI
+   - Login ke aplikasi
+   - Buka: Pengaturan > Pendidikan > Ijazah
+   - Pilih santri kelas 3 Tsanawiyah
+   - Klik "Cetak Ijazah"
+   - Verifikasi nilai yang ditampilkan
+
+### 6. VERIFIKASI HASIL
+   - Bandingkan nilai ijazah dengan nilai rapor
+   - Nilai harus sama persis
+   - Formula: (Sem1 + 2*Sem2) / 3
+
+## STRUKTUR FILE SETELAH EXTRACT:
+public_html/
+└── app/
+    └── Http/
+        └── Controllers/
+            └── IjazahSettingsController.php  ← File yang diupdate
+
+## ROLLBACK (JIKA ADA MASALAH):
+1. Delete: IjazahSettingsController.php
+2. Rename: IjazahSettingsController.php.backup → IjazahSettingsController.php
+3. Clear cache: php artisan optimize:clear
+
+## CATATAN:
+- File permissions: 644 (file), 755 (folder)
+- Jangan lupa clear cache setelah upload
+- Test dengan data real sebelum digunakan production
+- Nilai manual tetap diprioritaskan
+
+## KONTAK:
+Jika ada masalah, cek file: DEPLOYMENT_IJAZAH_FIX.md

@@ -1,0 +1,233 @@
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                                                                           ║
+║              📊 CARA KERJA SESSION TIMEOUT FIX                           ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+
+┌───────────────────────────────────────────────────────────────────────────┐
+│  SEBELUM FIX (Masalah):                                                   │
+└───────────────────────────────────────────────────────────────────────────┘
+
+    User Login
+       ↓
+    Buka Halaman Nilai
+       ↓
+    Tinggal Lama (Session Habis)
+       ↓
+    Klik Menu
+       ↓
+    ❌ MUNCUL HALAMAN TIMEOUT ❌
+       ↓
+    User Bingung
+       ↓
+    Harus Klik Tombol Login Manual
+       ↓
+    Redirect ke Dashboard (Bukan Halaman Nilai)
+       ↓
+    😞 User Harus Cari Halaman Nilai Lagi
+
+
+┌───────────────────────────────────────────────────────────────────────────┐
+│  SETELAH FIX (Solusi):                                                    │
+└───────────────────────────────────────────────────────────────────────────┘
+
+    User Login
+       ↓
+    Buka Halaman Nilai
+       ↓
+    Tinggal Lama (Session Habis)
+       ↓
+    Klik Menu
+       ↓
+    ✅ OTOMATIS REDIRECT KE LOGIN ✅
+    (Sistem simpan URL: /halaman-nilai)
+       ↓
+    User Login
+       ↓
+    ✅ OTOMATIS KEMBALI KE HALAMAN NILAI ✅
+       ↓
+    😊 User Senang, Langsung Lanjut Kerja
+
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                     🔧 DETAIL TEKNIS                                      ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+
+┌───────────────────────────────────────────────────────────────────────────┐
+│  1. DETEKSI SESSION HABIS                                                 │
+└───────────────────────────────────────────────────────────────────────────┘
+
+    File: resources/js/bootstrap.js
+    
+    User Klik Menu
+       ↓
+    Request ke Server
+       ↓
+    Server Response: 401 (Unauthorized) atau 419 (Session Expired)
+       ↓
+    Axios Interceptor Menangkap
+       ↓
+    Simpan URL Saat Ini ke sessionStorage
+       ↓
+    Redirect ke /login
+
+
+┌───────────────────────────────────────────────────────────────────────────┐
+│  2. SIMPAN URL TERAKHIR                                                   │
+└───────────────────────────────────────────────────────────────────────────┘
+
+    File: resources/js/bootstrap.js & app.jsx
+    
+    URL Saat Ini: /dashboard/grades/class/123
+       ↓
+    Simpan ke sessionStorage.intended_url
+       ↓
+    Simpan ke Laravel Session (via Middleware)
+       ↓
+    Redirect ke /login
+
+
+┌───────────────────────────────────────────────────────────────────────────┐
+│  3. PROSES LOGIN                                                          │
+└───────────────────────────────────────────────────────────────────────────┘
+
+    File: resources/js/Pages/Auth/Login.jsx
+    
+    User di Halaman Login
+       ↓
+    User Input Email & Password
+       ↓
+    Klik Tombol Login
+       ↓
+    Submit Form
+       ↓
+    Laravel Authenticate
+       ↓
+    Login Berhasil
+
+
+┌───────────────────────────────────────────────────────────────────────────┐
+│  4. REDIRECT KE HALAMAN TERAKHIR                                          │
+└───────────────────────────────────────────────────────────────────────────┘
+
+    File: app/Http/Controllers/Auth/AuthenticatedSessionController.php
+    
+    Login Berhasil
+       ↓
+    Laravel: redirect()->intended()
+       ↓
+    Baca URL dari Session
+       ↓
+    Frontend: Baca dari sessionStorage
+       ↓
+    Redirect ke: /dashboard/grades/class/123
+       ↓
+    ✅ User Kembali ke Halaman Terakhir!
+
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                     📁 FILE YANG DIMODIFIKASI                             ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │  resources/js/bootstrap.js                                          │
+    │  ✓ Axios interceptor untuk 401/419                                  │
+    │  ✓ Simpan URL ke sessionStorage                                     │
+    │  ✓ Redirect ke login                                                │
+    └─────────────────────────────────────────────────────────────────────┘
+
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │  resources/js/app.jsx                                               │
+    │  ✓ Inertia error handler                                            │
+    │  ✓ Menangani session timeout dari Inertia requests                  │
+    └─────────────────────────────────────────────────────────────────────┘
+
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │  resources/js/Pages/Auth/Login.jsx                                  │
+    │  ✓ Baca intended URL dari sessionStorage                            │
+    │  ✓ Redirect setelah login berhasil                                  │
+    └─────────────────────────────────────────────────────────────────────┘
+
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │  app/Http/Middleware/Authenticate.php                               │
+    │  ✓ Custom middleware                                                │
+    │  ✓ Simpan intended URL ke Laravel session                           │
+    └─────────────────────────────────────────────────────────────────────┘
+
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │  bootstrap/app.php                                                  │
+    │  ✓ Registrasi custom middleware                                     │
+    └─────────────────────────────────────────────────────────────────────┘
+
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                     🎯 KEUNTUNGAN                                         ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+    ✅ User Experience Lebih Baik
+       → Tidak ada halaman timeout yang membingungkan
+       → Otomatis redirect, tidak perlu klik tombol
+
+    ✅ Produktivitas Meningkat
+       → User langsung kembali ke halaman terakhir
+       → Tidak perlu navigasi ulang
+
+    ✅ Mengurangi Frustasi
+       → Proses seamless dan otomatis
+       → User tidak kehilangan konteks pekerjaan
+
+    ✅ Keamanan Tetap Terjaga
+       → Session tetap expire sesuai konfigurasi
+       → User tetap harus login ulang
+
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                     🧪 SKENARIO TESTING                                   ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+    Skenario 1: Session Timeout Natural
+    ────────────────────────────────────────────────────────────────────────
+    1. Login ke sistem
+    2. Buka halaman: /dashboard/grades/class/123
+    3. Tunggu 2 jam (atau sesuai session timeout)
+    4. Klik menu apapun
+    5. ✅ Otomatis redirect ke login
+    6. Login dengan kredensial
+    7. ✅ Kembali ke /dashboard/grades/class/123
+
+
+    Skenario 2: Manual Cookie Delete (Testing)
+    ────────────────────────────────────────────────────────────────────────
+    1. Login ke sistem
+    2. Buka halaman: /dashboard/students/profile/456
+    3. Buka DevTools (F12) → Application → Cookies
+    4. Hapus cookie "laravel_session"
+    5. Klik menu apapun
+    6. ✅ Otomatis redirect ke login
+    7. Login dengan kredensial
+    8. ✅ Kembali ke /dashboard/students/profile/456
+
+
+    Skenario 3: Multiple Tabs
+    ────────────────────────────────────────────────────────────────────────
+    1. Login ke sistem
+    2. Buka Tab 1: /dashboard/grades
+    3. Buka Tab 2: /dashboard/students
+    4. Hapus session di salah satu tab
+    5. Klik di Tab 1
+    6. ✅ Redirect ke login
+    7. Login
+    8. ✅ Kembali ke /dashboard/grades
+    9. Klik Tab 2
+    10. ✅ Sudah login (shared session)
+
+
+═══════════════════════════════════════════════════════════════════════════
+
+                    Dokumentasi Lengkap: README_BUILD.md
+
+═══════════════════════════════════════════════════════════════════════════
+

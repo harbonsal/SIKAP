@@ -1,0 +1,15 @@
+Folder ini digunakan untuk menyimpan file tanda tangan guru/wali kelas dan kepala sekolah.
+
+FORMAT FILE:
+- Nama file : {nomor_induk}.png  (contoh: 1907031.png)
+- Format    : PNG dengan background TRANSPARAN
+- Ukuran    : disarankan 300x150 pixel atau proporsional
+
+CARA PAKAI:
+1. Upload file PNG tanda tangan ke folder ini via cPanel File Manager
+2. Nama file HARUS sesuai NIP/nomor induk guru
+3. Tanda tangan akan otomatis muncul di cetak rapor
+
+Contoh:
+- 1907031.png  -> Tanda tangan wali kelas NIP 1907031
+- 1607007.png  -> Tanda tangan kepala sekolah NIP 1607007
