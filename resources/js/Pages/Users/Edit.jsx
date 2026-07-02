@@ -14,6 +14,7 @@ export default function Edit({ user, userLevels, has_student_profile, filters })
         nomor_induk: user.nomor_induk || '',
         nama_arab: user.nama_arab || '',
         no_hp: user.no_hp || '',
+        rfid: user.rfid || '',
         user_level_id: user.user_level_id || '',
         status: user.status || 'Aktif',
         inactive_date: user.inactive_date || '',
@@ -119,6 +120,18 @@ export default function Edit({ user, userLevels, has_student_profile, filters })
                                                 placeholder="628..."
                                             />
                                             {errors.no_hp && <p className="text-sm text-destructive">{errors.no_hp}</p>}
+                                        </div>
+                                        <div className="space-y-2 col-span-2">
+                                            <label className="text-sm font-medium leading-none" htmlFor="rfid">Nomor Kartu RFID</label>
+                                            <input
+                                                id="rfid"
+                                                type="text"
+                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                                value={data.rfid}
+                                                onChange={(e) => setData('rfid', e.target.value)}
+                                                placeholder="Tap kartu untuk mengisi..."
+                                            />
+                                            {errors.rfid && <p className="text-sm text-destructive">{errors.rfid}</p>}
                                         </div>
                                     </div>
                                 </CardContent>

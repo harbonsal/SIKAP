@@ -213,11 +213,11 @@ function validateJuzAyat(juzNum, surahName, ayatNum) {
     return null;
 }
 
-export default function Assessment({ activeSubject, gradeWeight, student, grade, nextStudentId, kkm = 75, lockStatus = 'open', eligibleValidationJuz = [] }) {
+export default function Assessment({ activeSubject, gradeWeight, student, grade, nextStudentId, kkm = 75, lockStatus = 'open', eligibleValidationJuz = [], isAdminOrManager = false }) {
     const isValidasiMode = gradeWeight?.name?.toLowerCase().includes('validasi');
     const hasEligibleJuz = eligibleValidationJuz && eligibleValidationJuz.length > 0;
-    const isLatePhase = lockStatus === 'late_phase';
-    const isStrictlyLocked = lockStatus === 'strict_lock';
+    const isLatePhase = lockStatus === 'late_phase' || lockStatus === 'strict_lock';
+    const isStrictlyLocked = lockStatus === 'strict_lock' && !isAdminOrManager;
     const actionLocked = isStrictlyLocked;
     const isLocked = actionLocked;
     const isNewSubmission = !grade;
@@ -307,7 +307,7 @@ export default function Assessment({ activeSubject, gradeWeight, student, grade,
         const params = new URLSearchParams(window.location.search);
         return params.get('type') === 'remedial';
     });
-    const [isExcused, setIsExcused] = useState(false);
+    const [isExcused, setIsExcused] = useState(null);
     const [processing, setProcessing] = useState(false);
     const [isFinished, setIsFinished] = useState(false);
 
@@ -327,6 +327,9 @@ export default function Assessment({ activeSubject, gradeWeight, student, grade,
         if (!readingQuality) { alert('Mohon pilih Keterangan Bacaan.'); return; }
         if (readingQuality === 'kurang' && deficiencies.length === 0) {
             alert('Jika bacaan Kurang, mohon pilih minimal satu kekurangan.'); return;
+        }
+        if (isLatePhase && isNewSubmission && isExcused === null) {
+            alert('Mohon pilih Alasan Keterlambatan.'); return;
         }
         const unreviewedQuestions = [];
         for (let i = 1; i <= totalQuestions; i++) {
@@ -376,8 +379,26 @@ export default function Assessment({ activeSubject, gradeWeight, student, grade,
             is_excused: isExcused
         }, {
             preserveScroll: true,
-            onSuccess: () => { setProcessing(false); setIsFinished(true); },
-            onError: () => { setProcessing(false); alert('Gagal menyimpan data!'); },
+            onSuccess: (page) => { 
+                setProcessing(false); 
+                const isError = page.props.flash?.error;
+                const validationErrors = page.props.errors;
+                if (isError) {
+                    alert(isError);
+                } else if (validationErrors && Object.keys(validationErrors).length > 0) {
+                    alert('Validasi Gagal:\n' + Object.values(validationErrors).join('\n'));
+                } else {
+                    setIsFinished(true); 
+                }
+            },
+            onError: (errors) => { 
+                setProcessing(false); 
+                if (errors && Object.keys(errors).length > 0) {
+                    alert('Validasi Gagal:\n' + Object.values(errors).join('\n'));
+                } else {
+                    alert('Gagal menyimpan data!'); 
+                }
+            },
             onFinish: () => setProcessing(false)
         });
     };
@@ -471,7 +492,15 @@ export default function Assessment({ activeSubject, gradeWeight, student, grade,
                                 </Link>
                                 <div className="h-5 w-px bg-emerald-700" />
                                 <div className="min-w-0">
-                                    <div className="font-bold text-base leading-tight">Ujian {gradeWeight?.name || ''}</div>
+                                    <div className="font-bold text-base leading-tight flex items-center gap-2">
+                                        Ujian {gradeWeight?.name || ''}
+                                        {grade && grade.original_score !== null && (new Date(grade.updated_at) - new Date(grade.created_at) < 5000) && !grade.is_excused && (
+                                            <span className="px-1.5 py-0.5 text-[9px] font-bold bg-red-500/20 text-red-200 rounded border border-red-500/30">Terlambat (Tledor)</span>
+                                        )}
+                                        {grade && grade.original_score !== null && (new Date(grade.updated_at) - new Date(grade.created_at) >= 5000) && (
+                                            <span className="px-1.5 py-0.5 text-[9px] font-bold bg-amber-500/20 text-amber-200 rounded border border-amber-500/30">Remedial</span>
+                                        )}
+                                    </div>
                                     <div className="text-emerald-300 text-xs truncate">
                                         {student?.name} ({student?.nomor_induk || student?.nisn || '-'})
                                     </div>
@@ -706,17 +735,33 @@ export default function Assessment({ activeSubject, gradeWeight, student, grade,
                                 {/* Late Phase Excused */}
                                 {isLatePhase && isNewSubmission && (
                                     <div className="flex flex-col gap-2 pt-4 border-t border-gray-100">
-                                        <label className="flex items-start gap-3 cursor-pointer p-3 bg-indigo-50 border border-indigo-200 rounded-xl hover:bg-indigo-100 transition-colors">
-                                            <input type="checkbox"
-                                                checked={isExcused}
-                                                disabled={isLocked}
-                                                onChange={e => setIsExcused(e.target.checked)}
-                                                className="h-5 w-5 mt-0.5 text-indigo-600 border-indigo-300 rounded focus:ring-indigo-500" />
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-bold text-indigo-900">Santri memiliki Izin / Udzur</span>
-                                                <span className="text-xs text-indigo-700">Centang jika santri terlambat ujian karena alasan yang sah. Jika tidak dicentang (tledor), nilai maksimal dibatasi {kkm}.</span>
+                                        <h3 className="font-bold text-gray-900">Alasan Keterlambatan</h3>
+                                        <div className="flex flex-col sm:flex-row gap-3">
+                                            <div onClick={() => { if (!isLocked) setIsExcused(true); }}
+                                                className={`flex-1 p-4 rounded-xl border-2 cursor-pointer transition-all ${isLocked ? 'opacity-50 cursor-not-allowed' : ''} ${isExcused === true ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' : 'border-gray-200 hover:border-gray-300'}`}>
+                                                <div className="flex flex-col">
+                                                    <div className="flex items-center gap-3 mb-1">
+                                                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${isExcused === true ? 'border-indigo-600' : 'border-gray-400'}`}>
+                                                            {isExcused === true && <div className="w-3 h-3 bg-indigo-600 rounded-full" />}
+                                                        </div>
+                                                        <span className="font-bold text-gray-800">Izin / Sakit</span>
+                                                    </div>
+                                                    <span className="text-xs text-gray-500 ml-8">Mendapatkan jatah nilai penuh (Maks 100).</span>
+                                                </div>
                                             </div>
-                                        </label>
+                                            <div onClick={() => { if (!isLocked) setIsExcused(false); }}
+                                                className={`flex-1 p-4 rounded-xl border-2 cursor-pointer transition-all ${isLocked ? 'opacity-50 cursor-not-allowed' : ''} ${isExcused === false ? 'border-red-500 bg-red-50 ring-2 ring-red-200' : 'border-gray-200 hover:border-gray-300'}`}>
+                                                <div className="flex flex-col">
+                                                    <div className="flex items-center gap-3 mb-1">
+                                                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${isExcused === false ? 'border-red-600' : 'border-gray-400'}`}>
+                                                            {isExcused === false && <div className="w-3 h-3 bg-red-600 rounded-full" />}
+                                                        </div>
+                                                        <span className="font-bold text-gray-800">Tledor / Tanpa Udzur</span>
+                                                    </div>
+                                                    <span className="text-xs text-gray-500 ml-8">Nilai dibatasi maksimal KKM ({kkm}).</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
 
@@ -725,11 +770,10 @@ export default function Assessment({ activeSubject, gradeWeight, student, grade,
                                     <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
                                         <input type="checkbox" id="remedial"
                                             checked={isRemedial}
-                                            disabled={isLocked}
-                                            onChange={e => setIsRemedial(e.target.checked)}
+                                            disabled={true}
                                             className="h-4 w-4 text-indigo-600 border-gray-300 rounded disabled:opacity-50" />
-                                        <label htmlFor="remedial" className={`text-sm ${grade?.score >= kkm ? 'text-gray-400' : 'text-gray-700'}`}>
-                                            Mode Remedial (Maks {kkm})
+                                        <label htmlFor="remedial" className="text-sm font-semibold text-gray-700">
+                                            {isRemedial ? `Mode Remidi (Maks ${kkm})` : 'Mode Ujian Ulang (Maks 100)'}
                                         </label>
                                     </div>
                                 )}

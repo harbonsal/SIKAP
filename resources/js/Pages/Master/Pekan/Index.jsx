@@ -1,4 +1,4 @@
-import MainLayout from '@/Layouts/MainLayout';
+import MasterPendidikanLayout from '@/Layouts/MasterPendidikanLayout';
 import { Head, useForm, router } from '@inertiajs/react';
 import { Plus, Trash2, Edit2, Save, X, Search, Calendar } from 'lucide-react';
 import { useState } from 'react';
@@ -65,7 +65,7 @@ export default function Index({ pekans, filters }) {
     };
 
     return (
-        <MainLayout>
+        <MasterPendidikanLayout>
             <Head title="Data Pekan" />
 
             <div className="space-y-6">
@@ -252,6 +252,6 @@ export default function Index({ pekans, filters }) {
                     </div>
                 </div>
             )}
-        </MainLayout>
+        </MasterPendidikanLayout>
     );
 }

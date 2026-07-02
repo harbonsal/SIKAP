@@ -1,4 +1,4 @@
-import MainLayout from '@/Layouts/MainLayout';
+import MasterPendidikanLayout from '@/Layouts/MasterPendidikanLayout';
 import { Head, Link, useForm, router } from '@inertiajs/react';
 import { Percent, Save, Trash2, Plus, X } from 'lucide-react';
 import { useState, useMemo } from 'react';
@@ -159,7 +159,7 @@ export default function Index({ weights, academicYears, selectedYearId, activeYe
     };
 
     return (
-        <MainLayout>
+        <MasterPendidikanLayout>
             <Head title="Persen Nilai (Bobot)" />
 
             <div className="space-y-6">
@@ -289,6 +289,6 @@ export default function Index({ weights, academicYears, selectedYearId, activeYe
                     </div>
                 </div>
             )}
-        </MainLayout>
+        </MasterPendidikanLayout>
     );
 }

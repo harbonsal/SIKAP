@@ -198,7 +198,7 @@ class StudentGradeRecapController extends Controller
                     $score = $grade ? $grade->score : 0;
                     $final += $score * ($weight->weight / 100);
                 }
-                return round($final);
+                return $final;
             };
 
             // Target Semester Components (View)
@@ -226,8 +226,8 @@ class StudentGradeRecapController extends Controller
 
             if ($isSem2View && $sem1) {
                 $scoreSem1 = $calculateScore($gradeWeightsSem1, $sem1->id);
-                // Formula: (Sem 1 + (2 * Sem 2)) / 3
-                $finalRapor = round(($scoreSem1 + (2 * $scoreTarget)) / 3);
+                // Calculate with dynamic weights
+                $finalRapor = round(\App\Helpers\GradeHelper::calculateFinalGrade($scoreSem1, $scoreTarget), 1);
             }
 
             return [
@@ -235,8 +235,8 @@ class StudentGradeRecapController extends Controller
                 'subject_name' => $subject->mapel->name,
                 'kkm' => 70,
                 'components' => $components,
-                'final_score' => $scoreTarget, // Raw Target Score (Jumlah)
-                'sem1_score' => $isSem2View ? $scoreSem1 : null,
+                'final_score' => round($scoreTarget, 1), // Raw Target Score (Jumlah)
+                'sem1_score' => $isSem2View ? round($scoreSem1, 1) : null,
                 'rapor_score' => $finalRapor,
             ];
         });

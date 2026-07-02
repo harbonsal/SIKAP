@@ -1,5 +1,5 @@
 import MainLayout from '@/Layouts/MainLayout';
-import { Head, Link, useForm, router } from '@inertiajs/react';
+import { Head, Link, useForm, router, usePage } from '@inertiajs/react';
 import { Users, Search, Filter, Eye } from 'lucide-react';
 import { useState } from 'react';
 
@@ -24,9 +24,22 @@ export default function Index({ activeClasses, totalStudents, activeYearId, filt
         }, { preserveState: true });
     };
 
+    const { auth } = usePage().props;
+
     return (
         <MainLayout>
             <Head title="Anggota Kelas" />
+
+            <div className="flex border-b border-border mb-6 overflow-x-auto">
+                <Link href={route('students.index')} className={`px-4 py-3 border-b-2 whitespace-nowrap ${route().current('students.*') ? 'border-primary text-primary font-medium' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+                    Cari & Biodata Santri
+                </Link>
+                {auth.user?.permissions?.includes('view_class_members') && (
+                    <Link href={route('class-members.index')} className={`px-4 py-3 border-b-2 whitespace-nowrap ${route().current('class-members.*') ? 'border-primary text-primary font-medium' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+                        Anggota Kelas
+                    </Link>
+                )}
+            </div>
 
             <div className="space-y-6">
                 <div className="flex items-center justify-between">

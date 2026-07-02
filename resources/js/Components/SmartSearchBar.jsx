@@ -31,12 +31,12 @@ export default function SmartSearchBar() {
     useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 50); }, [open]);
     useEffect(() => { if (!open) { setQuery(''); setResult(null); } }, [open]);
 
-    // Debounced search
-    useEffect(() => {
-        if (query.length < 2) { setResult(null); return; }
-        const t = setTimeout(() => doSearch(query), 600);
-        return () => clearTimeout(t);
-    }, [query]);
+    // Hapus debounce otomatis agar tidak memicu pencarian sebelum selesai mengetik
+    // useEffect(() => {
+    //     if (query.length < 2) { setResult(null); return; }
+    //     const t = setTimeout(() => doSearch(query), 600);
+    //     return () => clearTimeout(t);
+    // }, [query]);
 
     const doSearch = async (q) => {
         setLoading(true);
@@ -85,7 +85,15 @@ export default function SmartSearchBar() {
                         <Input
                             ref={inputRef}
                             value={query}
-                            onChange={e => setQuery(e.target.value)}
+                            onChange={e => {
+                                setQuery(e.target.value);
+                                if (e.target.value.length < 2) setResult(null);
+                            }}
+                            onKeyDown={e => {
+                                if (e.key === 'Enter' && query.length >= 2) {
+                                    doSearch(query);
+                                }
+                            }}
                             placeholder="Cari santri, nilai, hafalan, kelas, guru..."
                             className="border-0 focus-visible:ring-0 text-base px-0"
                         />
@@ -103,7 +111,7 @@ export default function SmartSearchBar() {
                         {!query && !result && (
                             <div className="py-16 text-center text-muted-foreground text-sm">
                                 <Search className="h-10 w-10 mx-auto mb-3 opacity-20" />
-                                <p>Ketik untuk mulai mencari</p>
+                                <p>Ketik kata kunci lalu tekan <strong>Enter</strong></p>
                             </div>
                         )}
 

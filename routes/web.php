@@ -22,6 +22,34 @@ Route::get('/run-migrations-tahfidz', function () {
         return "<h1>Gagal!</h1><pre>" . $e->getMessage() . "</pre>";
     }
 });
+
+Route::get('/run-migrate-rfid', function () {
+    try {
+        $exitCode = Artisan::call('migrate', ['--force' => true]);
+        $output = Artisan::output();
+        return "<h1>Status Migrasi: " . ($exitCode === 0 ? "Sukses" : "Gagal") . "</h1>" .
+            "<pre style='background:#111;color:#0f0;padding:10px;'>" . htmlspecialchars($output) . "</pre>" .
+            "<a href='/rfid/scan'>Kembali ke Scanner</a>";
+    } catch (\Exception $e) {
+        return "<h1>Gagal!</h1><pre>" . $e->getMessage() . "</pre>";
+    }
+});
+
+// --- CPANEL SETUP ROUTE ---
+Route::get('/setup-database', function () {
+    try {
+        set_time_limit(300);
+        // Jalankan migrate:fresh agar bersih (jika belum ada data) dan jalankan seeder bawaan
+        $exitCode = Artisan::call('migrate:fresh', ['--seed' => true, '--force' => true]);
+        
+        $output = Artisan::output();
+        return "<h1>Setup Database cPanel: " . ($exitCode === 0 ? "Sukses" : "Selesai dengan peringatan") . "</h1>" .
+            "<pre style='background:#111;color:#0f0;padding:10px;'>" . htmlspecialchars($output) . "</pre>" .
+            "<a href='/'>Buka Aplikasi</a>";
+    } catch (\Exception $e) {
+        return "<h1>Gagal!</h1><pre>" . $e->getMessage() . "</pre>";
+    }
+});
 // -------------------------------
 Route::get('/', function () {
     return redirect()->route('login');
@@ -241,9 +269,12 @@ Route::middleware('auth')->group(function () {
     Route::post('students/import-update', [App\Http\Controllers\StudentController::class, 'processImportUpdate'])->name('students.import.update');
     Route::get('students/export-update-template', [App\Http\Controllers\StudentController::class, 'exportUpdateTemplate'])->name('students.export-update-template');
     Route::get('students/my-profile', [App\Http\Controllers\StudentController::class, 'myProfile'])->name('students.my-profile');
+    Route::get('students/graduation', [App\Http\Controllers\StudentController::class, 'graduation'])->name('students.graduation');
+    Route::post('students/graduation', [App\Http\Controllers\StudentController::class, 'processGraduation'])->name('students.graduation.process');
     Route::resource('students', App\Http\Controllers\StudentController::class);
     Route::resource('active-classes', App\Http\Controllers\ActiveClassController::class);
     Route::resource('class-members', App\Http\Controllers\ClassMemberController::class);
+    Route::post('class-members/{class_member}/move', [App\Http\Controllers\ClassMemberController::class, 'move'])->name('class-members.move');
     Route::post('active-subjects/{activeClass}/copy', [App\Http\Controllers\ActiveSubjectController::class, 'copyFromClass'])->name('active-subjects.copy');
     Route::post('active-subjects/bulk-update', [App\Http\Controllers\ActiveSubjectController::class, 'bulkUpdate'])->name('active-subjects.bulk-update');
     Route::resource('active-subjects', App\Http\Controllers\ActiveSubjectController::class);
@@ -320,6 +351,7 @@ Route::middleware('auth')->group(function () {
     Route::get('search/active-kamars', [App\Http\Controllers\SearchActiveKamarController::class, 'index'])->name('search.active-kamars.index');
     Route::post('active-kamars/copy', [App\Http\Controllers\ActiveKamarController::class, 'copyFromYear'])->name('active-kamars.copy');
     Route::resource('active-kamars', App\Http\Controllers\ActiveKamarController::class);
+    Route::post('kamar-members/bulk', [App\Http\Controllers\KamarMemberController::class, 'bulkStore'])->name('kamar-members.bulk-store');
     Route::resource('kamar-members', App\Http\Controllers\KamarMemberController::class);
 
     // Journal & Attendance Routes
@@ -359,6 +391,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/assessments/import/template', [App\Http\Controllers\GradeImportController::class, 'downloadTemplate'])->name('assessments.import_template');
     Route::post('/assessments/import', [App\Http\Controllers\GradeImportController::class, 'store'])->name('assessments.import');
     Route::get('/assessments/{active_subject}/template', [App\Http\Controllers\AssessmentController::class, 'downloadTemplate'])->name('assessments.template');
+    Route::get('/assessments/{active_subject}/export', [App\Http\Controllers\AssessmentController::class, 'exportSubjectExcel'])->name('assessments.export');
     Route::post('/assessments/{active_subject}/import', [App\Http\Controllers\AssessmentController::class, 'importSubjectGrades'])->name('assessments.import_subject');
     Route::get('/assessments/{active_subject}', [App\Http\Controllers\AssessmentController::class, 'show'])->name('assessments.show');
     Route::post('/assessments/{active_subject}', [App\Http\Controllers\AssessmentController::class, 'store'])->name('assessments.store');
@@ -375,6 +408,13 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/reports/biodata', [App\Http\Controllers\ReportController::class, 'biodata'])->name('reports.biodata');
 
+    Route::get('users/export-template', [App\Http\Controllers\UserController::class, 'exportTemplate'])->name('users.export-template');
+    Route::get('users/import', [App\Http\Controllers\UserController::class, 'import'])->name('users.import');
+    Route::post('users/import', [App\Http\Controllers\UserController::class, 'processImport'])->name('users.import.process');
+
+    Route::get('users/export-rfid-template', [App\Http\Controllers\UserController::class, 'exportRfidTemplate'])->name('users.export-rfid-template');
+    Route::get('users/import-rfid', [App\Http\Controllers\UserController::class, 'importRfid'])->name('users.import-rfid');
+    Route::post('users/import-rfid', [App\Http\Controllers\UserController::class, 'processImportRfid'])->name('users.import-rfid.process');
     Route::delete('users/bulk-destroy', [App\Http\Controllers\UserController::class, 'bulkDestroy'])->name('users.bulk-destroy');
     Route::post('users/{user}/impersonate', [App\Http\Controllers\UserController::class, 'impersonate'])->name('users.impersonate');
     // Student Specific Routes
@@ -398,14 +438,16 @@ Route::middleware('auth')->group(function () {
     Route::post('/settings/school-info', [App\Http\Controllers\SchoolInfoController::class, 'update'])->name('settings.school-info.update');
 
     // Hidden Menu
-    Route::get('/settings/hidden-menu', [App\Http\Controllers\HiddenMenuController::class, 'index'])->name('settings.hidden-menu.index');
-
+    // removed hidden-menu
     // Schedule
     // Public Schedule View
     Route::get('/academic/schedules', [App\Http\Controllers\PublicScheduleController::class, 'index'])->name('academic.schedules.index');
 
     // Master Pendidikan
     Route::get('/settings/education/schedules', [App\Http\Controllers\ScheduleController::class, 'index'])->name('settings.education.schedules.index');
+    Route::get('/settings/education/plotting/setup-data', [App\Http\Controllers\Settings\Education\PlottingController::class, 'setupData'])->name('settings.education.plotting.setup-data');
+    Route::post('/settings/education/plotting/preview', [App\Http\Controllers\Settings\Education\PlottingController::class, 'preview'])->name('settings.education.plotting.preview');
+    Route::post('/settings/education/plotting/commit', [App\Http\Controllers\Settings\Education\PlottingController::class, 'commit'])->name('settings.education.plotting.commit');
     Route::post('/settings/education/schedules/update-school-info', [App\Http\Controllers\ScheduleController::class, 'updateSchoolInfo'])->name('settings.education.schedules.update-school-info');
     Route::post('/settings/education/schedules/copy-classes', [App\Http\Controllers\ScheduleController::class, 'copyClasses'])->name('settings.education.schedules.copy-classes');
     Route::post('/settings/education/schedules/copy-subjects', [App\Http\Controllers\ScheduleController::class, 'copySubjects'])->name('settings.education.schedules.copy-subjects');
@@ -549,6 +591,8 @@ Route::middleware('auth')->group(function () {
     // (lihat Route::post '/system/clear-cache' di bagian System Maintenance)
 
     // Pantauan Halaqoh Monitoring
+    Route::get('/tahfidz/dashboard', [App\Http\Controllers\TahfidzDashboardController::class, 'index'])->name('tahfidz.dashboard.index'); // Dashboard
+    Route::post('/tahfidz/dashboard/start-session', [App\Http\Controllers\TahfidzDashboardController::class, 'startSession'])->name('tahfidz.dashboard.start-session'); // Start Session
     Route::get('/tahfidz/monitoring', [App\Http\Controllers\TahfidzMonitoringController::class, 'index'])->name('tahfidz.monitoring.index'); // List/History
     Route::get('/tahfidz/monitoring/create', [App\Http\Controllers\TahfidzMonitoringController::class, 'create'])->name('tahfidz.monitoring.create'); // Form
     Route::post('/tahfidz/monitoring', [App\Http\Controllers\TahfidzMonitoringController::class, 'store'])->name('tahfidz.monitoring.store');
@@ -559,9 +603,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/tahfidz/achievements/{student}/data', [App\Http\Controllers\TahfidzAchievementController::class, 'getStudentData'])->name('tahfidz.achievements.data');
     Route::get('/tahfidz/achievements/{student}', [App\Http\Controllers\TahfidzAchievementController::class, 'show'])->name('tahfidz.achievements.show');
     Route::post('/tahfidz/achievements', [App\Http\Controllers\TahfidzAchievementController::class, 'store'])->name('tahfidz.achievements.store');
+    Route::post('/tahfidz/achievements/update-page', [App\Http\Controllers\TahfidzAchievementController::class, 'updatePageStatus'])->name('tahfidz.achievements.update-page');
+    Route::post('/tahfidz/achievements/record-mistake', [App\Http\Controllers\TahfidzAchievementController::class, 'recordMistake'])->name('tahfidz.achievements.record-mistake');
+
+    // Rapor Tahfidz
+    Route::get('/tahfidz/report/{student}', [App\Http\Controllers\TahfidzReportController::class, 'print'])->name('tahfidz.report.print');
 
     // Analisa Tahfidz
     Route::get('/tahfidz/analysis', [App\Http\Controllers\TahfidzAnalysisController::class, 'index'])->name('tahfidz.analysis.index');
+    Route::get('/tahfidz/analysis/trend/api', [App\Http\Controllers\TahfidzTrendController::class, 'apiList'])->name('tahfidz.analysis.trend.api');
+    Route::get('/tahfidz/analysis/trend/{student}', [App\Http\Controllers\TahfidzTrendController::class, 'show'])->name('tahfidz.analysis.trend.show');
 
     // Character Assessments
 
@@ -584,6 +635,10 @@ Route::middleware('auth')->group(function () {
     Route::post('settings/sync/akhlak/process', [App\Http\Controllers\CharacterSyncController::class, 'sync'])->name('settings.sync.akhlak.sync');
 
     // Permissions (Perizinan)
+    Route::get('permissions/monitor', [App\Http\Controllers\PermissionController::class, 'monitor'])->name('permissions.monitor');
+    Route::post('/permissions/student/{studentPermission}/manual', [App\Http\Controllers\PermissionController::class, 'manualUpdate'])->name('permissions.student.manual');
+    Route::put('/permissions/{permission}/time', [App\Http\Controllers\PermissionController::class, 'updateTime'])->name('permissions.updateTime');
+    Route::post('/permissions/bulk-destroy', [App\Http\Controllers\PermissionController::class, 'bulkDestroy'])->name('permissions.bulk-destroy');
     Route::resource('permissions', App\Http\Controllers\PermissionController::class);
     Route::get('permissions/kamar/{activeKamar}/students', [App\Http\Controllers\PermissionController::class, 'getStudents'])->name('permissions.students');
 
@@ -598,7 +653,10 @@ Route::middleware('auth')->group(function () {
 
     // RFID Handling
     Route::get('rfid/scan', [App\Http\Controllers\RfidController::class, 'index'])->name('rfid.scan');
+    Route::post('rfid/preview', [App\Http\Controllers\RfidController::class, 'preview'])->name('rfid.preview');
     Route::post('rfid/tap', [App\Http\Controllers\RfidController::class, 'tap'])->name('rfid.tap');
+    Route::post('rfid/update-note', [App\Http\Controllers\RfidController::class, 'updateNote'])->name('rfid.update-note');
+    Route::post('rfid/settings', [App\Http\Controllers\RfidController::class, 'saveSettings'])->name('rfid.settings');
 
 
 
@@ -935,7 +993,7 @@ Route::get('/setup-api-ortu', function (\Illuminate\Http\Request $request) {
     }
 
     try {
-        $count = \App\Models\User::whereHas('userLevel', fn($q) => $q->whereIn('name', ['Santri', 'Siswa']))->count();
+        $count = \App\Models\User::whereHas('userLevel', fn($q) => $q->whereIn('name', ['Santri']))->count();
         $results[] = "✅ Database OK — Total santri/siswa: {$count}";
     } catch (\Exception $e) {
         $results[] = "❌ DB error: " . $e->getMessage();
@@ -958,7 +1016,7 @@ Route::get('/reset-password-santri', function (\Illuminate\Http\Request $request
 
     // Halaman konfirmasi awal
     if ($request->query('confirm') !== 'yes') {
-        $total = \App\Models\User::whereHas('userLevel', fn($q) => $q->whereIn('name', ['Santri', 'Siswa', 'Siswa Khusus', 'Siswa Dengan Catatan']))
+        $total = \App\Models\User::whereHas('userLevel', fn($q) => $q->whereIn('name', ['Santri']))
             ->where('status', 'Aktif')->whereNotNull('nomor_induk')->where('nomor_induk', '!=', '')->count();
         return "
         <div style='font-family:sans-serif;padding:40px;max-width:600px;margin:auto'>
@@ -983,7 +1041,7 @@ Route::get('/reset-password-santri', function (\Illuminate\Http\Request $request
     $page    = max(1, (int) $request->query('page', 1));
     $done    = (int) $request->query('done', 0);
     $tok     = $request->query('token');
-    $roles   = ['Santri', 'Siswa', 'Siswa Khusus', 'Siswa Dengan Catatan'];
+    $roles   = ['Santri'];
 
     $users = \App\Models\User::whereHas('userLevel', fn($q) => $q->whereIn('name', $roles))
         ->where('status', 'Aktif')
@@ -1657,11 +1715,34 @@ Route::get('/system/rescue-permissions', function () {
     }
 });
 
-// PATCH UPDATE ROUTE (Auto-generated for cPanel for Ikhtabir Nafsi)
-Route::get('/update-patch-ikhtabir', function () {
+// PATCH UPDATE ROUTE (Run Database Migrations)
+Route::get('/run-system-migration', function () {
     try {
+        $output = "Fixing database tables...\n";
+        
+        // Add semester column directly if it doesn't exist
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('report_notes', 'semester')) {
+            \Illuminate\Support\Facades\Schema::table('report_notes', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->string('semester')->nullable()->after('type');
+            });
+            $output .= "Added 'semester' column to 'report_notes' table.\n";
+        } else {
+            $output .= "'semester' column already exists in 'report_notes'.\n";
+        }
+
+        // Fix ijazah_manual_grades table if malformed
+        if (\Illuminate\Support\Facades\Schema::hasTable('ijazah_manual_grades') && !\Illuminate\Support\Facades\Schema::hasColumn('ijazah_manual_grades', 'student_id')) {
+            \Illuminate\Support\Facades\Schema::table('ijazah_manual_grades', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->foreignId('student_id')->constrained('students')->onDelete('cascade');
+                $table->string('mapel_name');
+                $table->integer('score');
+                $table->unique(['student_id', 'mapel_name']);
+            });
+            $output .= "Fixed 'ijazah_manual_grades' table structure.\n";
+        }
+
         Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
-        $output = "Migration:\n" . Illuminate\Support\Facades\Artisan::output();
+        $output .= "\nMigration:\n" . Illuminate\Support\Facades\Artisan::output();
 
         Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'IkhtabirNafsiTopicSeeder', '--force' => true]);
         $output .= "\nSeeding:\n" . Illuminate\Support\Facades\Artisan::output();
@@ -1669,8 +1750,43 @@ Route::get('/update-patch-ikhtabir', function () {
         Illuminate\Support\Facades\Artisan::call('optimize:clear');
         $output .= "\nCache Cleared.\n";
 
-        return "<pre>Update Patch Success!\n\n$output</pre><br><a href='/teacher/ikhtabir-nafsi'>Kembali ke Tes</a>";
+        return "<pre>System Migration & Update Success!\n\n$output</pre><br><a href='/dashboard'>Kembali ke Dashboard</a>";
     } catch (\Exception $e) {
         return "<pre>Error:\n" . $e->getMessage() . "</pre>";
     }
 });
+
+// Dynamic PWA Manifest Route
+Route::get('/manifest.json', function () {
+    $schoolName = \App\Models\SchoolInfo::first()?->name ?? 'Lembaga Anda';
+    $appName = 'SIKAP ' . $schoolName;
+    $logoSetting = \App\Models\Setting::where('key', 'app_logo')->value('value');
+    $logoPath = $logoSetting ? asset('storage/' . $logoSetting) : '/images/logo.png';
+    
+    return response()->json([
+        'id' => 'sikap_pwa_' . \Illuminate\Support\Str::slug($schoolName),
+        'name' => $appName,
+        'short_name' => 'SIKAP',
+        'description' => 'Sistem Informasi Akademik Pesantren ' . $schoolName,
+        'theme_color' => '#ffffff',
+        'background_color' => '#ffffff',
+        'display' => 'standalone',
+        'scope' => '/',
+        'start_url' => '/',
+        'orientation' => 'portrait',
+        'icons' => [
+            [
+                'src' => $logoPath,
+                'sizes' => '192x192',
+                'type' => 'image/png',
+                'purpose' => 'any maskable'
+            ],
+            [
+                'src' => $logoPath,
+                'sizes' => '512x512',
+                'type' => 'image/png',
+                'purpose' => 'any maskable'
+            ]
+        ]
+    ]);
+})->name('pwa.manifest');

@@ -1,9 +1,9 @@
 import MainLayout from '@/Layouts/MainLayout';
 import { Head, Link, useForm, router, usePage } from '@inertiajs/react';
-import { ArrowLeft, UserPlus, Trash2, Search, Save, X } from 'lucide-react';
+import { ArrowLeft, UserPlus, Trash2, Search, Save, X, ArrowRightLeft } from 'lucide-react';
 import { useState } from 'react';
 
-export default function Show({ activeClass, members, availableStudents }) {
+export default function Show({ activeClass, members, availableStudents, allActiveClasses }) {
     const { auth } = usePage().props;
     // Check permissions (Admin always has access)
     const permissions = auth.user?.permissions || [];
@@ -18,18 +18,48 @@ export default function Show({ activeClass, members, availableStudents }) {
     const [selectedStudents, setSelectedStudents] = useState([]);
     const [searchAvailable, setSearchAvailable] = useState('');
 
+    const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+    const [memberToMove, setMemberToMove] = useState(null);
+    const [targetClassId, setTargetClassId] = useState('');
+
+    const [isProcessing, setIsProcessing] = useState(false);
+
     const handleRemove = (id) => {
         if (confirm('Apakah Anda yakin ingin mengeluarkan siswa ini dari kelas?')) {
             destroy(route('class-members.destroy', id));
         }
     };
 
-    const handleAddStudents = () => {
-        post(route('class-members.store'), {
-            data: {
-                active_class_id: activeClass.id,
-                student_ids: selectedStudents,
+    const handleOpenMoveModal = (member) => {
+        setMemberToMove(member);
+        setTargetClassId('');
+        setIsMoveModalOpen(true);
+    };
+
+    const handleMove = () => {
+        if (!targetClassId) {
+            alert('Pilih kelas tujuan terlebih dahulu!');
+            return;
+        }
+        router.post(route('class-members.move', memberToMove.id), {
+            target_class_id: targetClassId
+        }, {
+            onBefore: () => setIsProcessing(true),
+            onFinish: () => setIsProcessing(false),
+            onSuccess: () => {
+                setIsMoveModalOpen(false);
+                setMemberToMove(null);
             },
+        });
+    };
+
+    const handleAddStudents = () => {
+        router.post(route('class-members.store'), {
+            active_class_id: activeClass.id,
+            student_ids: selectedStudents,
+        }, {
+            onBefore: () => setIsProcessing(true),
+            onFinish: () => setIsProcessing(false),
             onSuccess: () => {
                 setIsAddModalOpen(false);
                 setSelectedStudents([]);
@@ -46,13 +76,24 @@ export default function Show({ activeClass, members, availableStudents }) {
     };
 
     const filteredAvailableStudents = availableStudents.filter(student =>
-        (student?.user?.name || '').toLowerCase().includes(searchAvailable.toLowerCase()) ||
-        (student?.user?.nomor_induk || '').includes(searchAvailable)
+        String(student?.user?.name || '').toLowerCase().includes(String(searchAvailable).toLowerCase()) ||
+        String(student?.user?.nomor_induk || '').includes(String(searchAvailable))
     );
 
     return (
         <MainLayout>
-            <Head title={`Anggota Kelas ${activeClass.kelas?.name} ${activeClass.kelas_paralel?.name ?? ''}`} />
+            <Head title={`Anggota Kelas ${activeClass.kelas?.name}`} />
+
+            <div className="flex border-b border-border mb-6 overflow-x-auto">
+                <Link href={route('students.index')} className={`px-4 py-3 border-b-2 whitespace-nowrap ${route().current('students.*') ? 'border-primary text-primary font-medium' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+                    Cari & Biodata Santri
+                </Link>
+                {auth.user?.permissions?.includes('view_class_members') && (
+                    <Link href={route('class-members.index')} className={`px-4 py-3 border-b-2 whitespace-nowrap ${route().current('class-members.*') ? 'border-primary text-primary font-medium' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+                        Anggota Kelas
+                    </Link>
+                )}
+            </div>
 
             <div className="space-y-6">
                 <div className="flex items-center justify-between">
@@ -92,7 +133,7 @@ export default function Show({ activeClass, members, availableStudents }) {
                                     <th className="px-6 py-3 font-medium">Nama Siswa</th>
                                     <th className="px-6 py-3 font-medium">NIS / NISN</th>
                                     <th className="px-6 py-3 font-medium">Kamar</th>
-                                    {canDelete && <th className="px-6 py-3 font-medium text-center w-32">Aksi</th>}
+                                    <th className="px-6 py-3 font-medium text-center w-32">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
@@ -112,13 +153,22 @@ export default function Show({ activeClass, members, availableStudents }) {
                                             </td>
                                             {canDelete && (
                                                 <td className="px-6 py-4 text-center">
-                                                    <button
-                                                        onClick={() => handleRemove(member.id)}
-                                                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background text-sm font-medium shadow-sm hover:bg-destructive hover:text-destructive-foreground"
-                                                        title="Keluarkan dari kelas"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </button>
+                                                    <div className="flex items-center justify-center gap-2">
+                                                        <button
+                                                            onClick={() => handleOpenMoveModal(member)}
+                                                            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background text-sm font-medium shadow-sm hover:bg-primary/10 hover:text-primary"
+                                                            title="Pindah Kelas"
+                                                        >
+                                                            <ArrowRightLeft className="h-4 w-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleRemove(member.id)}
+                                                            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background text-sm font-medium shadow-sm hover:bg-destructive hover:text-destructive-foreground"
+                                                            title="Keluarkan dari kelas (Tinggal Kelas)"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             )}
                                         </tr>
@@ -205,13 +255,67 @@ export default function Show({ activeClass, members, availableStudents }) {
                                 </button>
                                 <button
                                     onClick={handleAddStudents}
-                                    disabled={selectedStudents.length === 0 || processing}
+                                    disabled={selectedStudents.length === 0 || isProcessing}
                                     className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     <Save className="mr-2 h-4 w-4" />
                                     Simpan
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Move Class Modal */}
+            {isMoveModalOpen && memberToMove && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-lg bg-background rounded-xl shadow-lg flex flex-col">
+                        <div className="p-6 border-b flex items-center justify-between">
+                            <h3 className="text-xl font-semibold">Pindah Kelas</h3>
+                            <button onClick={() => setIsMoveModalOpen(false)} className="text-muted-foreground hover:text-foreground">
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="text-sm font-medium text-muted-foreground">Siswa</label>
+                                <div className="font-semibold text-lg">{memberToMove.student?.user?.name}</div>
+                            </div>
+                            
+                            <div>
+                                <label className="text-sm font-medium">Kelas Tujuan</label>
+                                <select 
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 mt-1 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                                    value={targetClassId}
+                                    onChange={(e) => setTargetClassId(e.target.value)}
+                                >
+                                    <option value="">-- Pilih Kelas Tujuan --</option>
+                                    {allActiveClasses?.map(c => (
+                                        <option key={c.id} value={c.id}>
+                                            {c.kelas?.name} {c.kelas_paralel?.name ?? ''} 
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="p-6 border-t bg-muted/10 flex justify-end gap-3">
+                            <button
+                                onClick={() => setIsMoveModalOpen(false)}
+                                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                onClick={handleMove}
+                                disabled={!targetClassId || isProcessing}
+                                className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50"
+                            >
+                                <Save className="mr-2 h-4 w-4" />
+                                Pindahkan
+                            </button>
                         </div>
                     </div>
                 </div>

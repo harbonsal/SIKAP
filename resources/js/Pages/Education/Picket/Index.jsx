@@ -1,16 +1,13 @@
 
 import React from 'react';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import AbsensiLayout from '@/Layouts/AbsensiLayout';
 import { Head } from '@inertiajs/react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { ClipboardCheck } from 'lucide-react';
 
 export default function Index({ auth, title }) {
     return (
-        <AuthenticatedLayout
-            user={auth.user}
-            header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">{title}</h2>}
-        >
+        <AbsensiLayout>
             <Head title={title} />
 
             <div className="py-12">
@@ -37,6 +34,6 @@ export default function Index({ auth, title }) {
                     </Card>
                 </div>
             </div>
-        </AuthenticatedLayout>
+        </AbsensiLayout>
     );
 }

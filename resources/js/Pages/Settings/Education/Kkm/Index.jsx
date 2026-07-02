@@ -1,4 +1,4 @@
-import MainLayout from '@/Layouts/MainLayout';
+import MasterPendidikanLayout from '@/Layouts/MasterPendidikanLayout';
 import { Head, useForm, router } from '@inertiajs/react';
 import { Save, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -82,7 +82,7 @@ export default function Index({ kkms, academicYears, mapels, kelases, classesSum
     };
 
     return (
-        <MainLayout>
+        <MasterPendidikanLayout>
             <Head title="KKM" />
 
             <div className="space-y-6">
@@ -273,6 +273,6 @@ export default function Index({ kkms, academicYears, mapels, kelases, classesSum
                     </Card>
                 )}
             </div>
-        </MainLayout>
+        </MasterPendidikanLayout>
     );
 }

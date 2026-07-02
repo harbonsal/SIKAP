@@ -66,22 +66,23 @@ class ClassMemberController extends Controller
 
         $members = ClassMember::where('active_class_id', $activeClass->id)
             ->with(['student.user', 'student.kamarMembers' => function ($q) use ($activeClass) {
-                // Determine active academic year. activeClass has academic_year_id.
-                // active_kamars also belongsTo active_academic_year (or similar).
-                // Let's assume ActiveKamar has academic_year_id or similar context.
-                // Use HasOne or filter?
-                // Actually, let's just load it and filter in frontend or better here.
-                // Assuming ActiveKamar has academic_year_id
                 $q->whereHas('activeKamar', function ($qk) use ($activeClass) {
                     $qk->where('academic_year_id', $activeClass->academic_year_id);
                 })->with('activeKamar.kamar');
             }])
             ->get()
-            ->sortBy('student.user.name')
+            ->sortBy(function ($member) {
+                return $member->student?->user?->name ?? '';
+            })
             ->values();
 
+        $members->each(function ($member) {
+            if ($member->student) {
+                $member->student->makeHidden(['kelas', 'kamar']);
+            }
+        });
+
         // Get students NOT in any class for this academic year
-        // This is a bit heavy, optimization might be needed for large datasets
         $activeYearId = $activeClass->academic_year_id;
 
         $assignedStudentIds = ClassMember::whereHas('activeClass', function ($q) use ($activeYearId) {
@@ -92,15 +93,27 @@ class ClassMemberController extends Controller
             ->whereHas('user', function ($q) {
                 $q->where('status', 'Aktif');
             })
-            ->whereNotIn('id', $assignedStudentIds)
+            ->whereNotIn('id', $assignedStudentIds->toArray())
             ->get()
-            ->sortBy('user.name')
+            ->sortBy(function ($student) {
+                return $student->user?->name ?? '';
+            })
+            ->values();
+
+        $availableStudents->each->makeHidden(['kelas', 'kamar']);
+
+        $allActiveClasses = ActiveClass::with(['kelas', 'kelasParalel'])
+            ->where('academic_year_id', $activeYearId)
+            ->where('id', '!=', $activeClass->id)
+            ->get()
+            ->sortBy(function($c) { return $c->kelas->name . ' ' . ($c->kelasParalel->name ?? ''); })
             ->values();
 
         return Inertia::render('Settings/Education/ClassMember/Show', [
             'activeClass' => $activeClass,
             'members' => $members,
             'availableStudents' => $availableStudents,
+            'allActiveClasses' => $allActiveClasses,
         ]);
     }
 
@@ -134,5 +147,18 @@ class ClassMemberController extends Controller
     {
         $classMember->delete();
         return redirect()->back()->with('success', 'Siswa berhasil dikeluarkan dari kelas.');
+    }
+
+    public function move(Request $request, ClassMember $classMember)
+    {
+        $request->validate([
+            'target_class_id' => 'required|exists:active_classes,id'
+        ]);
+
+        $classMember->update([
+            'active_class_id' => $request->target_class_id
+        ]);
+
+        return redirect()->back()->with('success', 'Siswa berhasil dipindahkan ke kelas baru.');
     }
 }

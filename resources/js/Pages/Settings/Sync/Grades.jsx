@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import MainLayout from '@/Layouts/MainLayout';
+import ToolsLayout from '@/Layouts/ToolsLayout';
 import { Head, useForm } from '@inertiajs/react'; // Correct import for Head
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
@@ -57,7 +57,7 @@ export default function GradeSync() {
     };
 
     return (
-        <MainLayout>
+        <ToolsLayout>
             <Head title="Sinkronisasi Nilai Lama" />
             <div className="space-y-6">
                 <div>
@@ -187,6 +187,6 @@ export default function GradeSync() {
                     </Card>
                 )}
             </div>
-        </MainLayout>
+        </ToolsLayout>
     );
 }

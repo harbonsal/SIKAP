@@ -9,13 +9,21 @@ use App\Models\StudentPermission;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class PermissionController extends Controller
 {
     public function index(Request $request)
     {
         $user = auth()->user()->load('userLevel');
-        $isAdmin = $user->userLevel && $user->userLevel->name === 'Administrator';
+        $userRole = $user->userLevel ? $user->userLevel->name : '';
+        $allowedRoles = ['Administrator', 'Sekertaris Divisi', 'Kepala Sekolah', 'Manager'];
+        
+        if (!in_array($userRole, $allowedRoles)) {
+            abort(403, 'Anda tidak memiliki hak akses untuk mengatur perizinan.');
+        }
+
+        $isAdmin = $userRole === 'Administrator';
 
         $academicYear = AcademicYear::where('is_active', true)->first();
 
@@ -44,11 +52,6 @@ class PermissionController extends Controller
 
         if ($request->active_kamar_id) {
             $permissionsQuery->where('active_kamar_id', $request->active_kamar_id);
-        } elseif (!$isAdmin) {
-            // If not admin and no specific filter, show only creator's or assigned kamar's permissions?
-            // Let's safe filter by Kamar managed by Musrif
-            $managedKamarIds = $kamars->pluck('id');
-            $permissionsQuery->whereIn('active_kamar_id', $managedKamarIds);
         }
 
         $permissions = $permissionsQuery->paginate(20)
@@ -71,14 +74,112 @@ class PermissionController extends Controller
         ]);
     }
 
-    public function create(Request $request)
+    public function monitor(Request $request)
     {
-        // Reuse Kamar logic or similar
-        // For 'Create', we need list of available Kamars and Students in them (ajax loaded?)
-        // Let's pass kamars first.
-
         $user = auth()->user()->load('userLevel');
         $isAdmin = $user->userLevel && $user->userLevel->name === 'Administrator';
+        $academicYear = AcademicYear::where('is_active', true)->first();
+
+        // Ambil data santri yang masih "Out" (di luar) atau "Returned" tapi "is_late = true" pada hari ini atau yang masih menggantung.
+        $now = Carbon::now();
+
+        $query = StudentPermission::with(['student.user', 'permissionGroup.activeKamar.kamar'])
+            ->whereHas('student.user', function($q) {
+                $q->where('status', 'Aktif');
+            });
+
+        // Filter: 
+        $today = Carbon::today();
+
+        $pendingPermissions = (clone $query)->where('status', 'Pending')
+            ->whereHas('permissionGroup', function($q) use ($today) {
+                $q->whereDate('start_time', '<=', Carbon::now())
+                  ->whereDate('end_time', '>=', $today);
+            })
+            ->get();
+
+        $activePermissions = (clone $query)->where('status', 'Out')->latest('exit_at')->get();
+        
+        $returnedPermissions = (clone $query)->where('status', 'Returned')
+            ->whereDate('return_at', $today)
+            ->latest('return_at')
+            ->get();
+
+        $lateReturns = $returnedPermissions->where('is_late', true)->values();
+
+        $mapPermission = function ($p) {
+            return [
+                'id' => $p->id,
+                'student_name' => $p->student->name,
+                'kamar' => $p->permissionGroup->activeKamar->kamar->name,
+                'group_name' => $p->permissionGroup->name,
+                'exit_at' => $p->exit_at ? $p->exit_at->format('H:i') : '-',
+                'return_at' => $p->return_at ? $p->return_at->format('H:i') : '-',
+                'end_time' => $p->permissionGroup->end_time->format('H:i'),
+                'is_overdue' => Carbon::now()->greaterThan($p->permissionGroup->end_time),
+                'keterangan' => $p->keterangan,
+                'uang_saku' => $p->uang_saku,
+                'barang_titipan' => $p->barang_titipan,
+            ];
+        };
+
+        return Inertia::render('Care/Permission/Monitor', [
+            'pending_permissions' => $pendingPermissions->map($mapPermission),
+            'active_permissions' => $activePermissions->map($mapPermission),
+            'returned_permissions' => $returnedPermissions->map($mapPermission),
+            'late_returns' => $lateReturns->map($mapPermission),
+            'summary' => [
+                'total_uang_saku' => $returnedPermissions->sum('uang_saku'),
+            ]
+        ]);
+    }
+
+    public function manualUpdate(Request $request, StudentPermission $studentPermission)
+    {
+        $user = auth()->user()->load(['userLevel', 'additionalLevels']);
+        $allowedRoles = ['Administrator', 'Sekertaris Divisi', 'Kepala Sekolah', 'Manager', 'Musrif', 'Musyrif', 'Musrif Asrama'];
+        
+        if (!$user->hasRole($allowedRoles)) {
+            abort(403, 'Anda tidak memiliki hak akses untuk mengubah status secara manual.');
+        }
+
+        $action = $request->input('action');
+
+        if ($action === 'keluar' && $studentPermission->status === 'Pending') {
+            $studentPermission->status = 'Out';
+            $studentPermission->exit_at = Carbon::now();
+            $studentPermission->save();
+            return redirect()->back()->with('success', 'Status santri berhasil diubah menjadi KELUAR.');
+        }
+
+        if ($action === 'kembali' && $studentPermission->status === 'Out') {
+            $studentPermission->status = 'Returned';
+            $studentPermission->return_at = Carbon::now();
+            
+            // Cek apakah terlambat
+            $endTime = $studentPermission->permissionGroup->end_time;
+            if (Carbon::now()->greaterThan($endTime)) {
+                $studentPermission->is_late = true;
+            }
+            
+            $studentPermission->save();
+            return redirect()->back()->with('success', 'Status santri berhasil diubah menjadi KEMBALI.');
+        }
+
+        return redirect()->back()->withErrors(['error' => 'Tindakan tidak valid atau status tidak sesuai.']);
+    }
+
+    public function create(Request $request)
+    {
+        $user = auth()->user()->load('userLevel');
+        $userRole = $user->userLevel ? $user->userLevel->name : '';
+        $allowedRoles = ['Administrator', 'Sekertaris Divisi', 'Kepala Sekolah', 'Manager'];
+        
+        if (!in_array($userRole, $allowedRoles)) {
+            abort(403, 'Anda tidak memiliki hak akses untuk membuat perizinan.');
+        }
+
+        $isAdmin = $userRole === 'Administrator';
         $academicYear = AcademicYear::where('is_active', true)->first();
 
         $kamarQuery = ActiveKamar::where('academic_year_id', $academicYear->id)
@@ -115,52 +216,152 @@ class PermissionController extends Controller
 
     public function store(Request $request)
     {
+        $user = auth()->user()->load('userLevel');
+        $userRole = $user->userLevel ? $user->userLevel->name : '';
+        $allowedRoles = ['Administrator', 'Sekertaris Divisi', 'Kepala Sekolah', 'Manager'];
+        
+        if (!in_array($userRole, $allowedRoles)) {
+            abort(403, 'Anda tidak memiliki hak akses untuk menyimpan perizinan.');
+        }
+
         $request->validate([
             'name' => 'required|string|max:255',
-            'active_kamar_id' => 'required|exists:active_kamars,id',
+            'active_kamar_id' => 'required', // Can be 'all'
             'start_time' => 'required|date',
             'end_time' => 'required|date|after:start_time',
-            'student_ids' => 'array', // If empty, assume ALL? Let's make explicit 'select_all'
+            'student_ids' => 'array',
             'select_all' => 'boolean'
         ]);
 
         DB::beginTransaction();
         try {
-            $group = PermissionGroup::create([
-                'name' => $request->name,
-                'active_kamar_id' => $request->active_kamar_id,
-                'start_time' => $request->start_time,
-                'end_time' => $request->end_time,
-                'description' => $request->description,
-                'created_by' => auth()->id(),
-            ]);
+            $kamarIds = [];
+            $academicYear = AcademicYear::where('is_active', true)->first();
+            $user = auth()->user()->load('userLevel');
+            $isAdmin = $user->userLevel && $user->userLevel->name === 'Administrator';
 
-            $studentIds = $request->student_ids ?? [];
-
-            if ($request->select_all) {
-                // Fetch all students from kamar
-                $activeKamar = ActiveKamar::find($request->active_kamar_id);
-                $studentIds = $activeKamar->members()->pluck('student_id')->toArray();
+            if ($request->active_kamar_id === 'all') {
+                $kamarQuery = ActiveKamar::where('academic_year_id', $academicYear->id);
+                if (!$isAdmin) {
+                    $kamarQuery->where('musrif_id', $user->id);
+                }
+                $kamarIds = $kamarQuery->pluck('id')->toArray();
+            } else {
+                $kamarIds = [$request->active_kamar_id];
             }
 
-            foreach ($studentIds as $sId) {
-                StudentPermission::create([
-                    'permission_group_id' => $group->id,
-                    'student_id' => $sId,
-                    'status' => 'Pending'
+            foreach ($kamarIds as $kId) {
+                $group = PermissionGroup::create([
+                    'name' => $request->name,
+                    'active_kamar_id' => $kId,
+                    'start_time' => $request->start_time,
+                    'end_time' => $request->end_time,
+                    'description' => $request->description,
+                    'created_by' => auth()->id(),
                 ]);
+
+                $studentIds = [];
+                if ($request->select_all || $request->active_kamar_id === 'all') {
+                    $activeKamar = ActiveKamar::find($kId);
+                    $studentIds = $activeKamar->members()->pluck('student_id')->toArray();
+                } else {
+                    $studentIds = $request->student_ids ?? [];
+                }
+
+                foreach ($studentIds as $sId) {
+                    StudentPermission::create([
+                        'permission_group_id' => $group->id,
+                        'student_id' => $sId,
+                        'status' => 'Pending'
+                    ]);
+                }
             }
 
             DB::commit();
-            return redirect()->route('care.permissions.index')->with('success', 'Kelompok Perizinan berhasil dibuat.');
+            return redirect()->route('permissions.index')->with('success', 'Kelompok Perizinan berhasil dibuat.');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->withErrors(['error' => $e->getMessage()]);
         }
     }
 
+    public function destroy(PermissionGroup $permission)
+    {
+        $user = auth()->user()->load('userLevel');
+        $userRole = $user->userLevel ? $user->userLevel->name : '';
+        $allowedRoles = ['Administrator', 'Sekertaris Divisi', 'Kepala Sekolah', 'Manager'];
+        
+        if (!in_array($userRole, $allowedRoles)) {
+            abort(403, 'Anda tidak memiliki hak akses untuk menghapus perizinan.');
+        }
+
+        DB::beginTransaction();
+        try {
+            StudentPermission::where('permission_group_id', $permission->id)->delete();
+            $permission->delete();
+            DB::commit();
+            return redirect()->route('permissions.index')->with('success', 'Perizinan berhasil dihapus.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => 'Gagal menghapus perizinan: ' . $e->getMessage()]);
+        }
+    }
+
+    public function bulkDestroy(Request $request)
+    {
+        $user = auth()->user()->load('userLevel');
+        $userRole = $user->userLevel ? $user->userLevel->name : '';
+        $allowedRoles = ['Administrator', 'Sekertaris Divisi', 'Kepala Sekolah', 'Manager'];
+        
+        if (!in_array($userRole, $allowedRoles)) {
+            abort(403, 'Anda tidak memiliki hak akses untuk menghapus perizinan.');
+        }
+
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'exists:permission_groups,id'
+        ]);
+
+        DB::beginTransaction();
+        try {
+            StudentPermission::whereIn('permission_group_id', $request->ids)->delete();
+            PermissionGroup::whereIn('id', $request->ids)->delete();
+            DB::commit();
+            return redirect()->route('permissions.index')->with('success', count($request->ids) . ' Perizinan berhasil dihapus.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => 'Gagal menghapus perizinan: ' . $e->getMessage()]);
+        }
+    }
+
+    public function updateTime(Request $request, PermissionGroup $permission)
+    {
+        $user = auth()->user()->load('userLevel');
+        $userRole = $user->userLevel ? $user->userLevel->name : '';
+        $allowedRoles = ['Administrator', 'Sekertaris Divisi', 'Kepala Sekolah', 'Manager'];
+        
+        if (!in_array($userRole, $allowedRoles)) {
+            abort(403, 'Anda tidak memiliki hak akses untuk mengubah waktu perizinan.');
+        }
+
+        $request->validate([
+            'end_time' => 'required|date'
+        ]);
+
+        $permission->update(['end_time' => $request->end_time]);
+        return back()->with('success', 'Batas waktu kedatangan berhasil diperbarui.');
+    }
+
     public function show(PermissionGroup $permission)
     {
+        $user = auth()->user()->load('userLevel');
+        $userRole = $user->userLevel ? $user->userLevel->name : '';
+        $allowedRoles = ['Administrator', 'Sekertaris Divisi', 'Kepala Sekolah', 'Manager'];
+        
+        if (!in_array($userRole, $allowedRoles)) {
+            abort(403, 'Anda tidak memiliki hak akses untuk melihat detail perizinan ini.');
+        }
+
         $permission->load(['activeKamar.kamar', 'studentPermissions.student']);
 
         $students = $permission->studentPermissions->map(function ($sp) {
@@ -171,7 +372,9 @@ class PermissionController extends Controller
                 'exit_at' => $sp->exit_at ? $sp->exit_at->format('H:i') : '-',
                 'return_at' => $sp->return_at ? $sp->return_at->format('H:i') : '-',
                 'is_late' => $sp->is_late,
-                'keterangan' => $sp->keterangan
+                'keterangan' => $sp->keterangan,
+                'uang_saku' => $sp->uang_saku,
+                'barang_titipan' => $sp->barang_titipan
             ];
         });
 
@@ -181,6 +384,7 @@ class PermissionController extends Controller
                 'name' => $permission->name,
                 'kamar' => $permission->activeKamar->kamar->name,
                 'time_range' => $permission->start_time->format('d M H:i') . ' - ' . $permission->end_time->format('d M H:i'),
+                'raw_end_time' => $permission->end_time->format('Y-m-d\TH:i'),
                 'description' => $permission->description
             ],
             'students' => $students

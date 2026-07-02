@@ -16,14 +16,16 @@ import {
 import { User, CheckCircle, Search, ChevronLeft, ArrowRight, History as HistoryIcon, RefreshCw, Lock } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/Components/ui/alert';
 
-export default function StudentList({ activeSubject, gradeWeight, existingGrades, kkm = 75, lockStatus = 'open' }) {
+export default function StudentList({ activeSubject, gradeWeight, existingGrades, kkm = 75, lockStatus = 'open', isAdminOrManager = false }) {
     const allStudents = activeSubject?.active_class?.class_members?.map(member => member.student) || [];
     const [searchQuery, setSearchQuery] = useState('');
     const [confirmOpen, setConfirmOpen] = useState(false);
+    const [remedialConfirmOpen, setRemedialConfirmOpen] = useState(false);
+    const [remedialStudent, setRemedialStudent] = useState(null);
     const [targetUrl, setTargetUrl] = useState('');
 
-    const isLatePhase = lockStatus === 'late_phase';
-    const isStrictlyLocked = lockStatus === 'strict_lock';
+    const isLatePhase = lockStatus === 'late_phase' || lockStatus === 'strict_lock';
+    const isStrictlyLocked = lockStatus === 'strict_lock' && !isAdminOrManager;
     const actionLocked = isStrictlyLocked;
 
     // Filter students based on search AND late_phase logic
@@ -36,7 +38,7 @@ export default function StudentList({ activeSubject, gradeWeight, existingGrades
         if (!matchesSearch) return false;
         
         // Late Phase filter: only show if no grade or score < kkm
-        if (isLatePhase) {
+        if (isLatePhase && !isAdminOrManager) {
             const grade = existingGrades[student.id];
             if (!grade) return true;
             return parseFloat(grade.score) < kkm;
@@ -119,12 +121,18 @@ export default function StudentList({ activeSubject, gradeWeight, existingGrades
                                 <div
                                     key={student.id}
                                     onClick={() => {
-                                        setTargetUrl(route('tahfidz.assessments.assess', {
-                                            active_subject: activeSubject.id,
-                                            grade_weight: gradeWeight.id,
-                                            student_id: student.id
-                                        }));
-                                        setConfirmOpen(true);
+                                        if (actionLocked && !hasGrade) return; // Allow viewing if has grade, but wait, actionLocked prevents new tests
+                                        if (hasGrade) {
+                                            setRemedialStudent(student);
+                                            setRemedialConfirmOpen(true);
+                                        } else {
+                                            setTargetUrl(route('tahfidz.assessments.assess', {
+                                                active_subject: activeSubject.id,
+                                                grade_weight: gradeWeight.id,
+                                                student_id: student.id
+                                            }));
+                                            setConfirmOpen(true);
+                                        }
                                     }}
                                     className={`group flex items-center justify-between p-4 bg-white border rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer relative overflow-hidden ${hasGrade ? 'border-emerald-200 bg-emerald-50/30' : 'border-gray-200 hover:border-indigo-300'}`}
                                 >
@@ -136,9 +144,17 @@ export default function StudentList({ activeSubject, gradeWeight, existingGrades
                                             <User className="h-5 w-5 md:h-6 md:w-6" />
                                         </div>
                                         <div>
-                                            <h3 className="font-semibold text-gray-900 group-hover:text-indigo-700 transition-colors">
-                                                {student.name}
-                                            </h3>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="font-semibold text-gray-900 group-hover:text-indigo-700 transition-colors">
+                                                    {student.name}
+                                                </h3>
+                                                {hasGrade && grade.original_score !== null && (new Date(grade.updated_at) - new Date(grade.created_at) < 5000) && !grade.is_excused && (
+                                                    <span className="px-2 py-0.5 text-[10px] font-bold bg-red-100 text-red-600 rounded-full border border-red-200">Terlambat (Tledor)</span>
+                                                )}
+                                                {hasGrade && grade.original_score !== null && (new Date(grade.updated_at) - new Date(grade.created_at) >= 5000) && (
+                                                    <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 rounded-full border border-amber-200">Remedial</span>
+                                                )}
+                                            </div>
                                             <p className="text-sm text-gray-500 font-mono">
                                                 {student.nomor_induk || student.nisn || '-'}
                                             </p>
@@ -162,13 +178,9 @@ export default function StudentList({ activeSubject, gradeWeight, existingGrades
                                             <div
                                                 onClick={(e) => {
                                                     e.stopPropagation(); // Prevent triggering parent row click
-                                                    setTargetUrl(route('tahfidz.assessments.assess', {
-                                                        active_subject: activeSubject.id,
-                                                        grade_weight: gradeWeight.id,
-                                                        student_id: student.id,
-                                                        type: 'remedial'
-                                                    }));
-                                                    setConfirmOpen(true);
+                                                    if (actionLocked) return;
+                                                    setRemedialStudent(student);
+                                                    setRemedialConfirmOpen(true);
                                                 }}
                                                 className="p-2 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded-full transition-colors cursor-pointer"
                                                 title="Ambil Ulang (Mode Remedial)"
@@ -179,15 +191,13 @@ export default function StudentList({ activeSubject, gradeWeight, existingGrades
 
                                         {hasGrade ? (
                                             <div
-                                                onClick={() => {
-                                                    setTargetUrl(route('tahfidz.assessments.assess', {
-                                                        active_subject: activeSubject.id,
-                                                        grade_weight: gradeWeight.id,
-                                                        student_id: student.id
-                                                    }));
-                                                    setConfirmOpen(true);
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (actionLocked) return;
+                                                    setRemedialStudent(student);
+                                                    setRemedialConfirmOpen(true);
                                                 }}
-                                                className="flex flex-col items-end cursor-pointer"
+                                                className={`flex flex-col items-end ${actionLocked ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
                                             >
                                                 <div className={`flex items-center font-bold ${parseFloat(grade.score) < kkm ? 'text-red-600' : 'text-emerald-600'}`}>
                                                     <span className="text-xl mr-1.5">{parseFloat(parseFloat(grade.score).toFixed(1))}</span>
@@ -240,6 +250,45 @@ export default function StudentList({ activeSubject, gradeWeight, existingGrades
                                 <Button className="w-full">Lanjut Menilai</Button>
                             </Link>
                         </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog open={remedialConfirmOpen} onOpenChange={setRemedialConfirmOpen}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Pilih Jenis Pengulangan</DialogTitle>
+                            <DialogDescription>
+                                Apakah ini ujian ulang atau remidi?
+                                <ul className="mt-2 text-left list-disc list-inside text-xs text-gray-500">
+                                    <li><strong>Ujian Ulang:</strong> Nilai maksimal 100</li>
+                                    <li><strong>Remidi:</strong> Nilai dibatasi maksimal KKM ({kkm})</li>
+                                </ul>
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid grid-cols-2 gap-4 py-4">
+                            <Button variant="outline" className="h-auto py-6 flex flex-col items-center justify-center gap-2 border-indigo-200 hover:border-indigo-500 hover:bg-indigo-50 text-indigo-700" onClick={() => {
+                                window.location.href = route('tahfidz.assessments.assess', {
+                                    active_subject: activeSubject.id,
+                                    grade_weight: gradeWeight.id,
+                                    student_id: remedialStudent?.id,
+                                    type: 'retake'
+                                });
+                            }}>
+                                <span className="font-bold text-base">Ujian Ulang</span>
+                                <span className="text-xs opacity-80">(Maks 100)</span>
+                            </Button>
+                            <Button variant="outline" className="h-auto py-6 flex flex-col items-center justify-center gap-2 border-amber-200 hover:border-amber-500 hover:bg-amber-50 text-amber-700" onClick={() => {
+                                window.location.href = route('tahfidz.assessments.assess', {
+                                    active_subject: activeSubject.id,
+                                    grade_weight: gradeWeight.id,
+                                    student_id: remedialStudent?.id,
+                                    type: 'remedial'
+                                });
+                            }}>
+                                <span className="font-bold text-base">Remidi</span>
+                                <span className="text-xs opacity-80">(Maks {kkm})</span>
+                            </Button>
+                        </div>
                     </DialogContent>
                 </Dialog>
             </div>

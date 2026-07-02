@@ -97,6 +97,8 @@ class ClassLedgerController extends Controller
         // Fetch KKMs
         $kkms = \App\Models\Kkm::where('kelas_id', $activeClass->kelas_id)->get()->keyBy('mapel_id');
 
+        $gradeConfig = \App\Models\SchoolInfo::first()?->grade_config ?? [];
+
         return Inertia::render('Teacher/Assessment/Recap/Class/Ledger', [
             'activeClass' => $activeClass,
             'activeSubjects' => $activeSubjects,
@@ -105,6 +107,7 @@ class ClassLedgerController extends Controller
             'academicYear' => $activeYear,
             'semester' => $targetSemester,
             'kkms' => $kkms,
+            'gradeConfig' => $gradeConfig,
         ]);
     }
 }

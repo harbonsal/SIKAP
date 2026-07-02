@@ -325,8 +325,8 @@ class IjazahSettingsController extends Controller
                         $sem1Score = $this->calculateSemesterScore($student, $subj['mapel_id'], $sem1Id, $academicYearId);
                     }
                     
-                    // Formula Nilai Rapor Semester 2: (Semester 1 + 2 * Semester 2) / 3
-                    $finalGrade = round(($sem1Score + (2 * $sem2Score)) / 3);
+                    // Formula Nilai Rapor Akhir (Dinamis dari pengaturan sekolah)
+                    $finalGrade = round(\App\Helpers\GradeHelper::calculateFinalGrade($sem1Score, $sem2Score), 1);
                 }
             }
 
@@ -386,8 +386,8 @@ class IjazahSettingsController extends Controller
                             $cSem1Score = $this->calculateSemesterScore($candidate, $cSubj['mapel_id'], $sem1Id, $academicYearId);
                         }
                         
-                        // Formula Nilai Rapor Semester 2: (Semester 1 + 2 * Semester 2) / 3
-                        $cFinalGrade = round(($cSem1Score + (2 * $cSem2Score)) / 3);
+                        // Formula Nilai Rapor Akhir (Dinamis dari pengaturan sekolah)
+                        $cFinalGrade = round(\App\Helpers\GradeHelper::calculateFinalGrade($cSem1Score, $cSem2Score), 1);
                     }
                 }
 
@@ -503,8 +503,8 @@ class IjazahSettingsController extends Controller
             $computedFinal += $s * ($weight->weight / 100);
         }
         
-        // Return rounded score
-        return round($computedFinal);
+        // Return raw score
+        return $computedFinal;
     }
 
     private function getIjazahCandidates()

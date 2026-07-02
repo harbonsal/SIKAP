@@ -8,7 +8,7 @@ import LedgerTab from './LedgerTab';
 import RekapIjazahTab from './RekapIjazahTab';
 import { useState, useEffect } from 'react';
 
-export default function Show({ activeClass, activeSubjects = [], gradeWeights = [], studentRecaps = [], studentLedgers = [], ijazahSubjects = [], studentIjazahs = [], academicYear, semester, kkms = {} }) {
+export default function Show({ activeClass, activeSubjects = [], gradeWeights = [], studentRecaps = [], studentLedgers = [], subjectAverages = [], ledgerSubjectAverages = [], ijazahSubjects = [], studentIjazahs = [], academicYear, semester, kkms = {}, gradeConfig = {} }) {
     const [activeTab, setActiveTab] = useState('rekap');
 
     // Get tab from URL parameter on mount
@@ -60,7 +60,7 @@ export default function Show({ activeClass, activeSubjects = [], gradeWeights = 
                             <h2 className="text-3xl font-bold tracking-tight text-foreground">Rekap Nilai Kelas</h2>
                             <div className="flex items-center gap-2 mt-1">
                                 <p className="text-muted-foreground">
-                                    {activeClass.kelas.name} {activeClass.kelasParalel?.name} - {activeClass.teacher?.name}
+                                    {activeClass.kelas.name} {activeClass.kelas_paralel?.name || activeClass.kelasParalel?.name || ''} - {activeClass.teacher?.name}
                                 </p>
                                 <span className="text-muted-foreground">•</span>
                                 <select
@@ -85,11 +85,16 @@ export default function Show({ activeClass, activeSubjects = [], gradeWeights = 
                 <div className="bg-blue-50 text-blue-800 p-4 rounded-md border border-blue-200 text-sm hidden print:hidden md:block">
                     <p className="font-semibold mb-1">ℹ️ Informasi Perhitungan Rekap Nilai Kelas</p>
                     <p>
-                        Setiap nilai mata pelajaran didapat dari perkalian nilai ujian dengan persentase bobotnya (UH, UTS, UAS).<br/>
+                        Setiap nilai mata pelajaran didapat dari perkalian nilai ujian dengan persentase bobotnya yang telah diatur (seperti UH, UTS, UAS, dll).<br/>
                         <strong className="text-red-600">Nilai berwarna merah</strong> menunjukkan nilai di bawah KKM (Kriteria Ketuntasan Minimal).<br/>
                         <strong>Total:</strong> Hasil penjumlahan seluruh Nilai Akhir mata pelajaran siswa.<br/>
                         <strong>Rerata:</strong> Total dibagi rata dengan jumlah keseluruhan mata pelajaran wajib di kelas ini.<br/>
-                        {semester.name === 'Genap' && <span><strong>*Semester Genap:</strong> Rerata akhir menggabungkan nilai Ganjil menggunakan rumus: (Ganjil + (2 &times; Genap)) / 3.</span>}
+                        {semester.name === 'Genap' && (
+                            <span>
+                                <strong>*Semester Genap:</strong> Rerata akhir menggabungkan nilai Ganjil menggunakan rumus: 
+                                {' '} (Ganjil &times; {gradeConfig?.sem1_weight ?? 1} + Genap &times; {gradeConfig?.sem2_weight ?? 2}) / {(Number(gradeConfig?.sem1_weight ?? 1) + Number(gradeConfig?.sem2_weight ?? 2))}
+                            </span>
+                        )}
                     </p>
                 </div>
 
@@ -104,6 +109,7 @@ export default function Show({ activeClass, activeSubjects = [], gradeWeights = 
                         <RekapNilaiTab 
                             activeSubjects={activeSubjects}
                             studentRecaps={studentRecaps}
+                            subjectAverages={subjectAverages}
                             kkms={kkms}
                         />
                     </TabsContent>
@@ -113,6 +119,7 @@ export default function Show({ activeClass, activeSubjects = [], gradeWeights = 
                             activeSubjects={activeSubjects}
                             gradeWeights={gradeWeights}
                             studentLedgers={studentLedgers}
+                            ledgerSubjectAverages={ledgerSubjectAverages}
                             kkms={kkms}
                             semester={semester}
                         />

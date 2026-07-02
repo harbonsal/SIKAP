@@ -1,4 +1,4 @@
-import MainLayout from '@/Layouts/MainLayout';
+import MasterPendidikanLayout from '@/Layouts/MasterPendidikanLayout';
 import { Head, Link, useForm, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { Save, Plus, Pencil, Trash2, Copy, Calendar, Settings, Database } from 'lucide-react';
@@ -75,13 +75,10 @@ export default function Unified({
     };
 
     return (
-        <MainLayout>
+        <MasterPendidikanLayout>
             <Head title="Pengaturan Tahun Pelajaran" />
 
             <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-3xl font-bold tracking-tight text-foreground">Pengaturan Tahun Pelajaran</h2>
-                </div>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList className="grid w-full grid-cols-3">
@@ -351,6 +348,6 @@ export default function Unified({
                     </TabsContent>
                 </Tabs>
             </div>
-        </MainLayout>
+        </MasterPendidikanLayout>
     );
 }

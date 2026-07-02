@@ -37,7 +37,7 @@ class TahfidzMonitoringController extends Controller
     {
         $sessions = TahfidzHalaqohSession::all();
         // Active Musyrifs
-        $musyrifs = TahfidzMusyrif::with('student.user')->where('is_active', true)->get();
+        $musyrifs = TahfidzMusyrif::with(['student.user', 'user'])->where('is_active', true)->get();
 
         // Officers Schedule (For "pancingan" / suggestions)
         // We get officers for TODAY (Date)
@@ -104,7 +104,7 @@ class TahfidzMonitoringController extends Controller
 
     public function show(TahfidzMonitoring $monitoring)
     {
-        $monitoring->load(['user', 'session', 'attendances.musyrif.student', 'violations.musyrif.student']);
+        $monitoring->load(['user', 'session', 'attendances.musyrif.student', 'attendances.musyrif.user', 'violations.musyrif.student', 'violations.musyrif.user']);
 
         return Inertia::render('Tahfidz/Monitoring/Show', [
             'monitoring' => $monitoring

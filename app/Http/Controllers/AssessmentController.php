@@ -77,7 +77,7 @@ class AssessmentController extends Controller
         $activeSubjects = $query->join('active_classes', 'active_subjects.active_class_id', '=', 'active_classes.id')
             ->join('kelas', 'active_classes.kelas_id', '=', 'kelas.id')
             ->leftJoin('kelas_paralels', 'active_classes.kelas_paralel_id', '=', 'kelas_paralels.id')
-            ->select('active_subjects.*') // Select active_subjects columns to avoid ID conflicts
+            ->addSelect('active_subjects.*') // Select active_subjects columns to avoid ID conflicts
             ->orderBy('student_grades_max_updated_at', 'desc')
             ->orderBy('kelas.name', 'asc')
             ->orderBy('kelas_paralels.name', 'asc')
@@ -200,7 +200,7 @@ class AssessmentController extends Controller
         $subjects = $query->join('active_classes', 'active_subjects.active_class_id', '=', 'active_classes.id')
             ->join('kelas', 'active_classes.kelas_id', '=', 'kelas.id')
             ->leftJoin('kelas_paralels', 'active_classes.kelas_paralel_id', '=', 'kelas_paralels.id')
-            ->select('active_subjects.*')
+            ->addSelect('active_subjects.*')
             ->orderBy('student_grades_max_updated_at', 'desc')
             ->orderBy('kelas.name', 'asc')
             ->orderBy('kelas_paralels.name', 'asc')
@@ -338,7 +338,7 @@ class AssessmentController extends Controller
             ->orderBy('id')
             ->get();
 
-        $columns = ['No', 'NIS', 'Nama'];
+        $columns = ['No', 'NIS'];
         foreach ($gradeWeights as $weight) {
             $columns[] = $weight->name . ' [' . $weight->weight . '%]';
         }
@@ -347,8 +347,7 @@ class AssessmentController extends Controller
         foreach ($activeSubject->activeClass->classMembers as $index => $member) {
             $row = [
                 $index + 1,
-                $member->student->nomor_induk ?? $member->student->nis ?? '',
-                $member->student->name ?? '',
+                $member->student->user->nomor_induk ?? $member->student->nis ?? '',
             ];
 
             $studentGrades = $member->student->studentGrades->keyBy('grade_weight_id');
@@ -463,50 +462,32 @@ class AssessmentController extends Controller
             ->orderBy('id')
             ->get();
 
-        $filename = 'Template_Nilai_' . $activeSubject->mapel->name . '_' . $activeSubject->activeClass->kelas->name . '.csv';
+        $columns = ['No', 'NIS'];
+        foreach ($gradeWeights as $weight) {
+            $columns[] = $weight->name . ' [' . $weight->weight . '%]';
+        }
 
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"$filename\"",
-        ];
+        $rows = [];
+        foreach ($activeSubject->activeClass->classMembers as $index => $member) {
+            $row = [
+                $index + 1,
+                $member->student->user->nomor_induk ?? $member->student->nis ?? '',
+            ];
 
-        $callback = function () use ($activeSubject, $gradeWeights) {
-            $file = fopen('php://output', 'w');
-
-            // Header Row
-            $header = ['No', 'NIS', 'Nama'];
+            // Fill empty columns for grades since this is an input template
             foreach ($gradeWeights as $weight) {
-                // Determine display name (e.g. UH1 [10%]) for clarity, but for matching we might just use name
-                $header[] = $weight->name . " [" . $weight->weight . "%]";
+                $row[] = '';
             }
-            fputcsv($file, $header);
+            
+            $rows[] = $row;
+        }
 
-            // Data Rows
-            foreach ($activeSubject->activeClass->classMembers as $index => $member) {
-                $row = [
-                    $index + 1,
-                    $member->student->nis,
-                    $member->student->name,
-                ];
+        $kelas = $activeSubject->activeClass->kelas->name ?? '';
+        $paralel = $activeSubject->activeClass->kelasParalel->name ?? '';
+        $kelasLabel = trim($kelas . ' ' . $paralel);
+        $fileName = 'Template_Input_Nilai_' . ($activeSubject->mapel->name ?? 'mapel') . '_' . ($kelasLabel ?: 'kelas') . '_' . date('Ymd_His') . '.xlsx';
 
-                // Group grades by weight id for quick lookup
-                $studentGrades = $member->student->studentGrades->keyBy('grade_weight_id');
-
-                // Fill columns for grades
-                foreach ($gradeWeights as $weight) {
-                    if ($studentGrades->has($weight->id)) {
-                        $score = $studentGrades->get($weight->id)->score;
-                        $row[] = $score !== null ? (float)$score : '';
-                    } else {
-                        $row[] = '';
-                    }
-                }
-                fputcsv($file, $row);
-            }
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        return Excel::download(new ArrayExport($rows, $columns), $fileName);
     }
 
     public function importSubjectGrades(Request $request, $id)
@@ -535,15 +516,16 @@ class AssessmentController extends Controller
 
         $file = $request->file('file');
 
-        // Simple CSV Parsing
-        $data = array_map('str_getcsv', file($file->getPathname()));
+        // Parse using Excel Facade to support xlsx/csv seamlessly
+        $dataArray = \Maatwebsite\Excel\Facades\Excel::toArray(new \App\Imports\GenericImport, $file);
 
-        if (count($data) < 2) {
+        if (empty($dataArray) || count($dataArray[0]) < 2) {
             return back()->with('error', 'File kosong atau format salah.');
         }
 
-        $header = $data[0];
-        $rows = array_slice($data, 1);
+        $sheetData = $dataArray[0];
+        $header = $sheetData[0];
+        $rows = array_slice($sheetData, 1);
 
         // Map Header Columns to Weight IDs
         $colMap = []; // index => weight_id

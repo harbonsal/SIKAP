@@ -3,9 +3,10 @@ import MainLayout from '@/Layouts/MainLayout';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import Pagination from '@/Components/Pagination';
 import { useState, useEffect } from 'react';
-import { Search, Plus, Pencil, Trash2, Download, Upload, KeyRound } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, Download, Upload, KeyRound, FileSpreadsheet } from 'lucide-react';
 import { useDebounce } from 'use-debounce';
 import Checkbox from '@/Components/Checkbox';
+import Dropdown from '@/Components/Dropdown';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 import { Card, CardContent } from '@/Components/ui/card';
 
@@ -110,21 +111,75 @@ export default function Index({ users, filters, userLevels, total_count }) {
                 </div>
 
                 <div className="flex gap-2 justify-end mb-4">
-                    <a
-                        href={route('students.export-template-missing')}
-                        className="inline-flex items-center justify-center rounded-md border border-input bg-yellow-50 text-yellow-700 px-4 py-2 text-sm font-medium shadow-sm hover:bg-yellow-100"
-                        title="Unduh Template berisi User yang belum punya biodata"
-                    >
-                        <Download className="mr-2 h-4 w-4" />
-                        Unduh Template
-                    </a>
-                    <Link
-                        href={route('students.import')}
-                        className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground"
-                    >
-                        <Upload className="mr-2 h-4 w-4" />
-                        Impor / Unggah CSV
-                    </Link>
+                    <Dropdown>
+                        <Dropdown.Trigger>
+                            <button className="inline-flex items-center justify-center rounded-md border border-input bg-yellow-50 text-yellow-700 px-4 py-2 text-sm font-medium shadow-sm hover:bg-yellow-100">
+                                <Download className="mr-2 h-4 w-4" />
+                                Unduh Template
+                            </button>
+                        </Dropdown.Trigger>
+                        <Dropdown.Content align="right" width="64">
+                            <div className="px-4 py-2 text-xs text-muted-foreground font-semibold uppercase tracking-wider bg-muted/30">
+                                Pilihan Template
+                            </div>
+                            <a href={route('students.export-template-missing')} className="block w-full px-4 py-2.5 text-start text-sm leading-5 text-gray-700 transition duration-150 ease-in-out hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-300 dark:hover:bg-gray-800 dark:focus:bg-gray-800 flex items-center">
+                                <Download className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
+                                <div>
+                                    <p className="font-medium">Template Siswa</p>
+                                    <p className="text-xs text-muted-foreground">Berisi user yang belum melengkapi biodata</p>
+                                </div>
+                            </a>
+                            <a href={route('users.export-rfid-template')} className="block w-full px-4 py-2.5 text-start text-sm leading-5 text-gray-700 transition duration-150 ease-in-out hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-300 dark:hover:bg-gray-800 dark:focus:bg-gray-800 flex items-center border-t">
+                                <FileSpreadsheet className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
+                                <div>
+                                    <p className="font-medium">Template RFID (2 Kolom)</p>
+                                    <p className="text-xs text-muted-foreground">Untuk update nomor kartu RFID</p>
+                                </div>
+                            </a>
+                            <a href={route('users.export-template')} className="block w-full px-4 py-2.5 text-start text-sm leading-5 text-gray-700 transition duration-150 ease-in-out hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-300 dark:hover:bg-gray-800 dark:focus:bg-gray-800 flex items-center border-t">
+                                <FileSpreadsheet className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
+                                <div>
+                                    <p className="font-medium">Template User Umum</p>
+                                    <p className="text-xs text-muted-foreground">Untuk Guru, Karyawan, dan Umum</p>
+                                </div>
+                            </a>
+                        </Dropdown.Content>
+                    </Dropdown>
+
+                    <Dropdown>
+                        <Dropdown.Trigger>
+                            <button className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground">
+                                <Upload className="mr-2 h-4 w-4" />
+                                Impor / Unggah CSV
+                            </button>
+                        </Dropdown.Trigger>
+                        <Dropdown.Content align="right" width="64">
+                            <div className="px-4 py-2 text-xs text-muted-foreground font-semibold uppercase tracking-wider bg-muted/30">
+                                Tujuan Impor
+                            </div>
+                            <Dropdown.Link href={route('students.import')} className="flex items-center py-2.5">
+                                <Upload className="mr-2 h-4 w-4 text-muted-foreground" />
+                                <div>
+                                    <p className="font-medium">Impor Biodata Siswa</p>
+                                    <p className="text-xs text-muted-foreground">Untuk melengkapi profil santri/siswa</p>
+                                </div>
+                            </Dropdown.Link>
+                            <Dropdown.Link href={route('users.import-rfid')} className="flex items-center border-t py-2.5">
+                                <Upload className="mr-2 h-4 w-4 text-muted-foreground" />
+                                <div>
+                                    <p className="font-medium">Impor Data RFID</p>
+                                    <p className="text-xs text-muted-foreground">Update masal nomor kartu RFID</p>
+                                </div>
+                            </Dropdown.Link>
+                            <Dropdown.Link href={route('users.import')} className="flex items-center border-t py-2.5">
+                                <Upload className="mr-2 h-4 w-4 text-muted-foreground" />
+                                <div>
+                                    <p className="font-medium">Impor User Umum</p>
+                                    <p className="text-xs text-muted-foreground">Buat akun untuk Guru/Pegawai baru</p>
+                                </div>
+                            </Dropdown.Link>
+                        </Dropdown.Content>
+                    </Dropdown>
                 </div>
 
                 {/* Filters Section */}

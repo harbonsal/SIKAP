@@ -1,4 +1,4 @@
-import MainLayout from '@/Layouts/MainLayout';
+import PenilaianLayout from '@/Layouts/PenilaianLayout';
 import { Head, Link, useForm, router } from '@inertiajs/react';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import Pagination from '@/Components/Pagination';
@@ -39,7 +39,7 @@ export default function Index({ ujians, gradeWeights, examSemesters }) {
     };
 
     return (
-        <MainLayout>
+        <PenilaianLayout>
             <Head title="Jenis Ujian" />
 
             <div className="space-y-6">
@@ -154,6 +154,6 @@ export default function Index({ ujians, gradeWeights, examSemesters }) {
 
                 <Pagination links={ujians.links} />
             </div>
-        </MainLayout>
+        </PenilaianLayout>
     );
 }

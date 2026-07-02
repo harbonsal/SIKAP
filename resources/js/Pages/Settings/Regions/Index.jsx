@@ -1,4 +1,4 @@
-import MainLayout from '@/Layouts/MainLayout';
+import MasterSekolahLayout from '@/Layouts/MasterSekolahLayout';
 import { Head, useForm } from '@inertiajs/react';
 import { Database, Download, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 
@@ -13,7 +13,7 @@ export default function Index({ counts, flash }) {
     };
 
     return (
-        <MainLayout>
+        <MasterSekolahLayout>
             <Head title="Pengaturan Wilayah" />
 
             <div className="max-w-4xl mx-auto space-y-6">
@@ -110,6 +110,6 @@ export default function Index({ counts, flash }) {
                     </div>
                 </div>
             </div>
-        </MainLayout>
+        </MasterSekolahLayout>
     );
 }

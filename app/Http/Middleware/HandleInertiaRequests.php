@@ -118,7 +118,8 @@ class HandleInertiaRequests extends Middleware
                             'edit_assessments',
                             'view_journals',
                             'create_journals',
-                            'view_students'
+                            'view_students',
+                            'view_class_members'
                         ];
                         // Merge and ensure unique values
                         $permissions = array_values(array_unique(array_merge($permissions, $teacherPermissions)));
@@ -128,6 +129,13 @@ class HandleInertiaRequests extends Middleware
                         [$user->userLevel?->name ?? 'User'],
                         $user->additionalLevels->pluck('name')->toArray()
                     );
+
+                    // Force view_class_members for Guru and Wali Kelas unconditionally
+                    if (in_array('Guru', $roles) || in_array('Wali Kelas', $roles)) {
+                        $permissions = array_values(array_unique(array_merge($permissions, [
+                            'view_class_members'
+                        ])));
+                    }
 
                     if ($isCurrentHomeroomTeacher) {
                         $permissions = array_values(array_unique(array_merge($permissions, [
@@ -181,6 +189,9 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'success' => fn() => $request->session()->get('success'),
                 'error' => fn() => $request->session()->get('error'),
+                'warning' => fn() => $request->session()->get('warning'),
+                'info' => fn() => $request->session()->get('info'),
+                'errors_import' => fn() => $request->session()->get('errors_import'),
             ],
             'app_settings' => fn() => [
                 'app_name' => 'SIKAP ' . (\App\Models\SchoolInfo::first()?->name ?? 'Alwan'),

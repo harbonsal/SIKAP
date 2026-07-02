@@ -87,8 +87,8 @@ try {
     $app = require_once $laravelRoot.'/bootstrap/app.php';
     $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
-    $studentLevel = UserLevel::firstOrCreate(['name' => 'Siswa']);
-    $userLevelId = UserLevel::where('name', 'Santri')->value('id') ?? UserLevel::where('name', 'Siswa')->value('id') ?? $studentLevel->id;
+    $studentLevel = UserLevel::firstOrCreate(['name' => 'Santri'], ['category' => 'Santri']);
+    $userLevelId = $studentLevel->id;
 
     $successCount = 0;
     $errors = [];

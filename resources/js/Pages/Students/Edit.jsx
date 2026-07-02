@@ -255,7 +255,7 @@ export default function Edit({ student, filters }) {
             <div className="max-w-5xl mx-auto space-y-6">
                 <div className="flex items-center gap-4">
                     <Link
-                        href={route('students.index', filters)}
+                        href={route('students.show', student.id)}
                         className="inline-flex items-center justify-center rounded-md border border-input bg-background h-10 w-10 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground"
                     >
                         <ArrowLeft className="h-4 w-4" />
@@ -267,6 +267,20 @@ export default function Edit({ student, filters }) {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
+                    {Object.keys(errors).length > 0 && (
+                        <div className="bg-destructive/15 text-destructive text-sm font-medium p-4 rounded-lg flex items-start gap-3">
+                            <span className="flex-shrink-0 mt-0.5">⚠️</span>
+                            <div>
+                                <p className="font-semibold mb-1">Terdapat kesalahan yang harus diperbaiki:</p>
+                                <ul className="list-disc list-inside space-y-1">
+                                    {Object.entries(errors).map(([field, errorMsg], index) => (
+                                        <li key={index}>{errorMsg}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Akun Login Section (Read Only mostly) */}
                     <div className="rounded-xl border bg-card text-card-foreground shadow-sm p-6 space-y-6">
                         <h3 className="text-lg font-semibold border-b pb-2">Informasi Akun (Login)</h3>

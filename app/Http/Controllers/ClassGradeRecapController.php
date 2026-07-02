@@ -117,17 +117,18 @@ class ClassGradeRecapController extends Controller
                     $s = $g ? $g->score : 0;
                     $final += $s * ($w->weight / 100);
                 }
-                return round($final);
+                return $final;
             };
 
             foreach ($activeSubjects as $subject) {
 
                 $scoreTarget = $calc($gradeWeightsTarget, $targetSemester->id, $subject->id);
-                $finalScore = $scoreTarget;
 
                 if ($isSem2View && $sem1) {
                     $scoreSem1 = $calc($gradeWeightsSem1, $sem1->id, $subject->id);
-                    $finalScore = round(($scoreSem1 + (2 * $scoreTarget)) / 3);
+                    $finalScore = round(\App\Helpers\GradeHelper::calculateFinalGrade($scoreSem1, $scoreTarget), 1);
+                } else {
+                    $finalScore = round($scoreTarget, 1);
                 }
 
                 $subjectsData[$subject->id] = [
@@ -184,7 +185,7 @@ class ClassGradeRecapController extends Controller
                     $s = $g ? $g->score : 0;
                     $final += $s * ($w->weight / 100);
                 }
-                return round($final);
+                return $final;
             };
 
             foreach ($activeSubjects as $subject) {
@@ -204,12 +205,16 @@ class ClassGradeRecapController extends Controller
                     }
                 }
 
-                $finalSubjectScore = round($finalSubjectScore);
+                $finalSubjectScoreRaw = $finalSubjectScore;
+                $finalSubjectScore = round($finalSubjectScore, 1);
 
                 $r2Score = null;
                 if ($isSem2View && $sem1) {
                     $sem1Score = $calc($gradeWeightsSem1, $sem1->id, $subject->id);
-                    $r2Score = round(($sem1Score + (2 * $finalSubjectScore)) / 3);
+                    $r2Score = round(\App\Helpers\GradeHelper::calculateFinalGrade($sem1Score, $finalSubjectScoreRaw), 1);
+                    $totalScore += $r2Score;
+                } else {
+                    $totalScore += $finalSubjectScore;
                 }
 
                 $subjectsData[$subject->id] = [
@@ -217,8 +222,6 @@ class ClassGradeRecapController extends Controller
                     'final_score' => $finalSubjectScore,
                     'r2_score' => $r2Score,
                 ];
-
-                $totalScore += $finalSubjectScore;
             }
 
             $averageScore = $activeSubjects->count() > 0 ? $totalScore / $activeSubjects->count() : 0;
@@ -241,6 +244,70 @@ class ClassGradeRecapController extends Controller
             $item['rank'] = $index + 1;
             return $item;
         });
+
+        // Calculate Subject Averages for Recap
+        $subjectAverages = [];
+        foreach ($activeSubjects as $subject) {
+            $sum = 0;
+            $count = 0;
+            foreach ($studentRecaps as $recap) {
+                if (isset($recap['subjects'][$subject->id]['final_score'])) {
+                    $sum += $recap['subjects'][$subject->id]['final_score'];
+                    $count++;
+                }
+            }
+            $subjectAverages[$subject->id] = $count > 0 ? round($sum / $count, 1) : 0;
+        }
+
+        // Calculate Subject Averages for Ledger
+        $ledgerSubjectAverages = [];
+        foreach ($activeSubjects as $subject) {
+            $sumFinal = 0;
+            $sumR2 = 0;
+            $countFinal = 0;
+            $countR2 = 0;
+            
+            $weightSums = [];
+            $weightCounts = [];
+            foreach ($gradeWeights as $weight) {
+                $weightSums[$weight->id] = 0;
+                $weightCounts[$weight->id] = 0;
+            }
+            
+            foreach ($studentLedgers as $ledger) {
+                if (isset($ledger['subjects'][$subject->id])) {
+                    $subjData = $ledger['subjects'][$subject->id];
+                    
+                    foreach ($gradeWeights as $weight) {
+                        if (isset($subjData['weights'][$weight->id]) && $subjData['weights'][$weight->id] !== null) {
+                            $weightSums[$weight->id] += $subjData['weights'][$weight->id];
+                            $weightCounts[$weight->id]++;
+                        }
+                    }
+                    
+                    if (isset($subjData['final_score'])) {
+                        $sumFinal += $subjData['final_score'];
+                        $countFinal++;
+                    }
+                    
+                    if ($isSem2View && isset($subjData['r2_score']) && $subjData['r2_score'] !== null) {
+                        $sumR2 += $subjData['r2_score'];
+                        $countR2++;
+                    }
+                }
+            }
+            
+            $weightAverages = [];
+            foreach ($gradeWeights as $weight) {
+                $weightAverages[$weight->id] = $weightCounts[$weight->id] > 0 ? round($weightSums[$weight->id] / $weightCounts[$weight->id], 1) : null;
+            }
+            
+            $ledgerSubjectAverages[$subject->id] = [
+                'weights' => $weightAverages,
+                'final_score' => $countFinal > 0 ? round($sumFinal / $countFinal, 1) : 0,
+                'r2_score' => $isSem2View ? ($countR2 > 0 ? round($sumR2 / $countR2, 1) : null) : null,
+            ];
+        }
 
         // --- IJAZAH RECAP LOGIC ---
         // Fetch Ijazah Subjects
@@ -278,7 +345,7 @@ class ClassGradeRecapController extends Controller
                     $s = $g ? $g->score : 0;
                     $final += $s * ($w->weight / 100);
                 }
-                return round($final);
+                return $final;
             };
 
             foreach ($ijazahSubjects as $idx => $subj) {
@@ -303,9 +370,9 @@ class ClassGradeRecapController extends Controller
                             if ($sem1) {
                                 $sem1Score = $calc($gradeWeightsSem1, $sem1->id, $activeSubject->id);
                             }
-                            $finalGrade = round(($sem1Score + (2 * $sem2Score)) / 3);
+                            $finalGrade = round(\App\Helpers\GradeHelper::calculateFinalGrade($sem1Score, $sem2Score), 1);
                         } else {
-                            $finalGrade = $calc($gradeWeightsTarget, $targetSemester->id, $activeSubject->id);
+                            $finalGrade = round($calc($gradeWeightsTarget, $targetSemester->id, $activeSubject->id), 1);
                         }
                     }
                 }
@@ -341,17 +408,22 @@ class ClassGradeRecapController extends Controller
         });
         // --- END IJAZAH RECAP LOGIC ---
 
+        $gradeConfig = \App\Models\SchoolInfo::first()?->grade_config ?? [];
+
         return Inertia::render('Teacher/Assessment/Recap/Class/Show', [
             'activeClass' => $activeClass,
             'activeSubjects' => $activeSubjects,
             'gradeWeights' => $gradeWeights,
             'studentRecaps' => $studentRecaps,
             'studentLedgers' => $studentLedgers,
+            'subjectAverages' => $subjectAverages,
+            'ledgerSubjectAverages' => $ledgerSubjectAverages,
             'ijazahSubjects' => $ijazahSubjects,
             'studentIjazahs' => $studentIjazahs,
             'academicYear' => $activeYear,
             'semester' => $targetSemester,
             'kkms' => $kkms,
+            'gradeConfig' => $gradeConfig,
         ]);
     }
 }

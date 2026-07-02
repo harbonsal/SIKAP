@@ -299,7 +299,7 @@ class ApiGradeController extends Controller
 
             $finalRapor = $progressScore ?? 0;
             if ($isSem2 && $hasSem1Data) {
-                $finalRapor = ($sem1Score + (2 * ($progressScore ?? 0))) / 3;
+                $finalRapor = \App\Helpers\GradeHelper::calculateFinalGrade($sem1Score, ($progressScore ?? 0));
             }
 
             $displayScore = round($finalRapor, 1);

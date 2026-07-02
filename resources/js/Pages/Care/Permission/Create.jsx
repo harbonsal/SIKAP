@@ -8,6 +8,7 @@ export default function Create({ kamars }) {
     const { data, setData, post, processing, errors } = useForm({
         name: '',
         active_kamar_id: '',
+        permission_type: 'umum', // 'umum' or 'khusus'
         start_time: '',
         end_time: '',
         description: '',
@@ -18,15 +19,17 @@ export default function Create({ kamars }) {
     const [students, setStudents] = useState([]);
     const [loadingStudents, setLoadingStudents] = useState(false);
 
-    // Fetch students when Kamar changes
+    // Fetch students when Kamar changes (and if it's a specific kamar)
     useEffect(() => {
-        if (data.active_kamar_id) {
+        if (data.active_kamar_id && data.active_kamar_id !== 'all') {
             setLoadingStudents(true);
             axios.get(route('permissions.students', data.active_kamar_id))
                 .then(response => {
                     setStudents(response.data);
                     // Reset student selection when kamar changes
-                    setData(prev => ({ ...prev, student_ids: [], select_all: true }));
+                    if (data.permission_type === 'umum') {
+                        setData(prev => ({ ...prev, student_ids: [], select_all: true }));
+                    }
                 })
                 .catch(error => {
                     console.error("Error fetching students:", error);
@@ -37,7 +40,18 @@ export default function Create({ kamars }) {
         } else {
             setStudents([]);
         }
-    }, [data.active_kamar_id]);
+    }, [data.active_kamar_id, data.permission_type]);
+
+    // Handle Permission Type Change
+    const handleTypeChange = (type) => {
+        setData(prev => ({
+            ...prev,
+            permission_type: type,
+            select_all: type === 'umum',
+            // If switched to khusus, but 'all' kamar is selected, reset kamar
+            active_kamar_id: (type === 'khusus' && prev.active_kamar_id === 'all') ? '' : prev.active_kamar_id
+        }));
+    };
 
     const handleSelectAllChange = (e) => {
         const checked = e.target.checked;
@@ -105,6 +119,35 @@ export default function Create({ kamars }) {
                             {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
                         </div>
 
+                        {/* Jenis Izin */}
+                        <div className="space-y-3">
+                            <label className="text-sm font-medium leading-none">Jenis Izin</label>
+                            <div className="flex gap-4">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="permission_type"
+                                        value="umum"
+                                        checked={data.permission_type === 'umum'}
+                                        onChange={() => handleTypeChange('umum')}
+                                        className="text-primary focus:ring-primary h-4 w-4"
+                                    />
+                                    <span className="text-sm font-medium">Izin Umum (Semua Santri di Kamar)</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="permission_type"
+                                        value="khusus"
+                                        checked={data.permission_type === 'khusus'}
+                                        onChange={() => handleTypeChange('khusus')}
+                                        className="text-primary focus:ring-primary h-4 w-4"
+                                    />
+                                    <span className="text-sm font-medium">Izin Khusus (Pilih Santri Tertentu)</span>
+                                </label>
+                            </div>
+                        </div>
+
                         {/* Pilih Kamar */}
                         <div className="space-y-2">
                             <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
@@ -113,10 +156,20 @@ export default function Create({ kamars }) {
                             <select
                                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                 value={data.active_kamar_id}
-                                onChange={e => setData('active_kamar_id', e.target.value)}
+                                onChange={e => {
+                                    const val = e.target.value;
+                                    setData(prev => ({
+                                        ...prev,
+                                        active_kamar_id: val,
+                                        // Force 'umum' if 'all' is selected
+                                        permission_type: val === 'all' ? 'umum' : prev.permission_type,
+                                        select_all: val === 'all' || prev.permission_type === 'umum'
+                                    }));
+                                }}
                                 required
                             >
                                 <option value="">-- Pilih Kamar --</option>
+                                <option value="all" className="font-semibold text-primary">Semua Kamar (Libur Umum)</option>
                                 {kamars.map(kamar => (
                                     <option key={kamar.id} value={kamar.id}>{kamar.name}</option>
                                 ))}
@@ -160,8 +213,8 @@ export default function Create({ kamars }) {
                             />
                         </div>
 
-                        {/* Pilih Santri */}
-                        {data.active_kamar_id && (
+                        {/* Pilih Santri (Hanya untuk Izin Khusus dan bukan Semua Kamar) */}
+                        {data.permission_type === 'khusus' && data.active_kamar_id && data.active_kamar_id !== 'all' && (
                             <div className="space-y-4 border rounded-md p-4 bg-muted/20">
                                 <h3 className="font-medium text-sm">Pilih Santri</h3>
                                 {loadingStudents ? (
@@ -170,37 +223,22 @@ export default function Create({ kamars }) {
                                     </div>
                                 ) : students.length > 0 ? (
                                     <div className="space-y-3">
-                                        <div className="flex items-center space-x-2">
-                                            <input
-                                                type="checkbox"
-                                                id="select_all"
-                                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                                                checked={data.select_all}
-                                                onChange={handleSelectAllChange}
-                                            />
-                                            <label htmlFor="select_all" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                                Semua Anggota Kamar ({students.length} Santri)
-                                            </label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 max-h-60 overflow-y-auto">
+                                            {students.map(student => (
+                                                <div key={student.id} className="flex items-center space-x-2">
+                                                    <input
+                                                        type="checkbox"
+                                                        id={`student_${student.id}`}
+                                                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                                        checked={data.student_ids.includes(student.id)}
+                                                        onChange={() => handleStudentCheck(student.id)}
+                                                    />
+                                                    <label htmlFor={`student_${student.id}`} className="text-sm leading-none cursor-pointer">
+                                                        {student.name}
+                                                    </label>
+                                                </div>
+                                            ))}
                                         </div>
-
-                                        {!data.select_all && (
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 max-h-60 overflow-y-auto pl-6">
-                                                {students.map(student => (
-                                                    <div key={student.id} className="flex items-center space-x-2">
-                                                        <input
-                                                            type="checkbox"
-                                                            id={`student_${student.id}`}
-                                                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                                                            checked={data.student_ids.includes(student.id)}
-                                                            onChange={() => handleStudentCheck(student.id)}
-                                                        />
-                                                        <label htmlFor={`student_${student.id}`} className="text-sm leading-none cursor-pointer">
-                                                            {student.name}
-                                                        </label>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
                                     </div>
                                 ) : (
                                     <p className="text-sm text-yellow-600">Tidak ada santri di kamar ini.</p>

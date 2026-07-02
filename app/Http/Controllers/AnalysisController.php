@@ -10,6 +10,8 @@ class AnalysisController extends Controller
 {
     public function index(Request $request)
     {
+        ini_set('memory_limit', '512M');
+        ini_set('max_execution_time', '300');
         try {
         // Performance monitoring (development only)
         $startTime = microtime(true);
@@ -42,6 +44,9 @@ class AnalysisController extends Controller
             ? $performanceService->getCachedGradeWeights($academicYear->id, $activeSemester->name)
             : collect();
 
+        // Singkirkan 'Validasi' agar tidak masuk dalam perhitungan isFullyInputted
+        $gradeWeights = $gradeWeights->filter(fn($w) => $w->name !== 'Validasi')->values();
+
         // Store original unfiltered weights for allWeightComponents (before exam type filtering)
         $allGradeWeights = $gradeWeights;
 
@@ -68,6 +73,7 @@ class AnalysisController extends Controller
         $filterKelas = $request->input('kelas_id');
         $search = $request->input('search');
         $safetyStatus = $request->input('safety_status'); // 'aman', 'perlu_perhatian', 'tidak_aman'
+        $statusSantri = $request->input('status_santri', 'Aktif');
 
         $kelasFilterType = $request->input('kelas_filter_type', 'include');
         $includeSem1 = $request->has('include_sem1') ? filter_var($request->input('include_sem1'), FILTER_VALIDATE_BOOLEAN) : true;
@@ -92,7 +98,7 @@ class AnalysisController extends Controller
         }
 
         // Shared Base Query Scope
-        $filterScope = function ($q) use ($academicYear, $filterJenjang, $filterKelas, $kelasFilterType, $search) {
+        $filterScope = function ($q) use ($academicYear, $filterJenjang, $filterKelas, $kelasFilterType, $search, $statusSantri) {
             $q->whereHas('classMembers.activeClass', function ($kq) use ($academicYear, $filterJenjang, $filterKelas, $kelasFilterType) {
                 if ($academicYear) $kq->where('academic_year_id', $academicYear->id);
                 if ($filterKelas) {
@@ -121,6 +127,12 @@ class AnalysisController extends Controller
                             $uq->where('name', 'like', "%{$search}%")
                                 ->orWhere('nomor_induk', 'like', "%{$search}%");
                         });
+                });
+            }
+
+            if ($statusSantri && $statusSantri !== 'Semua') {
+                $q->whereHas('user', function ($uq) use ($statusSantri) {
+                    $uq->where('status', $statusSantri);
                 });
             }
         };
@@ -186,24 +198,65 @@ class AnalysisController extends Controller
                     $s = $g ? $g->score : 0;
                     $final += $s * ($w->weight / 100);
                 }
-                return round($final);
+                return $final;
             };
+
+            $failedSubjects = [];
 
             foreach ($activeSubjects as $subject) {
                 $kkm = $kkms[$activeClass->kelas_id][$subject->mapel_id]->kkm_value ?? 70;
                 
                 $scoreTarget = $calc($gradeWeights, $activeSemester ? $activeSemester->id : 0, $subject->id);
-                $finalScore = $scoreTarget;
 
                 if ($isSem2 && $sem1 && $includeSem1) {
                     $scoreSem1 = $calc($sem1Weights, $sem1->id, $subject->id);
-                    $finalScore = round(($scoreSem1 + (2 * $scoreTarget)) / 3);
+                    $finalScore = round(\App\Helpers\GradeHelper::calculateFinalGrade($scoreSem1, $scoreTarget), 1);
+                } else {
+                    $finalScore = round($scoreTarget, 1);
                 }
 
                 $totalScore += $finalScore;
 
+                // Count failures (Nilai Merah) based on ACTUAL inputs, not missing inputs.
+                $hasRedMarkComponent = false;
+                $inputCount = 0;
+                $redComponents = [];
+                $sg = $grades->where('active_subject_id', $subject->id)->where('semester_id', $activeSemester ? $activeSemester->id : 0);
+                
+                foreach ($gradeWeights as $w) {
+                    $g = $sg->where('grade_weight_id', $w->id)->first();
+                    if ($g && $g->score !== null) {
+                        $inputCount++;
+                        if ($g->score < $kkm) {
+                            $hasRedMarkComponent = true;
+                            $redComponents[] = ($w->name ?? 'Nilai') . ': ' . $g->score;
+                        }
+                    }
+                }
+                
+                $isFullyInputted = ($inputCount > 0 && $inputCount === $gradeWeights->count());
+
+                $isFailure = false;
                 if ($finalScore < $kkm) {
+                    // Hanya tandai gagal/merah jika seluruh nilai (termasuk UKK) sudah selesai diinput.
+                    // Jangan membuat kesimpulan gagal di pertengahan semester meskipun ada nilai komponen yang jelek.
+                    if ($isFullyInputted) {
+                        $isFailure = true;
+                    }
+                }
+
+                if ($isFailure) {
                     $failureCount++;
+                    $detailStr = $subject->mapel?->name ?? 'Unknown';
+                    if (count($redComponents) > 0) {
+                        $detailStr .= ' <span class="text-xs">(' . implode(', ', $redComponents) . ')</span>';
+                        if ($isFullyInputted) {
+                            $detailStr .= ' <span class="text-xs font-bold">[Rapor: ' . $finalScore . ']</span>';
+                        }
+                    } else {
+                        $detailStr .= ' <span class="text-xs font-bold">(Rapor: ' . $finalScore . ')</span>';
+                    }
+                    $failedSubjects[] = $detailStr;
                 }
             }
 
@@ -212,11 +265,12 @@ class AnalysisController extends Controller
             
             $studentData = [
                 'student_name' => $student->user->name ?? $student->nisn ?? 'Unknown',
-                'class_name' => ($activeClass->kelas->name ?? '') . ' ' . ($activeClass->kelasParalel->name ?? ''),
+                'class_name' => ($activeClass->kelas?->name ?? '') . ' ' . ($activeClass->kelasParalel?->name ?? ''),
                 'avg_score' => round($averageScore, 2),
                 'id' => $student->id,
                 'has_grades' => $grades->count() > 0,
-                'failure_count' => $failureCount
+                'failure_count' => $failureCount,
+                'failed_subjects' => implode(', ', $failedSubjects)
             ];
 
             if ($failureCount > 0) {
@@ -382,7 +436,7 @@ class AnalysisController extends Controller
                 // --- D. Calculate Final Rapor ---
                 $finalRapor = $sem2Score;
                 if ($isSem2 && $hasSem1Data && $includeSem1) {
-                    $finalRapor = ($sem1Score + (2 * $sem2Score)) / 3;
+                    $finalRapor = \App\Helpers\GradeHelper::calculateFinalGrade($sem1Score, $sem2Score);
                 }
 
                 // --- E. Status Check ---
@@ -409,16 +463,18 @@ class AnalysisController extends Controller
                 // Calculate Target Rapor Sem 2
                 $targetRaporSem2 = $kkm;
                 if ($isSem2 && $hasSem1Data && $includeSem1) {
-                    // Formula: (Sem 1 + 2 * Sem 2) / 3 >= KKM  =>  Sem 2 >= (3 * KKM - Sem 1) / 2
-                    $targetRaporSem2 = (3 * $kkm - $sem1Score) / 2;
+                    $weights = \App\Helpers\GradeHelper::getWeights();
+                    if ($weights['w2'] > 0) {
+                        $targetRaporSem2 = ($kkm * $weights['total'] - $sem1Score * $weights['w1']) / $weights['w2'];
+                    }
                 }
 
                 return [
                     'student_name' => $student->user->name ?? $student->nisn,
                     'nis' => $student->nisn ?? $student->user->nomor_induk ?? '-',
-                    'jenjang_name' => $activeClass->kelas->jenjang->name ?? '-',
-                    'class_name' => ($activeClass->kelas->name ?? '') . ' ' . ($activeClass->kelasParalel->name ?? ''),
-                    'subject_name' => $subject->mapel->name,
+                    'jenjang_name' => $activeClass->kelas?->jenjang?->name ?? '-',
+                    'class_name' => ($activeClass->kelas?->name ?? '') . ' ' . ($activeClass->kelasParalel?->name ?? ''),
+                    'subject_name' => $subject->mapel?->name,
                     'kkm' => $kkm,
                     'sem1_score' => $isSem2 ? ($hasSem1Data ? $sem1Score : '-') : null,
                     'target_rapor_sem2' => $isSem2 ? max(0, $targetRaporSem2) : null,
@@ -464,9 +520,9 @@ class AnalysisController extends Controller
                 return [
                     'student_name' => $student->user->name ?? $student->nisn,
                     'nis' => $student->nisn ?? $student->user->nomor_induk ?? '-',
-                    'class_name' => ($activeClass->kelas->name ?? '-') . ' ' . ($activeClass->kelasParalel->name ?? '-'),
-                    'jenjang_name' => $activeClass->kelas->jenjang->name ?? '-',
-                    'subject_name' => $subject->mapel->name,
+                    'class_name' => ($activeClass->kelas?->name ?? '-') . ' ' . ($activeClass->kelasParalel?->name ?? '-'),
+                    'jenjang_name' => $activeClass->kelas?->jenjang?->name ?? '-',
+                    'subject_name' => $subject->mapel?->name ?? '-',
                     'kkm' => $kkm,
                     'scores' => $scores,
                 ];
@@ -507,14 +563,14 @@ class AnalysisController extends Controller
                     $index = array_search($item, $customOrder);
                     return $index === false ? 999 : $index;
                 })->values(),
-            'filters' => array_merge($request->only(['jenjang_id', 'kelas_id', 'kelas_filter_type', 'search', 'safety_status', 'top_limit', 'bottom_limit', 'exam_types', 'exam_filter_type']), ['include_sem1' => $includeSem1, 'semester_id' => $activeSemester?->id]),
+            'filters' => array_merge($request->only(['jenjang_id', 'kelas_id', 'kelas_filter_type', 'search', 'safety_status', 'status_santri', 'top_limit', 'bottom_limit', 'exam_types', 'exam_filter_type']), ['include_sem1' => $includeSem1, 'semester_id' => $activeSemester?->id]),
             'jenjangs' => $allJenjangs,
             'kelases' => $allKelas,
             'allSemesters' => $allSemesters,
             'selectedSemesterId' => $activeSemester?->id,
             'activeSemesterName' => $activeSemester?->name,
         ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('AnalysisController error: ' . $e->getMessage() . ' at ' . $e->getFile() . ':' . $e->getLine());
             return back()->with('error', 'Terjadi kesalahan saat memuat halaman analisis: ' . $e->getMessage());
         }

@@ -22,6 +22,8 @@ import {
 import { Search, Plus, Trash2, ArrowLeft } from 'lucide-react';
 import Swal from 'sweetalert2';
 import Select from 'react-select'; // Using react-select for searchable dropdown
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/Components/ui/tabs";
+import { Textarea } from "@/Components/ui/textarea";
 
 export default function Index({ activeKamar, members, availableStudents, filters }) {
     const { auth } = usePage().props;
@@ -77,6 +79,11 @@ export default function Index({ activeKamar, members, availableStudents, filters
         student_id: '',
     });
 
+    const bulkForm = useForm({
+        active_kamar_id: activeKamar.id,
+        nis_list: '',
+    });
+
     const handleSearch = (e) => {
         e.preventDefault();
         router.get(route('kamar-members.index', { active_kamar: activeKamar.id }), { search }, { preserveState: true });
@@ -94,6 +101,21 @@ export default function Index({ activeKamar, members, availableStudents, filters
                     text: 'Santri berhasil ditambahkan',
                     showConfirmButton: false,
                     timer: 1500
+                });
+            },
+        });
+    };
+
+    const handleSubmitBulk = (e) => {
+        e.preventDefault();
+        bulkForm.post(route('kamar-members.bulk-store'), {
+            onSuccess: (page) => {
+                setIsAddOpen(false);
+                bulkForm.reset();
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Hasil Input Massal',
+                    text: page.props.flash?.success || 'Proses selesai',
                 });
             },
         });
@@ -227,31 +249,61 @@ export default function Index({ activeKamar, members, availableStudents, filters
                 {/* Add Member Modal */}
                 {isAdmin && (
                     <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-                        <DialogContent className="sm:max-w-[425px]">
+                        <DialogContent className="sm:max-w-[500px]">
                             <DialogHeader>
                                 <DialogTitle>Tambah Santri ke Kamar</DialogTitle>
                                 <DialogDescription>
-                                    Cari dan pilih santri untuk ditambahkan.
+                                    Tambahkan santri secara satuan atau sekaligus dengan memasukkan NIS.
                                 </DialogDescription>
                             </DialogHeader>
-                            <form onSubmit={handleSubmit} className="space-y-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Pilih Santri</label>
-                                    <Select
-                                        options={studentOptions}
-                                        onChange={(option) => setData('student_id', option.value)}
-                                        placeholder="Cari nama atau NIS..."
-                                        isClearable
-                                        isSearchable
-                                        className="text-sm"
-                                    />
-                                    {errors.student_id && <p className="text-sm text-destructive">{errors.student_id}</p>}
-                                </div>
+                            
+                            <Tabs defaultValue="single" className="w-full mt-2">
+                                <TabsList className="grid w-full grid-cols-2">
+                                    <TabsTrigger value="single">Satu Santri</TabsTrigger>
+                                    <TabsTrigger value="bulk">Banyak (NIS)</TabsTrigger>
+                                </TabsList>
+                                
+                                <TabsContent value="single" className="mt-4">
+                                    <form onSubmit={handleSubmit} className="space-y-4">
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Pilih Santri</label>
+                                            <Select
+                                                options={studentOptions}
+                                                onChange={(option) => setData('student_id', option?.value || '')}
+                                                placeholder="Cari nama atau NIS..."
+                                                isClearable
+                                                isSearchable
+                                                className="text-sm"
+                                            />
+                                            {errors.student_id && <p className="text-sm text-destructive">{errors.student_id}</p>}
+                                        </div>
 
-                                <DialogFooter>
-                                    <Button type="submit" disabled={processing}>Simpan</Button>
-                                </DialogFooter>
-                            </form>
+                                        <DialogFooter>
+                                            <Button type="submit" disabled={processing}>Simpan</Button>
+                                        </DialogFooter>
+                                    </form>
+                                </TabsContent>
+                                
+                                <TabsContent value="bulk" className="mt-4">
+                                    <form onSubmit={handleSubmitBulk} className="space-y-4">
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Daftar NIS (pisahkan dengan spasi, koma, atau baris baru)</label>
+                                            <Textarea
+                                                placeholder="Contoh: 12345 12346, 12347"
+                                                rows={5}
+                                                value={bulkForm.data.nis_list}
+                                                onChange={(e) => bulkForm.setData('nis_list', e.target.value)}
+                                                className="resize-y"
+                                            />
+                                            {bulkForm.errors.nis_list && <p className="text-sm text-destructive">{bulkForm.errors.nis_list}</p>}
+                                        </div>
+
+                                        <DialogFooter>
+                                            <Button type="submit" disabled={bulkForm.processing}>Proses Input Massal</Button>
+                                        </DialogFooter>
+                                    </form>
+                                </TabsContent>
+                            </Tabs>
                         </DialogContent>
                     </Dialog>
                 )}

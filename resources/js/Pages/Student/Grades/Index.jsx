@@ -1,10 +1,18 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
-import { AlertCircle, CheckCircle, XCircle, TrendingUp, AlertTriangle, BookOpen } from 'lucide-react';
+import { AlertCircle, CheckCircle, XCircle, TrendingUp, AlertTriangle, BookOpen, Info } from 'lucide-react';
 
-export default function Index({ auth, safetyTargets, student, className, semesterName, weightComponents, isSem2, error, tahfidzGrades, memorizationCount }) {
+export default function Index({ auth, safetyTargets, student, className, semesterName, weightComponents, isSem2, error, tahfidzGrades, memorizationCount, academicYears = [], semesters = [], filters = {} }) {
+    
+    const handleFilterChange = (key, value) => {
+        router.get(
+            route('students.grades.index'),
+            { ...filters, [key]: value },
+            { preserveState: true, preserveScroll: true }
+        );
+    };
 
     if (error) {
         return (
@@ -21,6 +29,29 @@ export default function Index({ auth, safetyTargets, student, className, semeste
                                     <p className="text-sm text-red-700">{error}</p>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Dropdown Filters when error */}
+                        <div className="mt-4 flex gap-4">
+                            <select
+                                className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                                value={filters.academic_year_id || ''}
+                                onChange={(e) => handleFilterChange('academic_year_id', e.target.value)}
+                            >
+                                {academicYears.map(ay => (
+                                    <option key={ay.id} value={ay.id}>{ay.name}</option>
+                                ))}
+                            </select>
+
+                            <select
+                                className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                                value={filters.semester_id || ''}
+                                onChange={(e) => handleFilterChange('semester_id', e.target.value)}
+                            >
+                                {semesters.map(s => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                ))}
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -74,6 +105,29 @@ export default function Index({ auth, safetyTargets, student, className, semeste
 
             <div className="py-12">
                 <div className="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+
+                    {/* Filters */}
+                    <div className="flex flex-col sm:flex-row justify-end gap-4 mb-4">
+                        <select
+                            className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm min-w-[200px]"
+                            value={filters.academic_year_id || ''}
+                            onChange={(e) => handleFilterChange('academic_year_id', e.target.value)}
+                        >
+                            {academicYears.map(ay => (
+                                <option key={ay.id} value={ay.id}>{ay.name}</option>
+                            ))}
+                        </select>
+
+                        <select
+                            className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm min-w-[150px]"
+                            value={filters.semester_id || ''}
+                            onChange={(e) => handleFilterChange('semester_id', e.target.value)}
+                        >
+                            {semesters.map(s => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                        </select>
+                    </div>
 
                     {/* Header Info */}
                     <Card className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white border-0 shadow-xl">
@@ -153,19 +207,54 @@ export default function Index({ auth, safetyTargets, student, className, semeste
 
                     {/* Content Table */}
                     <Card className="shadow-lg border-t-4 border-t-blue-600">
-                        <CardHeader className="flex flex-row items-center justify-between pb-2 border-b">
-                            <div>
-                                <CardTitle className="text-lg font-bold text-gray-800">
-                                    Rekapitulasi Nilai Akademik
-                                </CardTitle>
-                                <p className="text-xs text-gray-500 mt-1">
-                                    Pantau terus nilai dan targetmu agar tetap aman.
-                                </p>
+                        <CardHeader className="flex flex-col pb-4 border-b">
+                            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                                <div>
+                                    <CardTitle className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                        Rekapitulasi Nilai Akademik
+                                    </CardTitle>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Pantau terus nilai dan targetmu agar tetap aman.
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap gap-2 items-center">
+                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Aman</Badge>
+                                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Perlu Perhatian</Badge>
+                                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Belum Aman</Badge>
+                                </div>
                             </div>
-                            <div className="flex gap-2">
-                                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Aman</Badge>
-                                <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Perlu Perhatian</Badge>
-                                <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Belum Aman</Badge>
+                            
+                            {/* Panduan Penilaian */}
+                            <div className="mt-4 bg-blue-50/50 border border-blue-100 rounded-lg p-3 sm:p-4 text-sm text-blue-900">
+                                <div className="flex gap-2 items-start">
+                                    <Info className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                                    <div className="flex-1 space-y-2">
+                                        <p className="font-semibold text-blue-800">Panduan Penilaian Semester 2 (Kenaikan Kelas)</p>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="bg-white/60 p-2 rounded border border-blue-100">
+                                                <span className="font-medium">1. Nilai Murni Semester 2 (S2)</span>
+                                                <ul className="list-disc pl-4 mt-1 text-xs space-y-1 text-blue-800/80">
+                                                    {weightComponents && weightComponents.length > 0 ? (
+                                                        weightComponents.map((component, idx) => (
+                                                            <li key={idx}><strong>{component}</strong>: Diambil sesuai bobot sekolah</li>
+                                                        ))
+                                                    ) : (
+                                                        <li>Komponen penilaian mengikuti standar sekolah.</li>
+                                                    )}
+                                                </ul>
+                                            </div>
+                                            <div className="bg-white/60 p-2 rounded border border-blue-100 flex flex-col justify-center">
+                                                <span className="font-medium">2. Nilai Rapor Semester 2</span>
+                                                <p className="text-xs mt-1 text-blue-800/80">
+                                                    Rapor S2 dipengaruhi oleh nilai Rapor Semester 1 dengan rumus:
+                                                </p>
+                                                <div className="mt-2 bg-blue-100/50 p-2 rounded text-center text-xs font-semibold font-mono text-blue-900 border border-blue-200">
+                                                    (Rapor S1 &times; {gradeConfig?.sem1_weight ?? 1} + Murni S2 &times; {gradeConfig?.sem2_weight ?? 2}) &divide; {(Number(gradeConfig?.sem1_weight ?? 1) + Number(gradeConfig?.sem2_weight ?? 2))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </CardHeader>
                         <CardContent className="p-0">
@@ -193,8 +282,13 @@ export default function Index({ auth, safetyTargets, student, className, semeste
                                                 </th>
                                             ))}
                                             {isSem2 && (
-                                                <th className="px-3 py-3 text-center text-xs font-bold text-orange-600 uppercase tracking-wider bg-orange-50/50">
+                                                <th className="px-3 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider bg-gray-50/50">
                                                     SEM 2
+                                                </th>
+                                            )}
+                                            {isSem2 && (
+                                                <th className="px-3 py-3 text-center text-xs font-bold text-orange-600 uppercase tracking-wider bg-orange-50/50">
+                                                    RAPOR SEM 2
                                                 </th>
                                             )}
                                             <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">
@@ -238,6 +332,13 @@ export default function Index({ auth, safetyTargets, student, className, semeste
                                                         )}
                                                     </td>
                                                 ))}
+                                                {isSem2 && (
+                                                    <td className="px-3 py-3 whitespace-nowrap text-center bg-gray-50/30">
+                                                        <span className={`text-sm font-semibold ${getScoreColor(subject.sem2_score, subject.kkm)}`}>
+                                                            {formatScore(subject.sem2_score)}
+                                                        </span>
+                                                    </td>
+                                                )}
                                                 {isSem2 && (
                                                     <td className="px-3 py-3 whitespace-nowrap text-center bg-orange-50/30">
                                                         <span className="text-sm font-bold text-orange-700">

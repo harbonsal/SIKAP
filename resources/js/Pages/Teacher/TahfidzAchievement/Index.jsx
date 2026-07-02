@@ -34,7 +34,7 @@ export default function Index({ activeSubjects }) {
                                         <div className="mt-4 flex gap-2">
                                             {/* Button to input progress */}
                                             <button className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded hover:bg-emerald-700 w-full" onClick={() => alert('Fitur Input Progress sedang dikembangkan')}>
-                                                Input Hafalan
+                                                Pantauan Hafalan
                                             </button>
                                         </div>
                                     </CardContent>

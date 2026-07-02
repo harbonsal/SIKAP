@@ -42,7 +42,7 @@ export default function Import() {
                     </Link>
                     <div>
                         <h2 className="text-3xl font-bold tracking-tight text-foreground">Import Data Siswa</h2>
-                        <p className="text-muted-foreground">Upload file CSV untuk input atau update data siswa secara massal.</p>
+                        <p className="text-muted-foreground">Upload file Excel (.xlsx) untuk input atau update data siswa secara massal.</p>
                     </div>
                 </div>
 
@@ -91,7 +91,7 @@ export default function Import() {
                             <div className="text-sm">
                                 <p className="font-semibold mb-1">Panduan Import Biodata Baru:</p>
                                 <ul className="list-disc list-inside space-y-1">
-                                    <li>Format file <strong>.CSV</strong> (43 kolom).</li>
+                                    <li>Format file <strong>.xlsx (Excel)</strong> (43 kolom).</li>
                                     <li>Kolom: <strong>Nama, NIS, NISN, NIK, L/P, Tempat Lahir, Tgl Lahir, Alamat, ...</strong></li>
                                     <li>Baris pertama (Header) akan diabaikan.</li>
                                     <li>Jika NIS sudah ada di sistem, baris akan dilewati.</li>
@@ -138,7 +138,7 @@ export default function Import() {
                                     <li>Kolom pertama <strong>NIS</strong> wajib diisi — digunakan sebagai kunci pencarian.</li>
                                     <li>Kolom yang <strong>kosong</strong> tidak akan mengubah data yang sudah ada.</li>
                                     <li>Download template terlebih dahulu, isi kolom yang ingin diubah, lalu upload.</li>
-                                    <li>Format file <strong>.CSV</strong>.</li>
+                                    <li>Format file <strong>.xlsx (Excel)</strong>.</li>
                                 </ul>
                                 <p className="mt-2 font-semibold text-amber-900">
                                     ⚠️ Data yang diisi akan menimpa (overwrite) data lama.
@@ -152,10 +152,10 @@ export default function Import() {
                             <span>Download template</span>
                             <span className="mx-1">→</span>
                             <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-xs font-bold shrink-0">2</span>
-                            <span>Edit di Excel/Spreadsheet</span>
+                            <span>Edit di Excel</span>
                             <span className="mx-1">→</span>
                             <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-xs font-bold shrink-0">3</span>
-                            <span>Simpan sebagai CSV</span>
+                            <span>Simpan</span>
                             <span className="mx-1">→</span>
                             <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-xs font-bold shrink-0">4</span>
                             <span>Upload di sini</span>
@@ -196,7 +196,7 @@ function FileDropzone({ file, onChange, error }) {
     return (
         <div className="space-y-2">
             <label className="text-sm font-medium leading-none">
-                Pilih File CSV <span className="text-destructive">*</span>
+                Pilih File Excel <span className="text-destructive">*</span>
             </label>
             <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 border-gray-300 transition-colors">
                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
@@ -204,7 +204,7 @@ function FileDropzone({ file, onChange, error }) {
                     <p className="mb-1 text-sm text-gray-500">
                         <span className="font-semibold">Klik untuk upload</span> atau drag and drop
                     </p>
-                    <p className="text-xs text-gray-500">Format CSV (Max. 5MB)</p>
+                    <p className="text-xs text-gray-500">Format Excel / .xlsx (Max. 5MB)</p>
                     {file && (
                         <div className="mt-3 flex items-center gap-2 text-primary font-medium bg-primary/10 px-3 py-1 rounded-full text-sm">
                             <FileSpreadsheet className="h-4 w-4" />
@@ -215,7 +215,7 @@ function FileDropzone({ file, onChange, error }) {
                 <input
                     type="file"
                     className="hidden"
-                    accept=".csv"
+                    accept=".xlsx,.csv"
                     onChange={e => onChange(e.target.files[0])}
                 />
             </label>

@@ -56,7 +56,7 @@ export default function Create({ sessions, musyrifs, scheduledOfficers, currentD
         officerOptions.unshift({ value: currentUser.id, label: `${currentUser.name} (Anda)` });
     }
 
-    const musyrifOptions = musyrifs.map(m => ({ value: m.id, label: m.student.name }));
+    const musyrifOptions = musyrifs.map(m => ({ value: m.id, label: m.student ? m.student.name : (m.user ? m.user.name + ' (Ustadz)' : '-') }));
 
     const violationTypes = [
         { value: 'Terlambat', label: 'Terlambat' },
@@ -186,7 +186,7 @@ export default function Create({ sessions, musyrifs, scheduledOfficers, currentD
                                                         checked={isChecked}
                                                         onChange={(e) => handleAttendanceChange(m.id, e.target.checked)}
                                                     />
-                                                    <span className="text-sm text-gray-700 uppercase font-medium">{m.student.name}</span>
+                                                    <span className="text-sm text-gray-700 uppercase font-medium">{m.student ? m.student.name : (m.user ? m.user.name + ' (Ustadz)' : '-')}</span>
                                                 </label>
                                             );
                                         })}

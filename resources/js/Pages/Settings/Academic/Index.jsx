@@ -1,4 +1,4 @@
-import MainLayout from '@/Layouts/MainLayout';
+import MasterPendidikanLayout from '@/Layouts/MasterPendidikanLayout';
 import { Head, useForm } from '@inertiajs/react';
 import { Save } from 'lucide-react';
 
@@ -14,14 +14,10 @@ export default function Index({ academicYears, semesters, activeAcademicYearId, 
     };
 
     return (
-        <MainLayout>
+        <MasterPendidikanLayout>
             <Head title="Pengaturan TP & Semester Aktif" />
 
             <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-3xl font-bold tracking-tight text-foreground">Pengaturan Sistem (Global)</h2>
-                </div>
-
                 <div className="rounded-xl border bg-card text-card-foreground shadow-sm max-w-2xl">
                     <div className="border-b bg-amber-50/50 p-4">
                         <p className="text-sm text-amber-600 font-medium">
@@ -93,6 +89,6 @@ export default function Index({ academicYears, semesters, activeAcademicYearId, 
                     </div>
                 </div>
             </div>
-        </MainLayout>
+        </MasterPendidikanLayout>
     );
 }

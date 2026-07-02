@@ -76,13 +76,19 @@ const navItems = [
         icon: Book,
         permission: 'menu_tahfidz', // Controls entire sidebar group visibility
         children: [
-            // { title: "Menu Tahfidz", href: "tahfidz.dashboard", permission: 'menu_tahfidz', hideIfRoles: ['Guru', 'Wali Kelas'] }, // REMOVED (Broken Link)
+            { title: "Dashboard Musyrif", href: "tahfidz.dashboard.index", permission: 'view_tahfidz_halaqoh', activeRoutes: ['tahfidz.dashboard.index', 'tahfidz.achievements.index', 'tahfidz.achievements.show', 'tahfidz.report.print'] },
             { title: "Penilaian Tahfidz", href: "tahfidz.assessments.index", permission: 'menu_tahfidz_assessment' }, // Controlled Permission
             { title: "Rekap Nilai", href: "tahfidz.recap.index", permission: 'menu_tahfidz_recap' }, // Controlled Permission
-            { title: "Pantau Skrining", href: "tahfidz.pantau-skrining", roles: ['Administrator', 'Manager Tahfidz'] },
-            { title: "Capaian Hafalan", href: "tahfidz.achievements.index", permission: 'view_tahfidz_achievements' },
-            { title: "Pantauan Halaqoh", href: "tahfidz.monitoring.index", permission: 'view_tahfidz_halaqoh' },
             { title: "Analisa Tahfidz", href: "tahfidz.analysis.index", permission: 'view_tahfidz_analysis' },
+            { title: "Pantauan Skrining", href: "tahfidz.pantau-skrining", roles: ['Administrator', 'Manager Tahfidz'] },
+            {
+                title: "Pengaturan Tahfidz",
+                roles: ['Administrator', 'Manager Tahfidz'],
+                children: [
+                    { title: "Pengaturan Master Tahfidz", href: "settings.tahfidz.index", roles: ['Administrator', 'Manager Tahfidz'] },
+                    { title: "Pengaturan Halaqoh", href: "tahfidz.halaqoh-settings.index", permission: 'view_tahfidz_halaqoh' },
+                ]
+            },
         ]
     },
     // DIVISI 2: PENGASUHAN (Fokus: Asrama & Akhlak)
@@ -107,7 +113,7 @@ const navItems = [
                     { title: "Plotting Anggota Kamar", href: "kamar-members.index", permission: 'view_kamar_members' },
                 ]
             },
-            { title: "Perizinan Santri", href: "permissions.index", permission: 'view_permissions' },
+            { title: "Perizinan Santri", href: "rfid.scan", activeRoutes: ['rfid.scan', 'permissions.index', 'permissions.monitor'], permission: 'view_permissions' },
             {
                 title: "Kesehatan",
                 children: [
@@ -146,43 +152,37 @@ const navItems = [
         icon: Settings,
         children: [
             { title: "Manajemen User", href: "users.index", permission: 'view_users', roles: ['Administrator'] },
-            { title: "Menu Tersembunyi", href: "settings.hidden-menu.index", roles: ['Administrator'] },
-            { title: "Pengaturan Tahun Pelajaran", href: "settings.academic.index", roles: ['Administrator'] },
             {
                 title: "Master Pendidikan",
                 roles: ['Administrator'],
                 children: [
+                    { title: "Data Pokok Akademik", href: "settings.academic.index", activeRoutes: ['settings.academic.index', 'jenjangs.index', 'jenjangs.create', 'jenjangs.edit', 'kelas-paralel.index', 'grade-weights.index', 'kkms.index', 'pekans.index', 'days.index'] },
                     { title: "Data Kelas", href: "kelas.index" },
                     { title: "Mata Pelajaran", href: "mapels.index" },
-                    { title: "Bobot Nilai", href: "grade-weights.index" },
-                    { title: "Anggota Kelas", href: "class-members.index" },
                     { title: "Pengaturan Jadwal Pelajaran", href: "settings.education.schedules.index" },
-                    { title: "Plotting Guru", href: "settings.education.schedules.index", params: { tab: 'teachers' } },
-                    { title: "Distribusi Jam Mengajar", href: "settings.education.schedules.index", params: { tab: 'distribution' } },
                     { title: "Pengaturan Supervisi", href: "supervision-settings.index" },
                     { title: "Pertanyaan Angket Santri", href: "supervision-settings.student-questionnaires.index" },
                     { title: "Pengaturan Ijazah", href: "settings.education.ijazah.index" },
                     { title: "Metode Mengajar", href: "settings.teaching-methods.index" },
                 ]
             },
-            {
-                title: "Master Tahfidz",
-                roles: ['Administrator', 'Manager Tahfidz'],
-                children: [
-                    { title: "Pengaturan Tahfidz", href: "settings.tahfidz.index", roles: ['Administrator', 'Manager Tahfidz'] },
-                    { title: "Pengaturan Halaqoh", href: "tahfidz.halaqoh-settings.index", permission: 'view_tahfidz_halaqoh' },
-                ]
-            },
+
             {
                 title: "Master Sekolah",
                 roles: ['Administrator'],
                 children: [
-                    { title: "Identitas Sekolah", href: "settings.school-info.index" },
+                    { title: "Data Master Sekolah", href: "settings.school-info.index", activeRoutes: ['settings.school-info.index', 'user-levels.index', 'settings.regions.index'] },
                     { title: "Manajemen Akses", href: "settings.access-control.index" },
                     { title: "Manajemen API Key", href: "settings.api-keys.index" },
                     { title: "Tes API Key", href: "settings.api-keys.tester", fallbackPath: "/settings/system/api-keys/tester" },
-                    { title: "Level Pengguna", href: "user-levels.index" },
                     { title: "Backup Sistem", href: "settings.system.backup.index" },
+                ]
+            },
+            {
+                title: "Tools & Integrasi",
+                roles: ['Administrator'],
+                children: [
+                    { title: "Fitur Pendukung", href: "settings.sync.grades.index", activeRoutes: ['settings.sync.grades.index', 'settings.sync.akhlak.index'] },
                 ]
             },
             {
@@ -241,39 +241,46 @@ export default function Sidebar({ className }) {
         return true;
     };
 
+    const checkIsActive = (href, params, activeRoutes = null) => {
+        try {
+            if (activeRoutes && Array.isArray(activeRoutes)) {
+                if (activeRoutes.some(route_name => route().current(route_name))) {
+                    return true;
+                }
+            }
+
+            if (!href || href === '#') return false;
+            const isRouteMatch = route().current(href);
+            if (!isRouteMatch) return false;
+
+            if (params) {
+                const currentParams = new URLSearchParams(window.location.search);
+                const currentRouteParams = route().params;
+
+                for (const [key, value] of Object.entries(params)) {
+                    const currentVal = currentParams.get(key) || currentRouteParams[key];
+                    if (currentVal != value) return false;
+                }
+            }
+            return true;
+        } catch (error) {
+            return false;
+        }
+    };
+
     useEffect(() => {
         const newOpenMenus = {};
-        const checkIsActive = (href, params) => {
-            try {
-                if (!href || href === '#') return false;
-                const isRouteMatch = route().current(href);
-                if (!isRouteMatch) return false;
-
-                if (params) {
-                    const currentParams = new URLSearchParams(window.location.search);
-                    const currentRouteParams = route().params;
-
-                    for (const [key, value] of Object.entries(params)) {
-                        const currentVal = currentParams.get(key) || currentRouteParams[key];
-                        if (currentVal != value) return false;
-                    }
-                }
-                return true;
-            } catch (error) {
-                return false;
-            }
-        };
 
         navItems.forEach(item => {
             if (item.children) {
                 let isGroupActive = false;
                 item.children.forEach(child => {
-                    const isChildActive = checkIsActive(child.href, child.params);
+                    const isChildActive = checkIsActive(child.href, child.params, child.activeRoutes);
                     if (isChildActive) isGroupActive = true;
 
                     if (child.children) {
                         const isGrandChildActive = child.children.some(grandChild =>
-                            checkIsActive(grandChild.href, grandChild.params)
+                            checkIsActive(grandChild.href, grandChild.params, grandChild.activeRoutes)
                         );
                         if (isGrandChildActive) {
                             newOpenMenus[child.title] = true;
@@ -420,7 +427,7 @@ export default function Sidebar({ className }) {
                                                                                     href={safeRoute(grandChild.href, grandChild.params, grandChild.fallbackPath || '#')}
                                                                                     className={cn(
                                                                                         "block rounded-md px-3 py-1.5 text-sm transition-all relative overflow-hidden",
-                                                                                        safeIsActive(grandChild.href, grandChild.params)
+                                                                                        checkIsActive(grandChild.href, grandChild.params, grandChild.activeRoutes)
                                                                                             ? "text-indigo-800 font-bold bg-white border-l-4 border-indigo-600 pl-3 shadow-md"
                                                                                             : "text-muted-foreground font-medium hover:text-indigo-700 hover:pl-4"
                                                                                     )}
@@ -437,7 +444,7 @@ export default function Sidebar({ className }) {
                                                                 href={safeRoute(child.href, child.params, child.fallbackPath || '#')}
                                                                 className={cn(
                                                                     "block rounded-md px-3 py-1.5 text-sm transition-all relative overflow-hidden",
-                                                                    safeIsActive(child.href, child.params)
+                                                                    checkIsActive(child.href, child.params, child.activeRoutes)
                                                                         ? "text-indigo-800 font-bold bg-white border-l-4 border-indigo-600 pl-3 shadow-md"
                                                                         : "text-muted-foreground font-medium hover:text-indigo-700 hover:pl-4"
                                                                 )}

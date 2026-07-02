@@ -265,53 +265,79 @@ class ReportController extends Controller
         // Access all grades for class avg (Simplified: Fetch simply for subjects involved)
         // Note: For Print, strictly calculating accurate class avg for every subject is N+1 heavy if not optimized.
         // We will fetch ALL grades for these subjects in this class for the Target Semester to calc avg.
-        // Optimization: Single query.
+        // Optimization: Single query to get all grades for all students in class
         $classMemberIds = $activeClass->classMembers->pluck('student_id');
-        $allClassGrades = \App\Models\StudentGrade::whereIn('active_subject_id', $activeSubjects->pluck('id'))
-            ->whereIn('student_id', $classMemberIds)
-            ->where('semester_id', $targetSemester->id)
-            ->get();
+        $allClassStudents = \App\Models\Student::with(['studentGrades' => function ($q) use ($activeSubjects, $semesterIds) {
+            $q->whereIn('active_subject_id', $activeSubjects->pluck('id'))
+                ->whereIn('semester_id', $semesterIds);
+        }])->whereIn('id', $classMemberIds)->get();
 
+        $allStudentAverages = [];
+        $subjectSums = [];
+        foreach ($activeSubjects as $subject) {
+            $subjectSums[$subject->id] = 0;
+        }
+
+        foreach ($allClassStudents as $classStudent) {
+            $studentGrades = $activeSubjects->map(function ($subject) use ($classStudent, $gradeWeightsTarget, $gradeWeightsSem1, $targetSemester, $sem1, $isSem2, &$subjectSums) {
+                $calc = function ($weights, $semId) use ($classStudent, $subject) {
+                    $grades = $classStudent->studentGrades
+                        ->where('active_subject_id', $subject->id)
+                        ->where('semester_id', $semId);
+                    $final = 0;
+                    foreach ($weights as $weight) {
+                        $g = $grades->where('grade_weight_id', $weight->id)->first();
+                        $s = $g ? $g->score : 0;
+                        $final += $s * ($weight->weight / 100);
+                    }
+                    return $final;
+                };
+                
+                $scoreTarget = $calc($gradeWeightsTarget, $targetSemester->id);
+                $finalScore = round($scoreTarget, 1);
+                
+                if ($isSem2 && $sem1) {
+                    $scoreSem1 = $calc($gradeWeightsSem1, $sem1->id);
+                    $finalScore = round(\App\Helpers\GradeHelper::calculateFinalGrade($scoreSem1, $scoreTarget), 1);
+                }
+                
+                $subjectSums[$subject->id] += $finalScore;
+                
+                return [
+                    'subject_id' => $subject->id,
+                    'score' => $finalScore,
+                ];
+            });
+            
+            $avg = $studentGrades->avg('score');
+            $allStudentAverages[$classStudent->id] = [
+                'avg' => $avg,
+                'scores' => $studentGrades->keyBy('subject_id')
+            ];
+        }
+        
+        $validStudentsCount = $allClassStudents->count();
+        $subjectAverages = [];
+        foreach ($subjectSums as $subjectId => $sum) {
+            $subjectAverages[$subjectId] = $validStudentsCount > 0 ? round($sum / $validStudentsCount, 1) : 0;
+        }
+
+        // Now rank
+        $averagesOnly = [];
+        foreach ($allStudentAverages as $sId => $data) {
+            $averagesOnly[$sId] = $data['avg'];
+        }
+        arsort($averagesOnly);
+        $rank = array_search($student->id, array_keys($averagesOnly)) + 1;
+        $rank = ($rank >= 1 && $rank <= $validStudentsCount) ? $rank : '-';
+
+        // Now reportGrades for current student
+        $currentStudentData = $allStudentAverages[$student->id] ?? null;
         $kkms = \App\Models\Kkm::where('kelas_id', $activeClass->kelas_id)->get()->keyBy('mapel_id');
 
-        $reportGrades = $activeSubjects->map(function ($subject) use ($student, $gradeWeightsTarget, $gradeWeightsSem1, $targetSemester, $sem1, $isSem2, $allClassGrades, $kkms) {
-
-            // --- Calculation Helper ---
-            $calc = function ($weights, $semId) use ($student, $subject) {
-                $grades = $student->studentGrades
-                    ->where('active_subject_id', $subject->id)
-                    ->where('semester_id', $semId);
-
-                $final = 0;
-                foreach ($weights as $weight) {
-                    $g = $grades->where('grade_weight_id', $weight->id)->first();
-                    $s = $g ? $g->score : 0;
-                    $final += $s * ($weight->weight / 100);
-                }
-                return round($final);
-            };
-
-            $scoreTarget = $calc($gradeWeightsTarget, $targetSemester->id);
-            $finalScore = $scoreTarget;
-
-            if ($isSem2 && $sem1) {
-                $scoreSem1 = $calc($gradeWeightsSem1, $sem1->id);
-                // Formula: (Sem1 + 2*Sem2) / 3
-                $finalScore = round(($scoreSem1 + (2 * $scoreTarget)) / 3);
-            }
-
-            // Class Avg (Target Semester Only)
-            $subjectClassGrades = $allClassGrades->where('active_subject_id', $subject->id);
-            // We need to calculate weighted avg for each student to act correctly, OR average the raw grades?
-            // Usually Class Avg on report is Average of Final Scores.
-            // Calculating Final Score for EVERY student in class on the fly is too heavy.
-            // Fallback: Average of Raw Scores / Count? OR just 0.
-            // Let's use simple average of stored grades for approximation if allow, OR 0.
-            // The previous code did: $avg = $subjectClassGrades->avg('score'); -> This is avg of component scores mixed.
-            // Correct way: sum(student_final) / n.
-            // Given time constraints, I will leave Class Avg as ' - ' or 0 to enable printing.
-            $classAvg = 0;
-
+        $reportGrades = $activeSubjects->map(function ($subject) use ($currentStudentData, $subjectAverages, $kkms) {
+            $finalScore = $currentStudentData ? $currentStudentData['scores'][$subject->id]['score'] : 0;
+            $classAvg = $subjectAverages[$subject->id] ?? 0;
             $kkm = $kkms[$subject->mapel_id]->kkm_value ?? 70;
 
             return [
@@ -323,49 +349,8 @@ class ReportController extends Controller
             ];
         });
 
-        // Rank - Calculate actual ranking based on average score
-        $totalStudents = $classMemberIds->count();
-        $averageScore = $reportGrades->avg('score');
-        
-        // Fetch all students' average scores for ranking
-        $allStudentAverages = [];
-        foreach ($classMemberIds as $classMemberId) {
-            $classStudent = \App\Models\Student::with(['studentGrades' => function ($q) use ($activeSubjects, $semesterIds) {
-                $q->whereIn('active_subject_id', $activeSubjects->pluck('id'))
-                    ->whereIn('semester_id', $semesterIds);
-            }])->find($classMemberId);
-            
-            if ($classStudent) {
-                $studentGrades = $activeSubjects->map(function ($subject) use ($classStudent, $gradeWeightsTarget, $gradeWeightsSem1, $targetSemester, $sem1, $isSem2) {
-                    $calc = function ($weights, $semId) use ($classStudent, $subject) {
-                        $grades = $classStudent->studentGrades
-                            ->where('active_subject_id', $subject->id)
-                            ->where('semester_id', $semId);
-                        $final = 0;
-                        foreach ($weights as $weight) {
-                            $g = $grades->where('grade_weight_id', $weight->id)->first();
-                            $s = $g ? $g->score : 0;
-                            $final += $s * ($weight->weight / 100);
-                        }
-                        return round($final);
-                    };
-                    $scoreTarget = $calc($gradeWeightsTarget, $targetSemester->id);
-                    $finalScore = $scoreTarget;
-                    if ($isSem2 && $sem1) {
-                        $scoreSem1 = $calc($gradeWeightsSem1, $sem1->id);
-                        $finalScore = round(($scoreSem1 + (2 * $scoreTarget)) / 3);
-                    }
-                    return $finalScore;
-                });
-                $avg = $studentGrades->avg();
-                $allStudentAverages[$classMemberId] = $avg;
-            }
-        }
-        
-        // Sort by average descending and find rank
-        arsort($allStudentAverages);
-        $rank = array_search($student->id, array_keys($allStudentAverages)) + 1;
-        $rank = ($rank >= 1 && $rank <= 10) ? $rank : '-';
+        $averageScore = $currentStudentData ? $currentStudentData['avg'] : 0;
+        $totalStudents = $validStudentsCount;
 
         // Behaviors (Category Key) - Averaging Monthly Scores
         // 1. Determine Years from Academic Year Name (e.g. "2025/2026")

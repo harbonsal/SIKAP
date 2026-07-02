@@ -29,19 +29,24 @@ class SchoolInfoController extends Controller
             'report_place_ar' => 'nullable|string',
             'stamp_image' => 'nullable|image|max:2048',
             'headmaster_signature' => 'nullable|image|max:2048',
-            'app_logo' => 'nullable|image|max:2048',
+            'app_logo' => 'nullable|image|mimes:png,jpg,jpeg|max:2048',
             'login_background' => 'nullable|image|max:5120',
+            'kop_image' => 'nullable|image|max:2048',
+            'use_system_header' => 'nullable|boolean',
+            'yayasan_name' => 'nullable|string|max:255',
+            'institution_name' => 'nullable|string|max:255',
+            'institution_location' => 'nullable|string|max:255',
+            'sem1_weight' => 'nullable|integer|min:0',
+            'sem2_weight' => 'nullable|integer|min:0',
         ]);
 
         $schoolInfo = SchoolInfo::firstOrNew();
 
         // Handle File Uploads
-        /* Removed Kop Image Upload
         if ($request->hasFile('kop_image')) {
             if ($schoolInfo->kop_image) Storage::disk('public')->delete($schoolInfo->kop_image);
             $schoolInfo->kop_image = $request->file('kop_image')->store('school_assets', 'public');
         }
-        */
 
         if ($request->hasFile('stamp_image')) {
             if ($schoolInfo->stamp_image) Storage::disk('public')->delete($schoolInfo->stamp_image);
@@ -75,6 +80,18 @@ class SchoolInfoController extends Controller
             'report_date',
             'report_place_ar'
         ]));
+
+        $headerConfig = $schoolInfo->header_config ?? [];
+        $headerConfig['use_system_header'] = filter_var($request->use_system_header, FILTER_VALIDATE_BOOLEAN);
+        $headerConfig['yayasan_name'] = $request->yayasan_name;
+        $headerConfig['institution_name'] = $request->institution_name;
+        $headerConfig['institution_location'] = $request->institution_location;
+        $schoolInfo->header_config = $headerConfig;
+
+        $gradeConfig = $schoolInfo->grade_config ?? [];
+        $gradeConfig['sem1_weight'] = $request->filled('sem1_weight') ? (int) $request->sem1_weight : 1;
+        $gradeConfig['sem2_weight'] = $request->filled('sem2_weight') ? (int) $request->sem2_weight : 2;
+        $schoolInfo->grade_config = $gradeConfig;
 
         $schoolInfo->save();
 

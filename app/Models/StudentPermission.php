@@ -16,7 +16,9 @@ class StudentPermission extends Model
         'exit_at',
         'return_at',
         'is_late',
-        'keterangan'
+        'keterangan',
+        'uang_saku',
+        'barang_titipan'
     ];
 
     protected $casts = [

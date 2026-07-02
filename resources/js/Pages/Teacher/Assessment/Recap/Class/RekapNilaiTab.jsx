@@ -2,7 +2,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Card, CardContent } from '@/Components/ui/card';
 import { isBelowKkm, formatScore } from './utils';
 
-export default function RekapNilaiTab({ activeSubjects = [], studentRecaps = [], kkms = {} }) {
+export default function RekapNilaiTab({ activeSubjects = [], studentRecaps = [], subjectAverages = [], kkms = {} }) {
     // Safety check
     if (!activeSubjects || activeSubjects.length === 0) {
         return (
@@ -88,6 +88,28 @@ export default function RekapNilaiTab({ activeSubjects = [], studentRecaps = [],
                                     </TableCell>
                                 </TableRow>
                             ))}
+                            {/* Class Average Row */}
+                            {studentRecaps.length > 0 && (
+                                <TableRow className="bg-primary/10 font-bold hover:bg-primary/20">
+                                    <TableCell colSpan={3} className="text-right border-r sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] bg-primary/10">
+                                        Rata-rata Kelas
+                                    </TableCell>
+                                    {activeSubjects.map((subject, sIndex) => {
+                                        const avgScore = subjectAverages?.[subject.id] ?? 0;
+                                        const isBelow = isBelowKkm(avgScore, subject.mapel_id, kkms);
+                                        return (
+                                            <TableCell 
+                                                key={subject.id} 
+                                                className={`text-center border-r px-2 ${isBelow ? 'text-red-600' : ''}`}
+                                            >
+                                                {formatScore(avgScore)}
+                                            </TableCell>
+                                        );
+                                    })}
+                                    <TableCell className="text-center border-r" colSpan={3}>
+                                    </TableCell>
+                                </TableRow>
+                            )}
                         </TableBody>
                     </Table>
                 </div>

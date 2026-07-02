@@ -1,4 +1,4 @@
-import MainLayout from '@/Layouts/MainLayout';
+import MasterSekolahLayout from '@/Layouts/MasterSekolahLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import Pagination from '@/Components/Pagination';
 import { useState, useEffect } from 'react';
@@ -27,7 +27,7 @@ export default function Index({ userLevels, filters }) {
     };
 
     return (
-        <MainLayout>
+        <MasterSekolahLayout>
             <Head title="User Level" />
 
             <div className="space-y-6">
@@ -112,6 +112,6 @@ export default function Index({ userLevels, filters }) {
                     <Pagination links={userLevels.links} />
                 </div>
             </div>
-        </MainLayout>
+        </MasterSekolahLayout>
     );
 }

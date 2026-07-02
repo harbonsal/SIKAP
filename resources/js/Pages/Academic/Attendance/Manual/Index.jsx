@@ -1,4 +1,4 @@
-import MainLayout from '@/Layouts/MainLayout';
+import AbsensiLayout from '@/Layouts/AbsensiLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import { Search, Eye, Edit } from 'lucide-react';
 import Pagination from '@/Components/Pagination';
@@ -18,7 +18,7 @@ export default function Index({ activeClasses, academicYear, filters }) {
     };
 
     return (
-        <MainLayout>
+        <AbsensiLayout>
             <Head title="Input Absensi Manual" />
 
             <div className="space-y-6">
@@ -96,6 +96,6 @@ export default function Index({ activeClasses, academicYear, filters }) {
                     <Pagination links={activeClasses.links} />
                 </div>
             </div>
-        </MainLayout>
+        </AbsensiLayout>
     );
 }

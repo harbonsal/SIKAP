@@ -1,4 +1,4 @@
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import MasterSekolahLayout from '@/Layouts/MasterSekolahLayout';
 import { Head, useForm, usePage } from '@inertiajs/react'; // Add usePage
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
@@ -17,10 +17,17 @@ export default function Edit({ auth, schoolInfo, appLogo, loginBackground }) {
         city: schoolInfo.city || '',
         report_date: schoolInfo.report_date || '',
         report_place_ar: schoolInfo.report_place_ar || '',
+        use_system_header: schoolInfo.header_config?.use_system_header || false,
+        yayasan_name: schoolInfo.header_config?.yayasan_name || '',
+        institution_name: schoolInfo.header_config?.institution_name || '',
+        institution_location: schoolInfo.header_config?.institution_location || '',
+        kop_image: null,
         stamp_image: null,
         headmaster_signature: null,
         app_logo: null,
         login_background: null,
+        sem1_weight: schoolInfo.grade_config?.sem1_weight ?? 1,
+        sem2_weight: schoolInfo.grade_config?.sem2_weight ?? 2,
         _method: 'POST',
     });
 
@@ -40,6 +47,7 @@ export default function Edit({ auth, schoolInfo, appLogo, loginBackground }) {
     }, [flash?.success]);
 
     const [previews, setPreviews] = useState({
+        kop_image: schoolInfo.kop_image ? `/storage/${schoolInfo.kop_image}` : null,
         stamp_image: schoolInfo.stamp_image ? `/storage/${schoolInfo.stamp_image}` : null,
         headmaster_signature: schoolInfo.headmaster_signature ? `/storage/${schoolInfo.headmaster_signature}` : null,
         app_logo: appLogo ? `/storage/${appLogo}` : null,
@@ -67,14 +75,10 @@ export default function Edit({ auth, schoolInfo, appLogo, loginBackground }) {
     };
 
     return (
-        <AuthenticatedLayout
-            user={auth.user}
-            header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">Identitas Sekolah & Atribut Rapor</h2>}
-        >
+        <MasterSekolahLayout breadcrumbItems={[{ title: 'Pengaturan Sekolah', href: route('settings.school-info.index') }]}>
             <Head title="Pengaturan Sekolah" />
 
-            <div className="py-12">
-                <div className="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+            <div className="space-y-6">
                     <form onSubmit={submit} className="space-y-6" encType="multipart/form-data">
 
                         {/* Section 1: Identitas Sekolah */}
@@ -160,10 +164,14 @@ export default function Edit({ auth, schoolInfo, appLogo, loginBackground }) {
                                                         id="app_logo"
                                                         className="sr-only"
                                                         onChange={(e) => handleFileChange(e, 'app_logo')}
-                                                        accept="image/*"
+                                                        accept="image/png"
                                                     />
                                                 </label>
                                             </div>
+                                            <p className="mt-2 text-xs text-gray-500">
+                                                Dapat menggunakan format <strong>PNG/JPG/JPEG</strong>.<br/>
+                                                Maks ukuran file <strong>2MB</strong>.
+                                            </p>
                                             <InputError className="mt-2" message={errors.app_logo} />
                                         </div>
 
@@ -191,9 +199,110 @@ export default function Edit({ auth, schoolInfo, appLogo, loginBackground }) {
                                                     />
                                                 </label>
                                             </div>
+                                            <p className="mt-2 text-xs text-gray-500">
+                                                Maks ukuran file <strong>2MB</strong> (Sesuai batas server).
+                                            </p>
                                             <InputError className="mt-2" message={errors.login_background} />
                                         </div>
                                     </div>
+                                </div>
+                            </section>
+                        </div>
+
+                        {/* Section 1.8: Kop Surat Rapor */}
+                        <div className="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
+                            <section className="max-w-xl">
+                                <header>
+                                    <h2 className="text-lg font-medium text-gray-900">Kop Surat Rapor</h2>
+                                    <p className="mt-1 text-sm text-gray-600">
+                                        Atur apakah rapor menggunakan kop surat cetak (kertas pre-printed) atau dibuat otomatis oleh sistem.
+                                    </p>
+                                </header>
+
+                                <div className="mt-6 space-y-6">
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="checkbox"
+                                            id="use_system_header"
+                                            className="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 w-5 h-5"
+                                            checked={data.use_system_header}
+                                            onChange={(e) => setData('use_system_header', e.target.checked)}
+                                        />
+                                        <label htmlFor="use_system_header" className="font-medium text-gray-700 cursor-pointer">
+                                            Gunakan Kop Surat Sistem
+                                        </label>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Jika tidak dicentang, rapor akan menyisakan margin atas (sekitar 3.5cm) untuk kertas rapor yang sudah ada kopnya.
+                                    </p>
+
+                                    {data.use_system_header && (
+                                        <div className="mt-4 p-4 border rounded-md bg-gray-50 space-y-4">
+                                            <div>
+                                                <InputLabel value="Logo Kop Surat" />
+                                                <div className="mt-2 flex items-center gap-x-3">
+                                                    {previews.kop_image ? (
+                                                        <img src={previews.kop_image} alt="Kop Logo Preview" className="h-20 w-auto object-contain border rounded-md bg-white" />
+                                                    ) : (
+                                                        <div className="h-20 w-20 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center text-gray-400 text-xs px-1 text-center bg-white">
+                                                            Belum ada logo
+                                                        </div>
+                                                    )}
+                                                    <label
+                                                        htmlFor="kop_image"
+                                                        className="rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 cursor-pointer"
+                                                    >
+                                                        Upload Logo
+                                                        <input
+                                                            type="file"
+                                                            id="kop_image"
+                                                            className="sr-only"
+                                                            onChange={(e) => handleFileChange(e, 'kop_image')}
+                                                            accept="image/*"
+                                                        />
+                                                    </label>
+                                                </div>
+                                                <InputError className="mt-2" message={errors.kop_image} />
+                                            </div>
+
+                                            <div>
+                                                <InputLabel htmlFor="yayasan_name" value="Nama Yayasan (Posisi Atas)" />
+                                                <TextInput
+                                                    id="yayasan_name"
+                                                    className="mt-1 block w-full"
+                                                    value={data.yayasan_name}
+                                                    onChange={(e) => setData('yayasan_name', e.target.value)}
+                                                    placeholder="Contoh: YAYASAN PENDIDIKAN ISLAM..."
+                                                />
+                                                <InputError className="mt-2" message={errors.yayasan_name} />
+                                            </div>
+
+                                            <div>
+                                                <InputLabel htmlFor="institution_name" value="Nama Lembaga Utama (Posisi Tengah, Besar)" />
+                                                <TextInput
+                                                    id="institution_name"
+                                                    className="mt-1 block w-full font-bold"
+                                                    value={data.institution_name}
+                                                    onChange={(e) => setData('institution_name', e.target.value)}
+                                                    placeholder="Contoh: SMP IT BINA INSANI"
+                                                />
+                                                <InputError className="mt-2" message={errors.institution_name} />
+                                            </div>
+
+                                            <div>
+                                                <InputLabel htmlFor="institution_location" value="Lokasi Lembaga (Contoh: Kabupaten/Kota)" />
+                                                <TextInput
+                                                    id="institution_location"
+                                                    className="mt-1 block w-full"
+                                                    value={data.institution_location}
+                                                    onChange={(e) => setData('institution_location', e.target.value)}
+                                                    placeholder="Contoh: KABUPATEN SEMARANG"
+                                                />
+                                                <InputError className="mt-2" message={errors.institution_location} />
+                                                <p className="text-xs text-gray-500 mt-1">Alamat lengkap akan otomatis mengambil dari "Alamat Sekolah" di atas.</p>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </section>
                         </div>
@@ -295,6 +404,53 @@ export default function Edit({ auth, schoolInfo, appLogo, loginBackground }) {
                             </section>
                         </div>
 
+                        {/* Section: Pengaturan Bobot Nilai Rapor */}
+                        <div className="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
+                            <section className="max-w-xl">
+                                <header>
+                                    <h2 className="text-lg font-medium text-gray-900">Pengaturan Bobot Nilai Rapor Akhir</h2>
+                                    <p className="mt-1 text-sm text-gray-600">
+                                        Atur bobot kontribusi nilai per semester untuk penentuan nilai rapor akhir tahun (kenaikan kelas/kelulusan).
+                                    </p>
+                                </header>
+
+                                <div className="mt-6 space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <InputLabel htmlFor="sem1_weight" value="Bobot Semester Ganjil" />
+                                            <TextInput
+                                                id="sem1_weight"
+                                                type="number"
+                                                min="0"
+                                                className="mt-1 block w-full"
+                                                value={data.sem1_weight}
+                                                onChange={(e) => setData('sem1_weight', parseInt(e.target.value) || 0)}
+                                            />
+                                            <InputError className="mt-2" message={errors.sem1_weight} />
+                                        </div>
+                                        <div>
+                                            <InputLabel htmlFor="sem2_weight" value="Bobot Semester Genap" />
+                                            <TextInput
+                                                id="sem2_weight"
+                                                type="number"
+                                                min="0"
+                                                className="mt-1 block w-full"
+                                                value={data.sem2_weight}
+                                                onChange={(e) => setData('sem2_weight', parseInt(e.target.value) || 0)}
+                                            />
+                                            <InputError className="mt-2" message={errors.sem2_weight} />
+                                        </div>
+                                    </div>
+                                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-md">
+                                        <p className="text-sm font-medium text-gray-700">Simulasi Rumus Aktif:</p>
+                                        <code className="text-indigo-600 font-mono mt-1 block">
+                                            ((Nilai Ganjil x {data.sem1_weight}) + (Nilai Genap x {data.sem2_weight})) / {(parseInt(data.sem1_weight) || 0) + (parseInt(data.sem2_weight) || 0)}
+                                        </code>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+
                         <div className="flex items-center gap-4">
                             <PrimaryButton disabled={processing}>Simpan Semua Pengaturan</PrimaryButton>
                             <Transition
@@ -309,8 +465,7 @@ export default function Edit({ auth, schoolInfo, appLogo, loginBackground }) {
                         </div>
 
                     </form>
-                </div>
             </div>
-        </AuthenticatedLayout>
+        </MasterSekolahLayout>
     );
 }

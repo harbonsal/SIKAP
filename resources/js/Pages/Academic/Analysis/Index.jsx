@@ -11,6 +11,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/Components/ui/popover
 import { Checkbox } from '@/Components/ui/checkbox';
 import { Label } from '@/Components/ui/label';
 import { Button } from '@/Components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/Components/ui/dialog';
 
 // Helper Functions
 const formatScore = (val) => {
@@ -63,6 +64,7 @@ export default function Index({
     activeSemesterName = '',
 }) {
     const [activeTab, setActiveTab] = useState('ranking');
+    const [selectedFailureCategory, setSelectedFailureCategory] = useState(null);
     
     // Local state for filters (no auto-load)
     const [localFilters, setLocalFilters] = useState({
@@ -70,6 +72,7 @@ export default function Index({
         jenjang_id: filters.jenjang_id || '',
         kelas_id: filters.kelas_id || '',
         kelas_filter_type: filters.kelas_filter_type || 'include',
+        status_santri: filters.status_santri || 'Aktif',
         safety_status: filters.safety_status || '',
         exam_types: filters.exam_types || '',
         exam_filter_type: filters.exam_filter_type || 'include',
@@ -126,7 +129,7 @@ export default function Index({
                 {/* Filters */}
                 <div className="bg-white p-4 rounded-lg border shadow-sm space-y-4">
                     {/* ... (Same Filters Code) ... */}
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
                         <Input
                             placeholder="Cari Nama / NIS..."
                             value={localFilters.search}
@@ -204,6 +207,18 @@ export default function Index({
                             <option value="aman">Aman / Lulus</option>
                             <option value="perlu_perhatian">Perlu Perhatian (Ada Nilai &lt; KKM)</option>
                             <option value="tidak_aman">Tidak Aman / Tidak Lulus</option>
+                        </select>
+                        <select
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            value={localFilters.status_santri || 'Aktif'}
+                            onChange={(e) => {
+                                setLocalFilters({ ...localFilters, status_santri: e.target.value });
+                            }}
+                        >
+                            <option value="Aktif">Status Santri: Aktif (Default)</option>
+                            <option value="Lulus">Status Santri: Lulus / Alumni</option>
+                            <option value="Keluar">Status Santri: Keluar / Pindah</option>
+                            <option value="Semua">Semua Status Santri</option>
                         </select>
                         <Popover>
                             <PopoverTrigger asChild>
@@ -464,11 +479,69 @@ export default function Index({
                 {activeTab === 'remedial' && (
                     <div className="space-y-6">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <FailureCard label="1 Nilai Merah" data={failures['1']} count={1} />
-                            <FailureCard label="2 Nilai Merah" data={failures['2']} count={2} />
-                            <FailureCard label="3 Nilai Merah" data={failures['3']} count={3} />
-                            <FailureCard label=">3 Nilai Merah" data={failures['>3']} count={4} />
+                            <FailureCard label="1 Nilai Merah" data={failures['1']} categoryKey="1" onShowTable={setSelectedFailureCategory} />
+                            <FailureCard label="2 Nilai Merah" data={failures['2']} categoryKey="2" onShowTable={setSelectedFailureCategory} />
+                            <FailureCard label="3 Nilai Merah" data={failures['3']} categoryKey="3" onShowTable={setSelectedFailureCategory} />
+                            <FailureCard label=">3 Nilai Merah" data={failures['>3']} categoryKey=">3" onShowTable={setSelectedFailureCategory} />
                         </div>
+                        
+                        {selectedFailureCategory && failures[selectedFailureCategory] && (
+                            <Card className="border-red-200 mt-6" id="tabel-remedial">
+                                <CardHeader className="bg-red-50/50 pb-3 flex flex-row items-center justify-between">
+                                    <CardTitle className="text-red-700 flex items-center gap-2">
+                                        <span>📋</span> Daftar Santri ({selectedFailureCategory} Nilai Merah)
+                                    </CardTitle>
+                                    <div className="flex space-x-2">
+                                        <Button variant="outline" size="sm" onClick={() => {
+                                            const printContent = document.getElementById('table-remedial-container').innerHTML;
+                                            const originalContent = document.body.innerHTML;
+                                            document.body.innerHTML = `
+                                                <div style="padding: 20px;">
+                                                    <h2 style="font-size: 20px; font-weight: bold; margin-bottom: 20px;">Daftar Santri (${selectedFailureCategory} Nilai Merah)</h2>
+                                                    ${printContent}
+                                                </div>
+                                            `;
+                                            window.print();
+                                            document.body.innerHTML = originalContent;
+                                            window.location.reload();
+                                        }}>
+                                            🖨️ Cetak / Print
+                                        </Button>
+                                        <Button variant="outline" size="sm" onClick={() => setSelectedFailureCategory(null)}>
+                                            Tutup Tabel
+                                        </Button>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="p-0">
+                                    <div className="overflow-x-auto" id="table-remedial-container">
+                                        <Table className="w-full">
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead className="w-[50px] text-center border-r">No</TableHead>
+                                                    <TableHead className="border-r">Nama Siswa</TableHead>
+                                                    <TableHead className="border-r">Kelas</TableHead>
+                                                    <TableHead>Mata Pelajaran Merah</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {failures[selectedFailureCategory].map((student, idx) => (
+                                                    <TableRow key={idx}>
+                                                        <TableCell className="text-center border-r font-medium">{idx + 1}</TableCell>
+                                                        <TableCell className="border-r font-medium">{student.student_name}</TableCell>
+                                                        <TableCell className="border-r">{student.class_name}</TableCell>
+                                                        <TableCell className="text-red-600 font-medium">
+                                                            {student.failed_subjects ? (
+                                                                <div dangerouslySetInnerHTML={{ __html: student.failed_subjects }} />
+                                                            ) : '-'}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
                     </div>
                 )}
 
@@ -744,13 +817,23 @@ export default function Index({
     );
 }
 
-function FailureCard({ label, data, count }) {
+function FailureCard({ label, data, categoryKey, onShowTable }) {
+    const total = data ? data.length : 0;
+
     return (
-        <Card>
+        <Card 
+            onClick={() => {
+                if (total > 0) {
+                    onShowTable(categoryKey);
+                    setTimeout(() => window.scrollBy({ top: 300, behavior: 'smooth' }), 50);
+                }
+            }} 
+            className={`cursor-pointer transition-colors ${total > 0 ? 'hover:border-red-300 hover:bg-red-50/50' : 'hover:bg-gray-50'}`}
+        >
             <CardContent className="flex flex-col items-center justify-center text-center p-6">
                 <h4 className="text-sm font-medium text-muted-foreground mb-2">{label}</h4>
-                <div className="text-3xl font-bold mb-1">
-                    {data ? data.length : 0}
+                <div className={`text-3xl font-bold mb-1 ${total > 0 ? 'text-red-600' : ''}`}>
+                    {total}
                 </div>
                 <p className="text-xs text-muted-foreground">Siswa</p>
             </CardContent>

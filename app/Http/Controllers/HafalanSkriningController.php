@@ -63,17 +63,16 @@ class HafalanSkriningController extends Controller
      */
     public function indexAdmin(Request $request)
     {
-        $user = Auth::user();
+        $user = Auth::user()->load(['userLevel', 'additionalLevels']);
 
         // Cek izin (Role berwenang atau Santri)
-        $isManager = optional($user->userLevel)->name === 'Administrator' || optional($user->userLevel)->name === 'Manager Tahfidz';
-        $isGuru = optional($user->userLevel)->name === 'Guru';
-        $isMusrif = optional($user->userLevel)->name === 'Musrif';
-        $isSantri = optional($user->userLevel)->name === 'Santri';
-
-        if (!$isManager && !$isGuru && !$isMusrif && !$isSantri) {
+        $allowedRoles = ['Administrator', 'Manager Tahfidz', 'Guru', 'Musrif', 'Musyrif', 'Musrif Asrama', 'Santri'];
+        
+        if (!$user->hasRole($allowedRoles)) {
             abort(403, 'Anda tidak memiliki akses ke halaman ini.');
         }
+
+        $isSantri = $user->hasRole('Santri') && !$user->hasRole(['Administrator', 'Manager Tahfidz', 'Guru', 'Musrif', 'Musyrif', 'Musrif Asrama']);
 
         // Ambil data untuk Filter Dropdown
         $userLevels = UserLevel::orderBy('name')->get(['id', 'name']);
@@ -163,11 +162,13 @@ class HafalanSkriningController extends Controller
             $query->whereDate('created_at', '<=', $request->end_date);
         }
 
-        // Pagination
         $skrinings = $query->latest()->paginate(20)->withQueryString();
         $skrinings->getCollection()->transform(function ($item) {
             if ($item->relationLoaded('user') && $item->user) {
                 $item->user->setAppends([]);
+                if ($item->user->relationLoaded('student') && $item->user->student) {
+                    $item->user->student->setAppends([]);
+                }
             }
             return $item;
         });
@@ -247,6 +248,9 @@ class HafalanSkriningController extends Controller
         $reports->getCollection()->transform(function ($item) {
             if ($item->relationLoaded('user') && $item->user) {
                 $item->user->setAppends([]);
+                if ($item->user->relationLoaded('student') && $item->user->student) {
+                    $item->user->student->setAppends([]);
+                }
             }
             return $item;
         });
@@ -255,17 +259,18 @@ class HafalanSkriningController extends Controller
         $rekapData = [];
         if (!$isSantri) {
             // Ambil semua santri (user level = Santri)
-            $studentQuery = Student::with([
-                'user:id,name,nomor_induk,user_level_id',
-                'latestClassMember.activeClass.kelas',
-                $usesActiveKamar
-                    ? 'kamarMembers.activeKamar.kamar'
-                    : ($usesLegacyKamar ? 'kamarMembers.kamar' : 'kamarMembers'),
-            ])->whereHas('user.userLevel', function ($q) {
-                $q->where('name', 'Santri');
-            })->whereHas('user', function ($q) {
-                $q->where('status', 'Aktif');
-            });
+            $studentQuery = Student::select('students.id', 'students.user_id')
+                ->with([
+                    'user:id,name,nomor_induk,user_level_id',
+                    'latestClassMember.activeClass.kelas',
+                    $usesActiveKamar
+                        ? 'kamarMembers.activeKamar.kamar'
+                        : ($usesLegacyKamar ? 'kamarMembers.kamar' : 'kamarMembers'),
+                ])->whereHas('user.userLevel', function ($q) {
+                    $q->where('name', 'Santri');
+                })->whereHas('user', function ($q) {
+                    $q->where('status', 'Aktif');
+                });
 
             // Filter kelas
             if ($request->filled('rekap_kelas_id')) {
@@ -296,37 +301,47 @@ class HafalanSkriningController extends Controller
                 });
             }
 
-            $students = $studentQuery->orderBy('id')->get();
+            $students = $studentQuery->orderBy('students.id')->get();
 
             // Ambil semua QuranProgress milik santri ini
-            $userIds = $students->pluck('user_id')->filter()->toArray();
+            $userIds = $students->pluck('user_id')->filter()->unique()->toArray();
             $allProgress = QuranProgress::whereIn('user_id', $userIds)
                 ->where('is_completed', true)
+                ->select(['user_id', 'juz_number'])
                 ->get()
                 ->groupBy('user_id');
 
             // Ambil semua TahfidzMemorization (Attainment) milik santri ini
-            $studentIds = $students->pluck('id')->toArray();
-            $allAttainment = TahfidzMemorization::whereIn('student_id', $studentIds)
-                ->where('is_completed', true)
-                ->get()
-                ->groupBy('student_id');
+            $studentIds = $students->pluck('id')->filter()->unique()->toArray();
+            
+            // Safe query for TahfidzMemorization in case column is missing
+            try {
+                $allAttainment = TahfidzMemorization::whereIn('student_id', $studentIds)
+                    ->where('is_completed', true)
+                    ->select(['student_id', 'juz'])
+                    ->get()
+                    ->groupBy('student_id');
+            } catch (\Exception $e) {
+                // Fallback if is_completed column doesn't exist
+                $allAttainment = collect([]);
+            }
 
             foreach ($students as $student) {
                 $userId = $student->user_id;
                 $studentId = $student->id;
 
                 // 1. Screening Progress (yang sudah discreening)
-                $completedJuz = isset($allProgress[$userId])
-                    ? $allProgress[$userId]->pluck('juz_number')->sort()->values()->toArray()
-                    : [];
+                $completedJuz = [];
+                if ($userId && $allProgress->has($userId)) {
+                    $completedJuz = $allProgress->get($userId)->pluck('juz_number')->sort()->values()->toArray();
+                }
 
                 // 2. Attainment Progress (target: jumlah juz yang sudah dihafal)
-                $attainmentJuz = isset($allAttainment[$studentId])
-                    ? $allAttainment[$studentId]->pluck('juz')->toArray()
-                    : [];
+                $attainmentJuz = [];
+                if ($studentId && $allAttainment->has($studentId)) {
+                    $attainmentJuz = $allAttainment->get($studentId)->pluck('juz')->sort()->values()->toArray();
+                }
 
-                sort($attainmentJuz);
                 $totalTarget = count($attainmentJuz);
 
                 // Hanya hitung juz skrining yang termasuk target hafalan santri.
@@ -335,7 +350,6 @@ class HafalanSkriningController extends Controller
                     : [];
 
                 // 3. Calculate missing juz based on attainment target
-                // Hanya wajib menskrining juz yang SUDAH dihafal
                 $missingJuz = [];
                 if ($totalTarget > 0) {
                     $missingJuz = array_values(array_diff($attainmentJuz, $screenedTargetJuz));
@@ -353,18 +367,18 @@ class HafalanSkriningController extends Controller
 
                 $kamarInfo = null;
                 if ($usesActiveKamar && $student->kamarMembers->isNotEmpty()) {
-                    $kamarInfo = optional($student->kamarMembers->first()->activeKamar)->kamar;
+                    $kamarInfo = $student->kamarMembers->first()?->activeKamar?->kamar;
                 } elseif ($usesLegacyKamar && $student->kamarMembers->isNotEmpty()) {
-                    $kamarInfo = $student->kamarMembers->first()->kamar ?? null;
+                    $kamarInfo = $student->kamarMembers->first()?->kamar;
                 }
 
                 $rekapData[] = [
                     'student_id'    => $student->id,
                     'user_id'       => $userId,
-                    'name'          => $student->user->name ?? '-',
-                    'nomor_induk'   => $student->user->nomor_induk ?? '-',
-                    'kelas'         => optional(optional(optional($student->latestClassMember)->activeClass)->kelas)->name,
-                    'kamar'         => $kamarInfo ? $kamarInfo->name : null,
+                    'name'          => $student->user?->name ?? '-',
+                    'nomor_induk'   => $student->user?->nomor_induk ?? '-',
+                    'kelas'         => $student->latestClassMember?->activeClass?->kelas?->name,
+                    'kamar'         => $kamarInfo?->name,
                     'completed_juz' => $screenedTargetJuz,
                     'missing_juz'   => $missingJuz,
                     'total_done'    => count($screenedTargetJuz),

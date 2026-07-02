@@ -35,9 +35,9 @@ class SubjectTeacherController extends Controller
             ->where(function ($q) use ($activeYearId) {
                 // Include explicit teaching roles via Category (Primary or Secondary)
                 $q->whereHas('userLevel', function ($subQ) {
-                    $subQ->where('category', 'Ustadz');
+                    $subQ->whereNotIn('name', ['Santri', 'Siswa']);
                 })->orWhereHas('additionalLevels', function ($subQ) {
-                    $subQ->where('category', 'Ustadz');
+                    $subQ->whereNotIn('name', ['Santri', 'Siswa']);
                 })
                     // OR include anyone who already has a quota set for this year
                     ->orWhereHas('teacherQuota', function ($subQ) use ($activeYearId) {
@@ -109,9 +109,9 @@ class SubjectTeacherController extends Controller
         $teachers = User::where('status', 'Aktif')
             ->where(function ($q) {
                 $q->whereHas('userLevel', function ($subQ) {
-                    $subQ->where('category', 'Ustadz');
+                    $subQ->whereNotIn('name', ['Santri', 'Siswa']);
                 })->orWhereHas('additionalLevels', function ($subQ) {
-                    $subQ->where('category', 'Ustadz');
+                    $subQ->whereNotIn('name', ['Santri', 'Siswa']);
                 });
             })->orderBy('name')->get();
 

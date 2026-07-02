@@ -78,6 +78,11 @@ class User extends Authenticatable
         return $this->hasMany(ActiveSubject::class, 'teacher_id');
     }
 
+    public function semesterSubjectTeachers()
+    {
+        return $this->hasMany(SemesterSubjectTeacher::class, 'teacher_id');
+    }
+
     public function teacherQuota()
     {
         return $this->hasOne(TeacherQuota::class);

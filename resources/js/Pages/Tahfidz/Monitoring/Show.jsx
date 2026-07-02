@@ -47,7 +47,7 @@ export default function Show({ monitoring }) {
                                 {monitoring.violations.map((vio) => (
                                     <li key={vio.id} className="bg-white p-3 rounded shadow-sm">
                                         <div className="flex justify-between">
-                                            <span className="font-bold text-red-700">{vio.musyrif?.student?.name}</span>
+                                            <span className="font-bold text-red-700">{vio.musyrif?.student ? vio.musyrif.student.name : (vio.musyrif?.user ? vio.musyrif.user.name + ' (Ustadz)' : '-')}</span>
                                             <span className="px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-800">{vio.violation_type}</span>
                                         </div>
                                         {vio.note && <p className="text-gray-600 text-sm mt-1">"{vio.note}"</p>}
@@ -74,7 +74,7 @@ export default function Show({ monitoring }) {
                                         <XCircle className="w-5 h-5 text-red-600 mr-2" />
                                     )}
                                     <div>
-                                        <p className="font-semibold text-sm">{att.musyrif?.student?.name}</p>
+                                        <p className="font-semibold text-sm">{att.musyrif?.student ? att.musyrif.student.name : (att.musyrif?.user ? att.musyrif.user.name + ' (Ustadz)' : '-')}</p>
                                         <p className={`text-xs ${att.status === 'Hadir' ? 'text-green-700' : 'text-red-700'}`}>{att.status}</p>
                                     </div>
                                 </div>

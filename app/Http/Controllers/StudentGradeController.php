@@ -239,18 +239,34 @@ class StudentGradeController extends Controller
             ->where('semester_id', $activeSemester->id)
             ->get();
 
-        // 7. Memorization Count (Placeholder)
-        $memorizationCount = 0; // Placeholder as requested
+        // 7. Memorization Count
+        $memorizationCount = \App\Models\TahfidzMemorization::where('student_id', $student->id)
+            ->where('is_completed', true)
+            ->pluck('juz')
+            ->filter(fn ($juz) => filled($juz))
+            ->unique()
+            ->count();
+
+        $gradeConfig = \App\Models\SchoolInfo::first()?->grade_config ?? [];
 
         return Inertia::render('Student/Grades/Index', [
             'safetyTargets' => $safetyTargets,
-            'tahfidzGrades' => $tahfidzGrades,
-            'memorizationCount' => $memorizationCount,
+            'studentGrades' => $allGrades,
             'student' => $student,
-            'className' => trim(($activeClass?->kelas?->name ?? '') . ' ' . ($activeClass?->kelasParalel?->name ?? '')),
+            'className' => ($activeClass->kelas->name ?? '') . ' ' . ($activeClass->kelasParalel->name ?? ''),
             'semesterName' => $activeSemester->name,
             'weightComponents' => $weightComponents,
-            'isSem2' => $isSem2
+            'isSem2' => $isSem2,
+            'error' => null,
+            'tahfidzGrades' => $tahfidzGrades,
+            'memorizationCount' => $memorizationCount,
+            'academicYears' => $academicYears,
+            'semesters' => $semesters,
+            'filters' => [
+                'academic_year_id' => $academicYearId,
+                'semester_id' => $semesterId,
+            ],
+            'gradeConfig' => $gradeConfig,
         ]);
     }
 }

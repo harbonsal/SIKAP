@@ -262,6 +262,17 @@ export default function Index({ students, filters, total_count, mode = 'manageme
         <MainLayout>
             <Head title={mode === 'search' ? "Pusat Pencarian" : "Data Siswa"} />
 
+            <div className="flex border-b border-border mb-6 overflow-x-auto">
+                <Link href={route('students.index')} className={`px-4 py-3 border-b-2 whitespace-nowrap ${route().current('students.*') ? 'border-primary text-primary font-medium' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+                    Cari & Biodata Santri
+                </Link>
+                {auth.user?.permissions?.includes('view_class_members') && (
+                    <Link href={route('class-members.index')} className={`px-4 py-3 border-b-2 whitespace-nowrap ${route().current('class-members.*') ? 'border-primary text-primary font-medium' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+                        Anggota Kelas
+                    </Link>
+                )}
+            </div>
+
             <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
@@ -283,6 +294,13 @@ export default function Index({ students, filters, total_count, mode = 'manageme
                             >
                                 <Upload className="h-4 w-4" />
                                 Import / Update Massal
+                            </Link>
+                            <Link
+                                href={route('students.graduation')}
+                                className="inline-flex items-center gap-2 rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-white shadow hover:bg-amber-600 transition-colors"
+                            >
+                                <School className="h-4 w-4" />
+                                Kelulusan Santri
                             </Link>
                             <Link
                                 href={route('students.create')}

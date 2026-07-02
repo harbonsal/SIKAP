@@ -25,30 +25,7 @@ export default defineConfig({
                 navigateFallback: null,
             },
             includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
-            manifest: {
-                id: 'sikap_alwan_pwa',
-                name: 'SIKAP Alwan',
-                short_name: 'SIKAP Alwan',
-                description: 'Sistem Informasi aKademik dan Pengasuhan Alwan',
-                theme_color: '#ffffff',
-                background_color: '#ffffff',
-                display: 'standalone',
-                scope: '/',
-                start_url: '/',
-                orientation: 'portrait',
-                icons: [
-                    {
-                        src: '/pwa-192x192.png',
-                        sizes: '192x192',
-                        type: 'image/png'
-                    },
-                    {
-                        src: '/pwa-512x512.png',
-                        sizes: '512x512',
-                        type: 'image/png'
-                    }
-                ]
-            }
+            manifest: false
         }),
     ],
 });

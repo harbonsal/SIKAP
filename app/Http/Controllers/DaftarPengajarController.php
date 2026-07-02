@@ -31,28 +31,46 @@ class DaftarPengajarController extends Controller
             return redirect()->back()->with('error', 'Belum ada Tahun Ajaran aktif.');
         }
 
+        $activeSemester = \App\Services\AcademicStateService::currentSemester();
+
         $search = $request->search;
         $kelasId = $request->kelas_id;
         $jenjangId = $request->jenjang_id;
 
         $query = User::query()
-            ->whereHas('activeSubjects', function ($q) use ($activeYear, $kelasId, $jenjangId) {
-                $q->whereHas('activeClass', function ($classQ) use ($activeYear, $kelasId, $jenjangId) {
-                    $classQ->where('academic_year_id', $activeYear->id);
-                    if ($kelasId) {
-                        $classQ->where('kelas_id', $kelasId);
+            ->where(function ($userQ) use ($activeYear, $kelasId, $jenjangId, $activeSemester) {
+                $userQ->whereHas('activeSubjects', function ($q) use ($activeYear, $kelasId, $jenjangId) {
+                    $q->whereHas('activeClass', function ($classQ) use ($activeYear, $kelasId, $jenjangId) {
+                        $classQ->where('academic_year_id', $activeYear->id);
+                        if ($kelasId) {
+                            $classQ->where('kelas_id', $kelasId);
+                        }
+                        if ($jenjangId) {
+                            $classQ->whereHas('kelas', function ($kq) use ($jenjangId) {
+                                $kq->where('jenjang_id', $jenjangId);
+                            });
+                        }
+                    });
+                })->orWhereHas('semesterSubjectTeachers', function ($sstQ) use ($activeYear, $kelasId, $jenjangId, $activeSemester) {
+                    if ($activeSemester) {
+                        $sstQ->where('semester_id', $activeSemester->id);
                     }
-                    if ($jenjangId) {
-                        $classQ->whereHas('kelas', function ($kq) use ($jenjangId) {
-                            $kq->where('jenjang_id', $jenjangId);
-                        });
-                    }
+                    $sstQ->whereHas('activeSubject.activeClass', function ($classQ) use ($activeYear, $kelasId, $jenjangId) {
+                        $classQ->where('academic_year_id', $activeYear->id);
+                        if ($kelasId) {
+                            $classQ->where('kelas_id', $kelasId);
+                        }
+                        if ($jenjangId) {
+                            $classQ->whereHas('kelas', function ($kq) use ($jenjangId) {
+                                $kq->where('jenjang_id', $jenjangId);
+                            });
+                        }
+                    });
                 });
             })
             ->with(['activeSubjects' => function ($q) use ($activeYear, $kelasId, $jenjangId) {
                 $q->whereHas('activeClass', function ($classQ) use ($activeYear, $kelasId, $jenjangId) {
                     $classQ->where('academic_year_id', $activeYear->id);
-                    // Filter the subjects down so it only displays what exactly matches the user filter
                     if ($kelasId) {
                         $classQ->where('kelas_id', $kelasId);
                     }
@@ -63,6 +81,23 @@ class DaftarPengajarController extends Controller
                     }
                 });
                 $q->with(['mapel', 'activeClass.kelas.jenjang', 'activeClass.kelasParalel']);
+            }])
+            ->with(['semesterSubjectTeachers' => function ($sstQ) use ($activeSemester, $activeYear, $kelasId, $jenjangId) {
+                if ($activeSemester) {
+                    $sstQ->where('semester_id', $activeSemester->id);
+                }
+                $sstQ->whereHas('activeSubject.activeClass', function ($classQ) use ($activeYear, $kelasId, $jenjangId) {
+                    $classQ->where('academic_year_id', $activeYear->id);
+                    if ($kelasId) {
+                        $classQ->where('kelas_id', $kelasId);
+                    }
+                    if ($jenjangId) {
+                        $classQ->whereHas('kelas', function ($kq) use ($jenjangId) {
+                            $kq->where('jenjang_id', $jenjangId);
+                        });
+                    }
+                });
+                $sstQ->with(['activeSubject.mapel', 'activeSubject.activeClass.kelas.jenjang', 'activeSubject.activeClass.kelasParalel']);
             }]);
 
         if ($search) {
@@ -75,7 +110,21 @@ class DaftarPengajarController extends Controller
         $teachers = $query->orderBy('name')->paginate(30)->withQueryString();
 
         $teachers->getCollection()->transform(function ($teacher) {
-            $teacher->total_jam = $teacher->activeSubjects->sum('jam');
+            $jamFromActiveSubjects = $teacher->activeSubjects->sum('jam');
+            $jamFromSemesterSubjects = $teacher->semesterSubjectTeachers->map(function ($sst) {
+                return $sst->activeSubject->jam ?? 0;
+            })->sum();
+
+            $teacher->total_jam = $jamFromActiveSubjects + $jamFromSemesterSubjects;
+
+            // Masukkan mapel dari semester_subject_teachers ke property activeSubjects supaya dirender frontend
+            foreach ($teacher->semesterSubjectTeachers as $sst) {
+                if ($sst->activeSubject) {
+                    if (!$teacher->activeSubjects->contains('id', $sst->active_subject_id)) {
+                        $teacher->activeSubjects->push($sst->activeSubject);
+                    }
+                }
+            }
             return $teacher;
         });
 

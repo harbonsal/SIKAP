@@ -4,8 +4,9 @@ import { Card, CardContent } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/Components/ui/dialog';
 import axios from 'axios';
+import QuranSetoranViewer from '@/Components/QuranSetoranViewer';
 
-export default function JuzInputGrid({ student, juzData, onUpdate }) {
+export default function JuzInputGrid({ student, juzData, onUpdate, auth }) {
     const [selectedJuz, setSelectedJuz] = useState(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [processing, setProcessing] = useState(false);
@@ -17,6 +18,10 @@ export default function JuzInputGrid({ student, juzData, onUpdate }) {
         completed_pages: [],
         mark_full_juz: false
     });
+
+    const isManagerOrAdmin = auth?.user?.roles?.some(r => r.name === 'Administrator' || r.name === 'Manager Tahfidz');
+    const [quranViewerOpen, setQuranViewerOpen] = useState(false);
+    const [selectedPage, setSelectedPage] = useState(null);
 
     const openJuzDetail = (juz) => {
         setSelectedJuz(juz);
@@ -32,14 +37,20 @@ export default function JuzInputGrid({ student, juzData, onUpdate }) {
     const handlePageToggle = (pageNumber) => {
         if (formData.mark_full_juz) return;
 
-        const currentPages = formData.completed_pages;
-        let newPages = [];
-        if (currentPages.includes(pageNumber)) {
-            newPages = currentPages.filter(p => p !== pageNumber);
+        if (isManagerOrAdmin) {
+            const currentPages = formData.completed_pages;
+            let newPages = [];
+            if (currentPages.includes(pageNumber)) {
+                newPages = currentPages.filter(p => p !== pageNumber);
+            } else {
+                newPages = [...currentPages, pageNumber];
+            }
+            setFormData({ ...formData, completed_pages: newPages });
         } else {
-            newPages = [...currentPages, pageNumber];
+            // Musyrif mode: open Quran viewer
+            setSelectedPage(pageNumber);
+            setQuranViewerOpen(true);
         }
-        setFormData({ ...formData, completed_pages: newPages });
     };
 
     const handleFullJuzToggle = (e) => {
@@ -74,8 +85,8 @@ export default function JuzInputGrid({ student, juzData, onUpdate }) {
             <Card className="bg-white border shadow-sm">
                 <CardContent className="p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
-                        <h3 className="text-xl font-bold text-gray-900">{student.name}</h3>
-                        <p className="text-gray-500">NIS: {student.nis}</p>
+                        <h3 className="text-xl font-bold text-gray-900">{student.user?.name || student.name}</h3>
+                        <p className="text-gray-500">NIS: {student.user?.nomor_induk || student.nisn || '-'}</p>
                     </div>
                     <div className="text-right">
                         <div className="text-sm text-gray-500">Total Hafalan</div>
@@ -146,37 +157,84 @@ export default function JuzInputGrid({ student, juzData, onUpdate }) {
                         </div>
 
                         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                            {selectedJuz && Array.from({ length: selectedJuz.end_page - selectedJuz.start_page + 1 }, (_, i) => selectedJuz.start_page + i).map((pageNum) => (
-                                <div
-                                    key={pageNum}
-                                    className={`
-                                        flex items-center space-x-3 p-3 rounded-lg border transition-colors
-                                        ${formData.completed_pages.includes(pageNum) ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}
-                                    `}
-                                >
-                                    <input
-                                        type="checkbox"
-                                        id={`page-${pageNum}`}
-                                        checked={formData.completed_pages.includes(pageNum)}
-                                        onChange={() => handlePageToggle(pageNum)}
-                                        disabled={formData.mark_full_juz}
-                                        className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                                    />
-                                    <label
-                                        htmlFor={`page-${pageNum}`}
-                                        className={`font-medium text-sm cursor-pointer ml-2 ${formData.mark_full_juz ? 'opacity-50' : ''}`}
-                                    >
-                                        Halaman {pageNum}
-                                    </label>
-                                </div>
-                            ))}
+                            {selectedJuz && Array.from({ length: selectedJuz.end_page - selectedJuz.start_page + 1 }, (_, i) => selectedJuz.start_page + i).map((pageNum) => {
+                                const isCompleted = formData.completed_pages.includes(pageNum);
+                                const details = selectedJuz.details || {};
+                                const pageDetail = details[pageNum];
+                                const isHalf = pageDetail && pageDetail.status === 'half';
+
+                                if (isManagerOrAdmin) {
+                                    return (
+                                        <div
+                                            key={pageNum}
+                                            className={`
+                                                flex items-center space-x-3 p-3 rounded-lg border transition-colors
+                                                ${isCompleted ? 'bg-green-50 border-green-200' : isHalf ? 'bg-gradient-to-r from-green-50 to-white border-green-200' : 'bg-white border-gray-200'}
+                                            `}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                id={`page-${pageNum}`}
+                                                checked={isCompleted}
+                                                onChange={() => handlePageToggle(pageNum)}
+                                                disabled={formData.mark_full_juz}
+                                                className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                                            />
+                                            <label
+                                                htmlFor={`page-${pageNum}`}
+                                                className={`font-medium text-sm cursor-pointer ml-2 ${formData.mark_full_juz ? 'opacity-50' : ''}`}
+                                            >
+                                                Halaman {pageNum}
+                                            </label>
+                                        </div>
+                                    );
+                                } else {
+                                    return (
+                                        <button
+                                            key={pageNum}
+                                            type="button"
+                                            onClick={() => handlePageToggle(pageNum)}
+                                            className={`
+                                                flex items-center justify-center space-x-2 p-3 rounded-lg border transition-all
+                                                ${isCompleted ? 'bg-green-100 border-green-400 text-green-800 hover:bg-green-200' : isHalf ? 'bg-gradient-to-b from-green-100 to-white border-green-300 hover:border-green-400' : 'bg-white border-gray-200 hover:bg-slate-50 hover:border-slate-300'}
+                                            `}
+                                        >
+                                            <span className="font-medium text-sm">Halaman {pageNum}</span>
+                                            {isCompleted && <span className="text-green-600 text-xs font-bold">✔</span>}
+                                        </button>
+                                    );
+                                }
+                            })}
                         </div>
                     </div>
 
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Batal</Button>
-                        <Button onClick={submitForm} disabled={processing}>Simpan Perubahan</Button>
+                        {isManagerOrAdmin && (
+                            <>
+                                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Batal</Button>
+                                <Button onClick={submitForm} disabled={processing}>Simpan Perubahan</Button>
+                            </>
+                        )}
+                        {!isManagerOrAdmin && (
+                            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Tutup</Button>
+                        )}
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Quran Viewer Modal for Musyrif */}
+            <Dialog open={quranViewerOpen} onOpenChange={setQuranViewerOpen}>
+                <DialogContent className="max-w-4xl p-0 overflow-hidden bg-transparent border-none shadow-none">
+                    {selectedPage && selectedJuz && (
+                        <QuranSetoranViewer
+                            studentId={student.id}
+                            juz={selectedJuz.juz}
+                            initialPageNumber={selectedPage}
+                            juzDetails={selectedJuz.details}
+                            onClose={() => setQuranViewerOpen(false)}
+                            onUpdate={onUpdate}
+                        />
+                    )}
                 </DialogContent>
             </Dialog>
         </div>

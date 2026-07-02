@@ -11,6 +11,7 @@ class SchoolInfo extends Model
         'address',
         'header_config',
         'schedule_config',
+        'grade_config',
         'city',
         'report_date',
         'report_place_ar',
@@ -22,5 +23,6 @@ class SchoolInfo extends Model
     protected $casts = [
         'header_config' => 'array',
         'schedule_config' => 'array',
+        'grade_config' => 'array',
     ];
 }

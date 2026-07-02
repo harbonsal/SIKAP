@@ -1,4 +1,4 @@
-import MainLayout from '@/Layouts/MainLayout';
+import AbsensiLayout from '@/Layouts/AbsensiLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import { Plus, Search, Calendar, BookOpen, Clock } from 'lucide-react';
 import Pagination from '@/Components/Pagination';
@@ -29,15 +29,12 @@ export default function Index({ journals, filters = {}, classes = [], mapels = [
         });
     };
     return (
-        <MainLayout>
+        <AbsensiLayout>
             <Head title="Absensi & Jurnal Kelas" />
 
             <div className="space-y-6">
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-3xl font-bold tracking-tight text-foreground">Absensi & Jurnal</h2>
-                        <p className="text-muted-foreground">Catat aktivitas pembelajaran dan kehadiran siswa.</p>
-                    </div>
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-end gap-4">
+
                     <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
                         <Link
                             href={route('journals.create')}
@@ -180,6 +177,6 @@ export default function Index({ journals, filters = {}, classes = [], mapels = [
 
                 <Pagination links={journals.links} />
             </div>
-        </MainLayout>
+        </AbsensiLayout>
     );
 }

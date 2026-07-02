@@ -10,6 +10,12 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\StudentExport;
+use App\Exports\StudentTemplateMissingExport;
+use App\Exports\StudentUpdateTemplateExport;
+use App\Imports\StudentImport;
+use App\Imports\StudentUpdateImport;
 
 class StudentController extends Controller
 {
@@ -279,12 +285,12 @@ class StudentController extends Controller
             // Dapodik Fields
             'religion' => 'nullable|string',
             'citizenship' => 'nullable|string',
-            'child_order' => 'nullable|integer',
-            'siblings_count' => 'nullable|integer',
+            'child_order' => 'nullable',
+            'siblings_count' => 'nullable',
             'living_with' => 'nullable|string',
             'financial_sponsor' => 'nullable|string',
-            'height' => 'nullable|integer',
-            'weight' => 'nullable|integer',
+            'height' => 'nullable',
+            'weight' => 'nullable',
             'blood_type' => 'nullable|string',
 
             // Parents & Guardian
@@ -293,21 +299,21 @@ class StudentController extends Controller
 
             'father_name' => 'nullable|string',
             'father_nik' => 'nullable|string',
-            'father_birth_year' => 'nullable|integer',
+            'father_birth_year' => 'nullable',
             'father_education' => 'nullable|string',
             'father_occupation' => 'nullable|string',
             'father_income' => 'nullable|string',
 
             'mother_name' => 'nullable|string',
             'mother_nik' => 'nullable|string',
-            'mother_birth_year' => 'nullable|integer',
+            'mother_birth_year' => 'nullable',
             'mother_education' => 'nullable|string',
             'mother_occupation' => 'nullable|string',
             'mother_income' => 'nullable|string',
 
             'guardian_name' => 'nullable|string',
             'guardian_nik' => 'nullable|string',
-            'guardian_birth_year' => 'nullable|integer',
+            'guardian_birth_year' => 'nullable',
             'guardian_education' => 'nullable|string',
             'guardian_occupation' => 'nullable|string',
             'guardian_income' => 'nullable|string',
@@ -320,8 +326,8 @@ class StudentController extends Controller
 
         $request->validate($rules);
 
-        // Find or Create 'Siswa' User Level
-        $studentLevel = UserLevel::firstOrCreate(['name' => 'Siswa']);
+        // Find or Create 'Santri' User Level
+        $studentLevel = UserLevel::firstOrCreate(['name' => 'Santri'], ['category' => 'Santri']);
 
         DB::beginTransaction();
         try {
@@ -372,31 +378,31 @@ class StudentController extends Controller
                 // New Fields
                 'religion' => $request->religion ?? 'Islam',
                 'citizenship' => $request->citizenship ?? 'WNI',
-                'child_order' => $request->child_order,
-                'siblings_count' => $request->siblings_count,
+                'child_order' => $request->child_order === '' ? null : $request->child_order,
+                'siblings_count' => $request->siblings_count === '' ? null : $request->siblings_count,
                 'living_with' => $request->living_with,
                 'financial_sponsor' => $request->financial_sponsor,
-                'height' => $request->height,
-                'weight' => $request->weight,
+                'height' => $request->height === '' ? null : $request->height,
+                'weight' => $request->weight === '' ? null : $request->weight,
                 'blood_type' => $request->blood_type,
 
                 'father_name' => $request->father_name,
                 'father_nik' => $request->father_nik,
-                'father_birth_year' => $request->father_birth_year,
+                'father_birth_year' => $request->father_birth_year === '' ? null : $request->father_birth_year,
                 'father_education' => $request->father_education,
                 'father_occupation' => $request->father_occupation,
                 'father_income' => $request->father_income,
 
                 'mother_name' => $request->mother_name,
                 'mother_nik' => $request->mother_nik,
-                'mother_birth_year' => $request->mother_birth_year,
+                'mother_birth_year' => $request->mother_birth_year === '' ? null : $request->mother_birth_year,
                 'mother_education' => $request->mother_education,
                 'mother_occupation' => $request->mother_occupation,
                 'mother_income' => $request->mother_income,
 
                 'guardian_name' => $request->guardian_name,
                 'guardian_nik' => $request->guardian_nik,
-                'guardian_birth_year' => $request->guardian_birth_year,
+                'guardian_birth_year' => $request->guardian_birth_year === '' ? null : $request->guardian_birth_year,
                 'guardian_education' => $request->guardian_education,
                 'guardian_occupation' => $request->guardian_occupation,
                 'guardian_income' => $request->guardian_income,
@@ -470,35 +476,35 @@ class StudentController extends Controller
             // Dapodik Fields
             'religion' => 'nullable|string',
             'citizenship' => 'nullable|string',
-            'child_order' => 'nullable|integer',
-            'siblings_count' => 'nullable|integer',
+            'child_order' => 'nullable',
+            'siblings_count' => 'nullable',
             'living_with' => 'nullable|string',
             'financial_sponsor' => 'nullable|string',
-            'height' => 'nullable|integer',
-            'weight' => 'nullable|integer',
+            'height' => 'nullable',
+            'weight' => 'nullable',
             'blood_type' => 'nullable|string',
 
             // Parents & Guardian
-            'parent_name' => 'required|string', // Used as generic parent name if needed
+            'parent_name' => 'nullable|string', // Used as generic parent name if needed
             'parent_phone' => 'nullable|string',
 
             'father_name' => 'nullable|string',
             'father_nik' => 'nullable|string',
-            'father_birth_year' => 'nullable|integer',
+            'father_birth_year' => 'nullable',
             'father_education' => 'nullable|string',
             'father_occupation' => 'nullable|string',
             'father_income' => 'nullable|string',
 
             'mother_name' => 'nullable|string',
             'mother_nik' => 'nullable|string',
-            'mother_birth_year' => 'nullable|integer',
+            'mother_birth_year' => 'nullable',
             'mother_education' => 'nullable|string',
             'mother_occupation' => 'nullable|string',
             'mother_income' => 'nullable|string',
 
             'guardian_name' => 'nullable|string',
             'guardian_nik' => 'nullable|string',
-            'guardian_birth_year' => 'nullable|integer',
+            'guardian_birth_year' => 'nullable',
             'guardian_education' => 'nullable|string',
             'guardian_occupation' => 'nullable|string',
             'guardian_income' => 'nullable|string',
@@ -535,44 +541,44 @@ class StudentController extends Controller
             'village' => $request->village,
             'postal_code' => $request->postal_code,
             'address_details' => $request->address_details,
-            'parent_name' => $request->parent_name,
+            'parent_name' => $request->parent_name ?: ($request->father_name ?: ($request->mother_name ?: ($request->guardian_name ?: '-'))),
             'parent_phone' => $request->parent_phone,
 
             // New Fields
             'religion' => $request->religion ?? 'Islam',
             'citizenship' => $request->citizenship ?? 'WNI',
-            'child_order' => $request->child_order,
-            'siblings_count' => $request->siblings_count,
+            'child_order' => $request->child_order === '' ? null : $request->child_order,
+            'siblings_count' => $request->siblings_count === '' ? null : $request->siblings_count,
             'living_with' => $request->living_with,
             'financial_sponsor' => $request->financial_sponsor,
-            'height' => $request->height,
-            'weight' => $request->weight,
+            'height' => $request->height === '' ? null : $request->height,
+            'weight' => $request->weight === '' ? null : $request->weight,
             'blood_type' => $request->blood_type,
 
             'father_name' => $request->father_name,
             'father_nik' => $request->father_nik,
-            'father_birth_year' => $request->father_birth_year,
+            'father_birth_year' => $request->father_birth_year === '' ? null : $request->father_birth_year,
             'father_education' => $request->father_education,
             'father_occupation' => $request->father_occupation,
             'father_income' => $request->father_income,
 
             'mother_name' => $request->mother_name,
             'mother_nik' => $request->mother_nik,
-            'mother_birth_year' => $request->mother_birth_year,
+            'mother_birth_year' => $request->mother_birth_year === '' ? null : $request->mother_birth_year,
             'mother_education' => $request->mother_education,
             'mother_occupation' => $request->mother_occupation,
             'mother_income' => $request->mother_income,
 
             'guardian_name' => $request->guardian_name,
             'guardian_nik' => $request->guardian_nik,
-            'guardian_birth_year' => $request->guardian_birth_year,
+            'guardian_birth_year' => $request->guardian_birth_year === '' ? null : $request->guardian_birth_year,
             'guardian_education' => $request->guardian_education,
             'guardian_occupation' => $request->guardian_occupation,
             'guardian_income' => $request->guardian_income,
             'guardian_address' => $request->guardian_address,
         ]);
 
-        return redirect()->route('students.index', $request->query())->with('success', 'Data Siswa berhasil diperbarui.');
+        return redirect()->route('students.show', $student->id)->with('success', 'Data Siswa berhasil diperbarui.');
     }
 
     public function destroy(Student $student)
@@ -580,6 +586,83 @@ class StudentController extends Controller
         // Deleting the user will cascade delete the student profile due to foreign key constraint
         $student->user->delete();
         return back()->with('success', 'Data Siswa berhasil dihapus.');
+    }
+
+    public function graduation(Request $request)
+    {
+        $activeYear = \App\Services\AcademicStateService::currentAcademicYear();
+        
+        $classes = [];
+        $students = [];
+
+        if ($activeYear) {
+            // Get all active classes
+            $classes = \App\Models\ActiveClass::where('academic_year_id', $activeYear->id)
+                ->with(['kelas', 'kelasParalel'])
+                ->get()
+                ->sortBy(function ($q) {
+                    return $q->kelas->name . ($q->kelasParalel->name ?? '');
+                })
+                ->values();
+
+            if ($request->filled('class_id')) {
+                // Get active students in this class
+                $students = Student::whereHas('classMembers', function($q) use ($request) {
+                    $q->where('active_class_id', $request->class_id);
+                })
+                ->whereHas('user', function($q) {
+                    $q->where('status', 'Aktif');
+                })
+                ->with(['user', 'classMembers' => function($q) use ($activeYear) {
+                    $q->whereHas('activeClass', function($sq) use ($activeYear) {
+                        $sq->where('academic_year_id', $activeYear->id);
+                    })->with(['activeClass.kelas', 'activeClass.kelasParalel']);
+                }])
+                ->get()
+                ->sortBy('user.name')
+                ->values();
+            }
+        }
+
+        return Inertia::render('Students/Graduation', [
+            'classes' => $classes,
+            'students' => $students,
+            'filters' => $request->only(['class_id']),
+        ]);
+    }
+
+    public function processGraduation(Request $request)
+    {
+        $request->validate([
+            'student_ids' => 'required|array',
+            'student_ids.*' => 'exists:students,id',
+            'graduation_date' => 'required|date',
+            'note' => 'nullable|string',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $students = Student::whereIn('id', $request->student_ids)->with('user')->get();
+            $count = 0;
+
+            foreach ($students as $student) {
+                if ($student->user && $student->user->status === 'Aktif') {
+                    $student->user->update([
+                        'status' => 'Tidak Aktif',
+                        'inactive_reason' => 'Lulus',
+                        'inactive_date' => $request->graduation_date,
+                        'inactive_note' => $request->note,
+                    ]);
+                    $count++;
+                }
+            }
+
+            DB::commit();
+            return back()->with('success', "Berhasil meluluskan {$count} santri.");
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal memproses kelulusan: ' . $e->getMessage());
+        }
     }
 
     public function export(Request $request)
@@ -665,120 +748,8 @@ class StudentController extends Controller
                           ->select('students.*')
                           ->get();
 
-        $csvFileName = 'students_export_' . date('Y-m-d_H-i-s') . '.csv';
-
-        $headers = [
-            "Content-type" => "text/csv",
-            "Content-Disposition" => "attachment; filename=$csvFileName",
-            "Pragma" => "no-cache",
-            "Cache-Control" => "must-revalidate, post-check=0, pre-check=0",
-            "Expires" => "0"
-        ];
-
-        $columns = [
-            'Nama',
-            'NIS',
-            'NISN',
-            'NIK',
-            'Jenis Kelamin',
-            'Tempat Lahir',
-            'Tanggal Lahir',
-            'Alamat',
-            'Provinsi',
-            'Kota/Kab',
-            'Kecamatan',
-            'Kelurahan',
-            'Kode Pos',
-            'Detail Alamat',
-            'Agama',
-            'Asal Daerah',
-            'Kewarganegaraan',
-            'Anak Ke',
-            'Jml Saudara',
-            'Tinggal Bersama',
-            'Penanggung Biaya',
-            'Tinggi (cm)',
-            'Berat (kg)',
-            'Gol. Darah',
-            'Nama Ayah',
-            'NIK Ayah',
-            'Tahun Lahir Ayah',
-            'Pendidikan Ayah',
-            'Pekerjaan Ayah',
-            'Penghasilan Ayah',
-            'Nama Ibu',
-            'NIK Ibu',
-            'Tahun Lahir Ibu',
-            'Pendidikan Ibu',
-            'Pekerjaan Ibu',
-            'Penghasilan Ibu',
-            'Nama Wali',
-            'NIK Wali',
-            'Tahun Lahir Wali',
-            'Pendidikan Wali',
-            'Pekerjaan Wali',
-            'Penghasilan Wali',
-            'Alamat Wali'
-        ];
-
-        $callback = function () use ($students, $columns) {
-            $file = fopen('php://output', 'w');
-            fputcsv($file, $columns);
-
-            foreach ($students as $student) {
-                $row = [
-                    $student->user->name,
-                    $student->user->nomor_induk,
-                    $student->nisn,
-                    $student->nik,
-                    $student->gender,
-                    $student->birth_place,
-                    $student->birth_date,
-                    $student->address,
-                    $student->province,
-                    $student->city,
-                    $student->district,
-                    $student->village,
-                    $student->postal_code,
-                    $student->address_details,
-                    $student->religion,
-                    $student->origin_region,
-                    $student->citizenship,
-                    $student->child_order,
-                    $student->siblings_count,
-                    $student->living_with,
-                    $student->financial_sponsor,
-                    $student->height,
-                    $student->weight,
-                    $student->blood_type,
-                    $student->father_name,
-                    $student->father_nik,
-                    $student->father_birth_year,
-                    $student->father_education,
-                    $student->father_occupation,
-                    $student->father_income,
-                    $student->mother_name,
-                    $student->mother_nik,
-                    $student->mother_birth_year,
-                    $student->mother_education,
-                    $student->mother_occupation,
-                    $student->mother_income,
-                    $student->guardian_name,
-                    $student->guardian_nik,
-                    $student->guardian_birth_year,
-                    $student->guardian_education,
-                    $student->guardian_occupation,
-                    $student->guardian_income,
-                    $student->guardian_address,
-                ];
-
-                fputcsv($file, $row);
-            }
-
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        $fileName = 'students_export_' . date('Y-m-d_H-i-s') . '.xlsx';
+        return Excel::download(new StudentExport($students), $fileName);
     }
 
     public function exportTemplateMissingBiodata()
@@ -791,82 +762,8 @@ class StudentController extends Controller
             ->whereDoesntHave('student')
             ->get();
 
-        $csvFileName = 'template_biodata_missing_' . date('Y-m-d_H-i-s') . '.csv';
-
-        $headers = [
-            "Content-type" => "text/csv",
-            "Content-Disposition" => "attachment; filename=$csvFileName",
-            "Pragma" => "no-cache",
-            "Cache-Control" => "must-revalidate, post-check=0, pre-check=0",
-            "Expires" => "0"
-        ];
-
-        $columns = [
-            'Nama',
-            'NIS',
-            'NISN',
-            'NIK',
-            'Jenis Kelamin',
-            'Tempat Lahir',
-            'Tanggal Lahir',
-            'Alamat',
-            'Provinsi',
-            'Kota/Kab',
-            'Kecamatan',
-            'Kelurahan',
-            'Kode Pos',
-            'Detail Alamat',
-            'Agama',
-            'Asal Daerah',
-            'Kewarganegaraan',
-            'Anak Ke',
-            'Jml Saudara',
-            'Tinggal Bersama',
-            'Penanggung Biaya',
-            'Tinggi (cm)',
-            'Berat (kg)',
-            'Gol. Darah',
-            'Nama Ayah',
-            'NIK Ayah',
-            'Tahun Lahir Ayah',
-            'Pendidikan Ayah',
-            'Pekerjaan Ayah',
-            'Penghasilan Ayah',
-            'Nama Ibu',
-            'NIK Ibu',
-            'Tahun Lahir Ibu',
-            'Pendidikan Ibu',
-            'Pekerjaan Ibu',
-            'Penghasilan Ibu',
-            'Nama Wali',
-            'NIK Wali',
-            'Tahun Lahir Wali',
-            'Pendidikan Wali',
-            'Pekerjaan Wali',
-            'Penghasilan Wali',
-            'Alamat Wali'
-        ];
-
-        $callback = function () use ($users, $columns) {
-            $file = fopen('php://output', 'w');
-            fputcsv($file, $columns);
-
-            foreach ($users as $user) {
-                // Prepare row with User data (Name, NIS) and empty fields for others
-                $row = array_fill(0, count($columns), null);
-                $row[0] = $user->name;
-                $row[1] = $user->nomor_induk;
-
-                // Set default/placeholder values if needed, otherwise leave null
-                // Example: $row[4] = 'L'; // Default Gender
-
-                fputcsv($file, $row);
-            }
-
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        $fileName = 'template_biodata_missing_' . date('Y-m-d_H-i-s') . '.xlsx';
+        return Excel::download(new StudentTemplateMissingExport($users), $fileName);
     }
 
     public function import()
@@ -877,207 +774,29 @@ class StudentController extends Controller
     public function processImport(Request $request)
     {
         $request->validate([
-            'file' => 'required|file|mimes:csv,txt|max:2048',
+            'file' => 'required|file|mimes:xlsx,csv,txt|max:5120',
         ]);
 
         @set_time_limit(600);
         @ini_set('max_execution_time', 600);
 
-        $file = $request->file('file');
-        $path = $file->getRealPath();
-
-        // Find or Create 'Siswa' User Level
-        $studentLevel = UserLevel::firstOrCreate(['name' => 'Siswa']);
-
-        $successCount = 0;
-        $errors = [];
-
-        if (($handle = fopen($path, 'r')) !== false) {
-            // Remove header
-            $header = fgetcsv($handle);
-            if ($header && isset($header[0])) {
-                $header[0] = preg_replace('/[\x00-\x1F\x80-\xFF]/', '', $header[0]);
-            }
-
-            $index = 0;
-            while (($row = fgetcsv($handle)) !== false) {
-                $index++;
-            // Expected columns: 43 columns matching Export format
-            if (count($row) < 43) {
-                // Let's be lenient and check minimum required fields (first 8)
-                if (count($row) < 8) {
-                    $errors[] = "Baris " . ($index + 2) . ": Format kolom tidak sesuai (kurang dari 8 kolom utama).";
-                    continue;
-                }
-            }
-
-            try {
-                $name = $row[0];
-                $nis = $row[1];
-                $nisn = $row[2] ?? null;
-                if ($nisn !== null) {
-                    $cleanNisn = preg_replace('/[^0-9]/', '', $nisn);
-                    if ($cleanNisn === '' || intval($cleanNisn) === 0) {
-                        $nisn = null;
-                    }
-                }
-                $nik = $row[3] ?? null;
-                if ($nik !== null) {
-                    $cleanNik = preg_replace('/[^0-9]/', '', $nik);
-                    if ($cleanNik === '' || intval($cleanNik) === 0) {
-                        $nik = null;
-                    }
-                }
-                $gender = strtoupper($row[4] ?? 'L');
-                $birthPlace = $row[5] ?? '';
-                $birthDate = $row[6] ?? null; // YYYY-MM-DD
-                if ($birthDate === null || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $birthDate)) {
-                    $birthDate = '2010-01-01';
-                }
-                $address = $row[7] ?? '';
-
-                // Address Details
-                $province = $row[8] ?? null;
-                $city = $row[9] ?? null;
-                $district = $row[10] ?? null;
-                $village = $row[11] ?? null;
-                $postalCode = $row[12] ?? null;
-                $addressDetails = $row[13] ?? null;
-
-                // New Fields
-                $religion = $row[14] ?? 'Islam';
-                $originRegion = $row[15] ?? 'Jawa';
-                $citizenship = $row[16] ?? 'WNI';
-                
-                $childOrder = isset($row[17]) && preg_replace('/[^0-9]/', '', $row[17]) !== '' ? intval(preg_replace('/[^0-9]/', '', $row[17])) : null;
-                $siblingsCount = isset($row[18]) && preg_replace('/[^0-9]/', '', $row[18]) !== '' ? intval(preg_replace('/[^0-9]/', '', $row[18])) : null;
-                $livingWith = $row[19] ?? null;
-                $financialSponsor = $row[20] ?? null;
-                
-                $height = isset($row[21]) && preg_replace('/[^0-9]/', '', $row[21]) !== '' ? intval(preg_replace('/[^0-9]/', '', $row[21])) : null;
-                $weight = isset($row[22]) && preg_replace('/[^0-9]/', '', $row[22]) !== '' ? intval(preg_replace('/[^0-9]/', '', $row[22])) : null;
-                $bloodType = $row[23] ?? null;
-
-                // Parents
-                $fatherName = $row[24] ?? null;
-                $fatherNik = $row[25] ?? null;
-                $fatherBirthYear = isset($row[26]) && preg_replace('/[^0-9]/', '', $row[26]) !== '' ? intval(preg_replace('/[^0-9]/', '', $row[26])) : null;
-                $fatherEducation = $row[27] ?? null;
-                $fatherOccupation = $row[28] ?? null;
-                $fatherIncome = $row[29] ?? null;
-
-                $motherName = $row[30] ?? null;
-                $motherNik = $row[31] ?? null;
-                $motherBirthYear = isset($row[32]) && preg_replace('/[^0-9]/', '', $row[32]) !== '' ? intval(preg_replace('/[^0-9]/', '', $row[32])) : null;
-                $motherEducation = $row[33] ?? null;
-                $motherOccupation = $row[34] ?? null;
-                $motherIncome = $row[35] ?? null;
-
-                // Guardian
-                $guardianName = $row[36] ?? null;
-                $guardianNik = $row[37] ?? null;
-                $guardianBirthYear = isset($row[38]) && preg_replace('/[^0-9]/', '', $row[38]) !== '' ? intval(preg_replace('/[^0-9]/', '', $row[38])) : null;
-                $guardianEducation = $row[39] ?? null;
-                $guardianOccupation = $row[40] ?? null;
-                $guardianIncome = $row[41] ?? null;
-                $guardianAddress = $row[42] ?? null;
-
-                // Generic parent name for display if not set
-                $parentName = $fatherName ?: ($motherName ?: ($guardianName ?: '-'));
-                $parentPhone = null;
-
-                // Check if User exists
-                $existingUser = User::where('nomor_induk', $nis)->first();
-                $userId = null;
-
-                if ($existingUser) {
-                    if (Student::where('user_id', $existingUser->id)->exists()) {
-                        $errors[] = "Baris " . ($index + 2) . ": User $nis sudah memiliki data siswa.";
-                        continue;
-                    }
-                    $userId = $existingUser->id;
-                } else {
-                    // Create User
-                    $user = User::create([
-                        'name' => $name,
-                        'nomor_induk' => $nis,
-                        'email' => null, // Optional in CSV
-                        'password' => Hash::make($nis), // Default password = NIS
-                        'user_level_id' => $studentLevel->id,
-                    ]);
-                    $userId = $user->id;
-                }
-
-                // Create Student
-                Student::create([
-                    'user_id' => $userId,
-                    'nisn' => $nisn,
-                    'nik' => $nik,
-                    'gender' => in_array($gender, ['L', 'P']) ? $gender : 'L',
-                    'birth_place' => $birthPlace,
-                    'birth_date' => $birthDate,
-                    'address' => $address,
-
-                    'province' => $province,
-                    'city' => $city,
-                    'district' => $district,
-                    'village' => $village,
-                    'postal_code' => $postalCode,
-                    'address_details' => $addressDetails,
-
-                    'parent_name' => $parentName,
-                    'parent_phone' => $parentPhone,
-
-                    // Dapodik Fields
-                    'religion' => $religion,
-                    'origin_region' => $originRegion,
-                    'citizenship' => $citizenship,
-                    'child_order' => $childOrder,
-                    'siblings_count' => $siblingsCount,
-                    'living_with' => $livingWith,
-                    'financial_sponsor' => $financialSponsor,
-                    'height' => $height,
-                    'weight' => $weight,
-                    'blood_type' => $bloodType,
-
-                    'father_name' => $fatherName,
-                    'father_nik' => $fatherNik,
-                    'father_birth_year' => $fatherBirthYear,
-                    'father_education' => $fatherEducation,
-                    'father_occupation' => $fatherOccupation,
-                    'father_income' => $fatherIncome,
-
-                    'mother_name' => $motherName,
-                    'mother_nik' => $motherNik,
-                    'mother_birth_year' => $motherBirthYear,
-                    'mother_education' => $motherEducation,
-                    'mother_occupation' => $motherOccupation,
-                    'mother_income' => $motherIncome,
-
-                    'guardian_name' => $guardianName,
-                    'guardian_nik' => $guardianNik,
-                    'guardian_birth_year' => $guardianBirthYear,
-                    'guardian_education' => $guardianEducation,
-                    'guardian_occupation' => $guardianOccupation,
-                    'guardian_income' => $guardianIncome,
-                    'guardian_address' => $guardianAddress,
-                ]);
-
-                $successCount++;
-            } catch (\Exception $e) {
-                $errors[] = "Baris " . ($index + 1) . ": " . $e->getMessage();
-            }
+        $import = new StudentImport();
+        
+        try {
+            Excel::import($import, $request->file('file'));
+        } catch (\Exception $e) {
+            return redirect()->route('users.index')->with('error', 'Gagal membaca file Excel. Pastikan format sesuai template. Error: ' . $e->getMessage());
         }
-        fclose($handle);
-    }
 
+        $successCount = $import->successCount;
+        $errors = $import->errors;
         $message = "Import selesai. $successCount data berhasil ditambahkan.";
         if (count($errors) > 0) {
             $message .= " " . count($errors) . " data gagal.";
-            return redirect()->route('students.index')->with('warning', $message)->with('errors_import', $errors);
+            return redirect()->route('users.index')->with('warning', $message)->with('errors_import', $errors);
         }
 
-        return redirect()->route('students.index')->with('success', $message);
+        return redirect()->route('users.index')->with('success', $message);
     }
 
     /**
@@ -1089,113 +808,8 @@ class StudentController extends Controller
             ->whereHas('user', fn($q) => $q->where('status', 'Aktif'))
             ->get();
 
-        $csvFileName = 'template_update_biodata_' . date('Y-m-d_H-i-s') . '.csv';
-        $headers = [
-            "Content-type"        => "text/csv",
-            "Content-Disposition" => "attachment; filename=$csvFileName",
-            "Pragma"              => "no-cache",
-            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
-            "Expires"             => "0",
-        ];
-
-        $columns = [
-            'NIS',          // [0] KEY - tidak boleh diubah
-            'Nama',         // [1]
-            'NISN',         // [2]
-            'NIK',          // [3]
-            'Jenis Kelamin (L/P)', // [4]
-            'Tempat Lahir', // [5]
-            'Tanggal Lahir (YYYY-MM-DD)', // [6]
-            'Agama',        // [7]
-            'Asal Daerah',  // [8]
-            'Kewarganegaraan', // [9]
-            'Anak Ke',      // [10]
-            'Jml Saudara',  // [11]
-            'Tinggal Bersama', // [12]
-            'Penanggung Biaya', // [13]
-            'Tinggi (cm)',  // [14]
-            'Berat (kg)',   // [15]
-            'Gol Darah',    // [16]
-            'Provinsi',     // [17]
-            'Kota/Kab',     // [18]
-            'Kecamatan',    // [19]
-            'Kelurahan',    // [20]
-            'Kode Pos',     // [21]
-            'Detail Alamat', // [22]
-            'Nama Ayah',    // [23]
-            'NIK Ayah',     // [24]
-            'Thn Lahir Ayah', // [25]
-            'Pendidikan Ayah', // [26]
-            'Pekerjaan Ayah', // [27]
-            'Penghasilan Ayah', // [28]
-            'Nama Ibu',     // [29]
-            'NIK Ibu',      // [30]
-            'Thn Lahir Ibu', // [31]
-            'Pendidikan Ibu', // [32]
-            'Pekerjaan Ibu', // [33]
-            'Penghasilan Ibu', // [34]
-            'Nama Wali',    // [35]
-            'NIK Wali',     // [36]
-            'Thn Lahir Wali', // [37]
-            'Pendidikan Wali', // [38]
-            'Pekerjaan Wali', // [39]
-            'Penghasilan Wali', // [40]
-            'Alamat Wali',  // [41]
-        ];
-
-        $callback = function () use ($students, $columns) {
-            $file = fopen('php://output', 'w');
-            fputcsv($file, $columns);
-            foreach ($students as $student) {
-                fputcsv($file, [
-                    $student->user->nomor_induk,
-                    $student->user->name,
-                    $student->nisn,
-                    $student->nik,
-                    $student->gender,
-                    $student->birth_place,
-                    $student->birth_date,
-                    $student->religion,
-                    $student->origin_region,
-                    $student->citizenship,
-                    $student->child_order,
-                    $student->siblings_count,
-                    $student->living_with,
-                    $student->financial_sponsor,
-                    $student->height,
-                    $student->weight,
-                    $student->blood_type,
-                    $student->province,
-                    $student->city,
-                    $student->district,
-                    $student->village,
-                    $student->postal_code,
-                    $student->address_details,
-                    $student->father_name,
-                    $student->father_nik,
-                    $student->father_birth_year,
-                    $student->father_education,
-                    $student->father_occupation,
-                    $student->father_income,
-                    $student->mother_name,
-                    $student->mother_nik,
-                    $student->mother_birth_year,
-                    $student->mother_education,
-                    $student->mother_occupation,
-                    $student->mother_income,
-                    $student->guardian_name,
-                    $student->guardian_nik,
-                    $student->guardian_birth_year,
-                    $student->guardian_education,
-                    $student->guardian_occupation,
-                    $student->guardian_income,
-                    $student->guardian_address,
-                ]);
-            }
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        $fileName = 'template_update_biodata_' . date('Y-m-d_H-i-s') . '.xlsx';
+        return Excel::download(new StudentUpdateTemplateExport($students), $fileName);
     }
 
     /**
@@ -1205,188 +819,24 @@ class StudentController extends Controller
     public function processImportUpdate(Request $request)
     {
         $request->validate([
-            'file' => 'required|file|mimes:csv,txt|max:5120',
+            'file' => 'required|file|mimes:xlsx,csv,txt|max:5120',
         ]);
 
         @set_time_limit(600);
         @ini_set('max_execution_time', 600);
 
-        $file = $request->file('file');
-        $path = $file->getRealPath();
+        $import = new StudentUpdateImport();
 
-        $successCount = 0;
-        $skippedCount = 0;
-        $errors = [];
-
-        if (($handle = fopen($path, 'r')) !== false) {
-            // Hapus header
-            $header = fgetcsv($handle);
-            if ($header && isset($header[0])) {
-                $header[0] = preg_replace('/[\x00-\x1F\x80-\xFF]/', '', $header[0]);
-            }
-
-            $index = 0;
-            while (($row = fgetcsv($handle)) !== false) {
-                $rowNum = $index + 2;
-                $index++;
-
-                if (count($row) < 1 || empty(trim($row[0]))) {
-                    continue; // Skip baris kosong
-                }
-
-                $nis = trim($row[0]);
-
-                // Cari user by NIS
-                $user = User::where('nomor_induk', $nis)->first();
-                if (!$user) {
-                    $errors[] = "Baris {$rowNum}: NIS '{$nis}' tidak ditemukan.";
-                    $skippedCount++;
-                    continue;
-                }
-
-                // Cari student profile
-                $student = Student::where('user_id', $user->id)->first();
-                if (!$student) {
-                    $errors[] = "Baris {$rowNum}: NIS '{$nis}' belum memiliki profil biodata.";
-                    $skippedCount++;
-                    continue;
-                }
-
-                try {
-                    // Hanya update field yang tidak kosong di CSV
-                    $updateData = [];
-
-                    $fieldMap = [
-                        2  => 'nisn',
-                        3  => 'nik',
-                        4  => 'gender',
-                        5  => 'birth_place',
-                        6  => 'birth_date',
-                        7  => 'religion',
-                        8  => 'origin_region',
-                        9  => 'citizenship',
-                        10 => 'child_order',
-                        11 => 'siblings_count',
-                        12 => 'living_with',
-                        13 => 'financial_sponsor',
-                        14 => 'height',
-                        15 => 'weight',
-                        16 => 'blood_type',
-                        17 => 'province',
-                        18 => 'city',
-                        19 => 'district',
-                        20 => 'village',
-                        21 => 'postal_code',
-                        22 => 'address_details',
-                        23 => 'father_name',
-                        24 => 'father_nik',
-                        25 => 'father_birth_year',
-                        26 => 'father_education',
-                        27 => 'father_occupation',
-                        28 => 'father_income',
-                        29 => 'mother_name',
-                        30 => 'mother_nik',
-                        31 => 'mother_birth_year',
-                        32 => 'mother_education',
-                        33 => 'mother_occupation',
-                        34 => 'mother_income',
-                        35 => 'guardian_name',
-                        36 => 'guardian_nik',
-                        37 => 'guardian_birth_year',
-                        38 => 'guardian_education',
-                        39 => 'guardian_occupation',
-                        40 => 'guardian_income',
-                        41 => 'guardian_address',
-                    ];
-
-                    foreach ($fieldMap as $colIndex => $field) {
-                        if (isset($row[$colIndex]) && trim($row[$colIndex]) !== '') {
-                            $val = trim($row[$colIndex]);
-                            if ($field === 'nisn' || $field === 'nik') {
-                                $cleanVal = preg_replace('/[^0-9]/', '', $val);
-                                if ($cleanVal === '' || intval($cleanVal) === 0) {
-                                    $updateData[$field] = null;
-                                    continue;
-                                }
-                            }
-                            
-                            $intFields = [
-                                'child_order', 'siblings_count', 'height', 'weight',
-                                'father_birth_year', 'mother_birth_year', 'guardian_birth_year'
-                            ];
-                            if (in_array($field, $intFields)) {
-                                $cleanVal = preg_replace('/[^0-9]/', '', $val);
-                                if ($cleanVal === '') {
-                                    $updateData[$field] = null;
-                                    continue;
-                                }
-                                $val = intval($cleanVal);
-                            }
-
-                            if ($field === 'birth_date') {
-                                if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $val)) {
-                                    continue;
-                                }
-                            }
-
-                            // Normalize gender
-                            if ($field === 'gender') $val = strtoupper($val);
-                            $updateData[$field] = $val;
-                        }
-                    }
-
-                    // Update nama di kolom [1] jika ada
-                    if (isset($row[1]) && trim($row[1]) !== '') {
-                        $user->update(['name' => trim($row[1])]);
-                    }
-
-                    // Update address gabungan
-                    if (!empty($updateData)) {
-                        $province = $updateData['province'] ?? $student->province ?? '';
-                        $city = $updateData['city'] ?? $student->city ?? '';
-                        $district = $updateData['district'] ?? $student->district ?? '';
-                        $village = $updateData['village'] ?? $student->village ?? '';
-                        $postalCode = $updateData['postal_code'] ?? $student->postal_code ?? '';
-                        $addressDetails = $updateData['address_details'] ?? $student->address_details ?? '';
-                        $parts = array_filter([$addressDetails, $village, $district, $city, $province, $postalCode]);
-                        if (!empty($parts)) {
-                            $updateData['address'] = implode(', ', $parts);
-                        }
-
-                        // Update parent_name dari father/mother
-                        $fatherName = $updateData['father_name'] ?? $student->father_name ?? '';
-                        $motherName = $updateData['mother_name'] ?? $student->mother_name ?? '';
-                        if ($fatherName || $motherName) {
-                            $updateData['parent_name'] = $fatherName ?: $motherName;
-                        }
-
-                        try {
-                            $student->update($updateData);
-                        } catch (\Illuminate\Database\QueryException $ex) {
-                            if ($ex->errorInfo[1] == 1062) {
-                                unset($updateData['nisn']);
-                                unset($updateData['nik']);
-                                if (!empty($updateData)) {
-                                    $freshStudent = Student::find($student->id);
-                                    if ($freshStudent) {
-                                        $freshStudent->update($updateData);
-                                    }
-                                }
-                                $errors[] = "Baris {$rowNum} (NIS: {$nis}): NISN/NIK duplikat terdeteksi. Sisa biodata berhasil diperbarui.";
-                            } else {
-                                throw $ex;
-                            }
-                        }
-                    }
-
-                    $successCount++;
-                } catch (\Exception $e) {
-                    $errors[] = "Baris {$rowNum} (NIS: {$nis}): " . $e->getMessage();
-                    $skippedCount++;
-                }
-            }
-            fclose($handle);
+        try {
+            Excel::import($import, $request->file('file'));
+        } catch (\Exception $e) {
+            return redirect()->route('students.import')
+                ->with('error', 'Gagal membaca file Excel. Pastikan format sesuai template. Error: ' . $e->getMessage());
         }
+
+        $successCount = $import->successCount;
+        $skippedCount = $import->skippedCount;
+        $errors = $import->errors;
 
         $message = "Update selesai. {$successCount} biodata berhasil diperbarui.";
         if ($skippedCount > 0) {

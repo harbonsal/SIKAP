@@ -98,7 +98,7 @@ class IjazahRecapController extends Controller
                     $s = $g ? $g->score : 0;
                     $final += $s * ($w->weight / 100);
                 }
-                return round($final);
+                return $final;
             };
 
             foreach ($ijazahSubjects as $idx => $subj) {
@@ -120,7 +120,7 @@ class IjazahRecapController extends Controller
                         if ($semester1) {
                             $sem1Score = $calc($gradeWeightsSem1, $semester1->id, $activeSubject->id);
                         }
-                        $finalGrade = round(($sem1Score + (2 * $sem2Score)) / 3);
+                        $finalGrade = round(\App\Helpers\GradeHelper::calculateFinalGrade($sem1Score, $sem2Score), 1);
                     }
                 }
 

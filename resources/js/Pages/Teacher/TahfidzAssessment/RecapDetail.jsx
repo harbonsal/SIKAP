@@ -125,7 +125,7 @@ export default function RecapDetail({ activeSubject, gradeWeights, students, gra
                                                 })}
 
                                                 {/* Average (Accumulated Weighted Score) */}
-                                                <TableCell className="text-center font-bold bg-gray-50 border border-gray-200">
+                                                <TableCell className={`text-center font-bold bg-gray-50 border border-gray-200 ${totalStore > 0 && totalStore < kkm ? 'text-red-600' : ''}`}>
                                                     {totalStore > 0 ? parseFloat(totalStore.toFixed(1)) : '-'}
                                                 </TableCell>
                                             </TableRow>

@@ -40,7 +40,7 @@ class DashboardController extends Controller
             if ($type === 'Default' && $level) {
                 if (in_array($level->name, ['Guru', 'Wali Kelas', 'Kepala Sekolah'])) {
                     $type = 'Teacher';
-                } elseif (in_array($level->name, ['Siswa', 'Siswa Khusus', 'Siswa Dengan Catatan'])) {
+                } elseif ($level->name === 'Santri') {
                     $type = 'Student';
                 } elseif ($level->name === 'Manager Tahfidz') {
                     $type = 'Admin';
@@ -72,7 +72,7 @@ class DashboardController extends Controller
         $defaultType = $user->userLevel?->dashboard_type ?? 'Default';
 
         if ($defaultType === 'Default') {
-            if ($user->userLevel && in_array($user->userLevel->name, ['Siswa', 'Siswa Khusus', 'Siswa Dengan Catatan'])) {
+            if ($user->userLevel && $user->userLevel->name === 'Santri') {
                 $defaultType = 'Student';
             } elseif ($hasActiveSubjects) {
                 // FORCE Teacher Dashboard if they have active subjects
@@ -248,6 +248,28 @@ class DashboardController extends Controller
                         ->count();
                     $stats['skrining_count_month'] = $mySkriningCount;
 
+                    // 9.0 [NEW] Holiday Mode Detection
+                    $activeHoliday = \App\Models\StudentPermission::where('student_id', $student->id)
+                        ->whereNotNull('exit_at')
+                        ->whereNull('return_at')
+                        ->whereHas('permissionGroup', function ($q) {
+                            $q->where('name', 'like', '%libur%');
+                        })
+                        ->with('permissionGroup')
+                        ->first();
+
+                    if ($activeHoliday) {
+                        $stats['active_holiday'] = [
+                            'name' => $activeHoliday->permissionGroup->name,
+                            'description' => $activeHoliday->permissionGroup->description,
+                            'start_time' => $activeHoliday->permissionGroup->start_time->format('Y-m-d H:i:s'),
+                            'end_time' => $activeHoliday->permissionGroup->end_time->format('Y-m-d H:i:s'),
+                            'exit_at' => $activeHoliday->exit_at->format('Y-m-d H:i:s'),
+                        ];
+                    } else {
+                        $stats['active_holiday'] = null;
+                    }
+
                     // 9.1 Calculate Unscreened Juz (Attention for Santri)
                     $memorizedJuz = \App\Models\TahfidzMemorization::where('student_id', $student->id)
                         ->where('is_completed', true)
@@ -263,9 +285,13 @@ class DashboardController extends Controller
                         ->map(fn ($juz) => (int) $juz)
                         ->unique()
                         ->values();
-                    $notScreenedJuz = $memorizedJuz->diff($screenedJuz)->values();
+                        
+                    // Gabungkan juz yang sudah selesai setoran dan juz yang sudah pernah di-skrining
+                    $allCompletedJuz = $memorizedJuz->merge($screenedJuz)->unique()->sort()->values();
+                    
+                    $notScreenedJuz = $allCompletedJuz->diff($screenedJuz)->values();
 
-                    $stats['memorized_juz_count'] = $memorizedJuz->count();
+                    $stats['memorized_juz_count'] = $allCompletedJuz->count();
                     $stats['not_screened_juz_count'] = $notScreenedJuz->count();
                     $stats['not_screened_juz'] = $notScreenedJuz->all();
 

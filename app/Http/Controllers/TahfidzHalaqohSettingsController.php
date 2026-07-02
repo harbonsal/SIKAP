@@ -32,6 +32,7 @@ class TahfidzHalaqohSettingsController extends Controller
         $musyrifs = TahfidzMusyrif::with([
             'student.user',
             'student.classMembers.activeClass',
+            'user',
             'members.student.user',
             'members.student.classMembers.activeClass'
         ])->where('is_active', true)->get();
@@ -120,16 +121,52 @@ class TahfidzHalaqohSettingsController extends Controller
     public function storeMusyrif(Request $request)
     {
         $request->validate([
-            'student_id' => 'required|exists:students,id',
+            'user_id' => 'required_without_all:student_id,bulk_nip_nis',
+            'student_id' => 'required_without_all:user_id,bulk_nip_nis',
+            'bulk_nip_nis' => 'required_without_all:user_id,student_id',
         ]);
 
-        $exists = TahfidzMusyrif::where('student_id', $request->student_id)->exists();
+        if ($request->has('user_id') && $request->user_id) {
+            $exists = TahfidzMusyrif::where('user_id', $request->user_id)->first();
+            if ($exists) {
+                $exists->update(['is_active' => true]);
+            } else {
+                TahfidzMusyrif::create(['user_id' => $request->user_id, 'is_active' => true]);
+            }
+        } elseif ($request->has('student_id') && $request->student_id) {
+            $exists = TahfidzMusyrif::where('student_id', $request->student_id)->first();
+            if ($exists) {
+                $exists->update(['is_active' => true]);
+            } else {
+                TahfidzMusyrif::create(['student_id' => $request->student_id, 'is_active' => true]);
+            }
+        } elseif ($request->has('bulk_nip_nis') && $request->bulk_nip_nis) {
+            $text = preg_replace('/[,\s]+/', "\n", $request->bulk_nip_nis);
+            $lines = explode("\n", $text);
+            
+            $addedCount = 0;
+            DB::transaction(function () use ($lines, &$addedCount) {
+                foreach ($lines as $idNum) {
+                    $idNum = trim($idNum);
+                    if (empty($idNum)) continue;
 
-        if ($exists) {
-            // activate if inactive
-            TahfidzMusyrif::where('student_id', $request->student_id)->update(['is_active' => true]);
-        } else {
-            TahfidzMusyrif::create(['student_id' => $request->student_id, 'is_active' => true]);
+                    $user = User::where('nomor_induk', $idNum)->first();
+                    if ($user) {
+                        $student = Student::where('user_id', $user->id)->first();
+                        if ($student) {
+                            $m = TahfidzMusyrif::where('student_id', $student->id)->first();
+                            if ($m) $m->update(['is_active' => true]);
+                            else TahfidzMusyrif::create(['student_id' => $student->id, 'is_active' => true]);
+                        } else {
+                            $m = TahfidzMusyrif::where('user_id', $user->id)->first();
+                            if ($m) $m->update(['is_active' => true]);
+                            else TahfidzMusyrif::create(['user_id' => $user->id, 'is_active' => true]);
+                        }
+                        $addedCount++;
+                    }
+                }
+            });
+            return redirect()->back()->with('success', "$addedCount Musyrif berhasil ditambahkan.");
         }
 
         return redirect()->back()->with('success', 'Musyrif berhasil ditambahkan.');

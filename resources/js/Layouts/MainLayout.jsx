@@ -52,7 +52,7 @@ const flashConfig = {
     },
 };
 
-function FlashMessage({ type, message, onDismiss }) {
+function FlashMessage({ type, message, errors, onDismiss }) {
     const config = flashConfig[type];
     if (!config || !message) return null;
     const Icon = config.icon;
@@ -63,8 +63,17 @@ function FlashMessage({ type, message, onDismiss }) {
                 <div className="flex-shrink-0">
                     <Icon className={cn('h-5 w-5', config.iconColor)} aria-hidden="true" />
                 </div>
-                <div className="ml-3">
+                <div className="ml-3 flex-1">
                     <p className={cn('text-sm font-medium', config.text)}>{message}</p>
+                    {errors && errors.length > 0 && (
+                        <div className={cn('mt-2 text-sm', config.text)}>
+                            <ul className="list-disc pl-5 space-y-1">
+                                {errors.map((err, idx) => (
+                                    <li key={idx}>{err}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                 </div>
                 <div className="ml-auto pl-3">
                     <div className="-mx-1.5 -my-1.5">
@@ -217,6 +226,7 @@ export default function MainLayout({ children, breadcrumbItems = null, showBread
                                 key={type}
                                 type={type}
                                 message={flash[type]}
+                                errors={type === 'warning' || type === 'error' ? flash?.errors_import : null}
                                 onDismiss={() => dismissFlash(type)}
                             />
                         ) : null,

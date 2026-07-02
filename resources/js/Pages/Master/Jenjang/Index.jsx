@@ -1,4 +1,4 @@
-import MainLayout from '@/Layouts/MainLayout';
+import MasterPendidikanLayout from '@/Layouts/MasterPendidikanLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Plus, Pencil, Trash2, GraduationCap, School } from 'lucide-react';
 import Pagination from '@/Components/Pagination';
@@ -17,15 +17,11 @@ export default function Index({ jenjangs }) {
     };
 
     return (
-        <MainLayout>
+        <MasterPendidikanLayout>
             <Head title="Jenjang Pendidikan" />
 
             <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        <h2 className="text-3xl font-bold tracking-tight text-foreground">Jenjang Pendidikan</h2>
-                        <p className="text-muted-foreground">Kelola data jenjang pendidikan dan kepala sekolah.</p>
-                    </div>
                     <Button asChild>
                         <Link href={route('jenjangs.create')}>
                             <Plus className="mr-2 h-4 w-4" />
@@ -130,6 +126,6 @@ export default function Index({ jenjangs }) {
                     </CardContent>
                 </Card>
             </div>
-        </MainLayout>
+        </MasterPendidikanLayout>
     );
 }

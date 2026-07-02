@@ -207,7 +207,7 @@ export default function AdminDashboard({ stats, allowedWidgets = {}, activities 
             {/* Stats Grid */}
             {showStats && (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    <Link href={route('students.index', { status: 'Aktif' })}>
+                    <Link href={route('students.index', { status: 'Aktif' })} className="block h-full">
                         <Card className="group hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer border-none bg-gradient-to-br from-emerald-500 to-emerald-600 text-white h-full shadow-lg shadow-emerald-500/20 relative overflow-hidden">
                             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                                 <Users className="w-24 h-24 -mr-6 -mt-6" />
@@ -229,7 +229,7 @@ export default function AdminDashboard({ stats, allowedWidgets = {}, activities 
                         </Card>
                     </Link>
 
-                    <Link href={route('users.index', { status: 'Aktif', category: 'Askar' })}>
+                    <Link href={route('users.index', { status: 'Aktif', category: 'Askar' })} className="block h-full">
                         <Card className="group hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer border-none bg-gradient-to-br from-amber-500 to-amber-600 text-white h-full shadow-lg shadow-amber-500/20 relative overflow-hidden">
                             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                                 <GraduationCap className="w-24 h-24 -mr-6 -mt-6" />
@@ -251,7 +251,7 @@ export default function AdminDashboard({ stats, allowedWidgets = {}, activities 
                         </Card>
                     </Link>
 
-                    <Link href={route('active-classes.index')}>
+                    <Link href={route('active-classes.index')} className="block h-full">
                         <Card className="group hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer border-none bg-gradient-to-br from-red-500 to-red-600 text-white h-full shadow-lg shadow-red-500/20 relative overflow-hidden">
                             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                                 <School className="w-24 h-24 -mr-6 -mt-6" />

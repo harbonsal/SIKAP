@@ -46,6 +46,7 @@ class CharacterAnalysisController extends Controller
 
         $targetMonthValues = [];
         $semesterName = $activeSemester ? strtolower($activeSemester->name) : '';
+        $isOddSemester = str_contains($semesterName, 'ganjil') || str_contains($semesterName, '1');
         
         $activeMonthsRaw = \App\Models\Setting::where('key', 'character_active_months')->value('value');
         $activeMonthsConfig = [];
@@ -54,9 +55,13 @@ class CharacterAnalysisController extends Controller
         }
 
         if (is_array($activeMonthsConfig) && count($activeMonthsConfig) > 0) {
-            $targetMonths = array_filter($allMonths, fn($m) => in_array($m['value'], $activeMonthsConfig));
+            $targetMonths = array_filter($allMonths, function($m) use ($activeMonthsConfig, $isOddSemester) {
+                $inConfig = in_array($m['value'], $activeMonthsConfig);
+                $inSemester = $isOddSemester ? ($m['value'] >= 7) : ($m['value'] <= 6);
+                return $inConfig && $inSemester;
+            });
         } else {
-            if (str_contains($semesterName, 'ganjil') || str_contains($semesterName, '1')) {
+            if ($isOddSemester) {
                 $targetMonths = array_filter($allMonths, fn($m) => $m['value'] >= 7);
             } else {
                 $targetMonths = array_filter($allMonths, fn($m) => $m['value'] <= 6);

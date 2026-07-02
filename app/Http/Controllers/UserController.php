@@ -44,18 +44,15 @@ class UserController extends Controller
             $query->where('status', $status);
         }
 
-        if ($request->has('category') && $request->category) {
-            if ($request->category === 'Siswa') {
+        if ($request->filled('category')) {
+            if ($request->category === 'Siswa' || $request->category === 'Santri') {
                 $query->whereHas('userLevel', function ($q) {
-                    // Start of Selection
-                    $q->whereIn('name', ['Siswa', 'Santri', 'Siswa Khusus', 'Siswa Dengan Catatan']);
-                    // End of Selection
+                    $q->whereIn('name', ['Santri']);
                 });
-            } elseif ($request->category === 'Askar') {
+            } else {
+                // For Pegawai, exclude Santri
                 $query->whereHas('userLevel', function ($q) {
-                    // Start of Selection
-                    $q->whereNotIn('name', ['Siswa', 'Santri', 'Siswa Khusus', 'Siswa Dengan Catatan']);
-                    // End of Selection
+                    $q->whereNotIn('name', ['Santri']);
                 });
             }
         }
@@ -155,6 +152,7 @@ class UserController extends Controller
             'nomor_induk' => 'required|regex:/^[0-9]+$/|max:255|unique:users,nomor_induk,' . $user->id,
             'nama_arab' => 'nullable|string|max:255',
             'no_hp' => 'nullable|string|max:20',
+            'rfid' => 'nullable|string|unique:users,rfid,' . $user->id,
             'user_level_id' => 'nullable|exists:user_levels,id',
             'status' => 'required|in:Aktif,Tidak Aktif',
             'inactive_date' => 'nullable|required_if:status,Tidak Aktif|date',
@@ -169,6 +167,7 @@ class UserController extends Controller
         $user->nomor_induk = $request->nomor_induk;
         $user->nama_arab = $request->nama_arab;
         $user->no_hp = $request->no_hp;
+        $user->rfid = $request->rfid;
         $user->user_level_id = $request->user_level_id;
         $user->status = $request->status;
         $user->inactive_date = $request->status === 'Tidak Aktif' ? $request->inactive_date : null;
@@ -280,5 +279,81 @@ class UserController extends Controller
         Auth::login($user);
 
         return redirect()->route('dashboard')->with('success', "Berhasil login sebagai {$user->name}.");
+    }
+
+    public function exportTemplate()
+    {
+        return \Maatwebsite\Excel\Facades\Excel::download(new \App\Exports\UserTemplateExport, 'template_import_user.xlsx');
+    }
+
+    public function import()
+    {
+        return Inertia::render('Users/Import');
+    }
+
+    public function processImport(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,csv,txt|max:5120',
+        ]);
+
+        @set_time_limit(600);
+        @ini_set('max_execution_time', 600);
+
+        $import = new \App\Imports\UserImport();
+        
+        try {
+            \Maatwebsite\Excel\Facades\Excel::import($import, $request->file('file'));
+        } catch (\Exception $e) {
+            return redirect()->route('users.index')->with('error', 'Gagal membaca file Excel. Pastikan format sesuai template. Error: ' . $e->getMessage());
+        }
+
+        $successCount = $import->successCount;
+        $errors = $import->errors;
+        $message = "Import selesai. $successCount user berhasil ditambahkan.";
+        if (count($errors) > 0) {
+            $message .= " " . count($errors) . " baris gagal.";
+            return redirect()->route('users.index')->with('warning', $message)->with('errors_import', $errors);
+        }
+
+        return redirect()->route('users.index')->with('success', $message);
+    }
+
+    public function exportRfidTemplate()
+    {
+        return \Maatwebsite\Excel\Facades\Excel::download(new \App\Exports\RfidTemplateExport, 'template_update_rfid.xlsx');
+    }
+
+    public function importRfid()
+    {
+        return Inertia::render('Users/ImportRfid');
+    }
+
+    public function processImportRfid(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,csv,txt|max:5120',
+        ]);
+
+        @set_time_limit(600);
+        @ini_set('max_execution_time', 600);
+
+        $import = new \App\Imports\RfidUpdateImport();
+        
+        try {
+            \Maatwebsite\Excel\Facades\Excel::import($import, $request->file('file'));
+        } catch (\Exception $e) {
+            return redirect()->route('users.index')->with('error', 'Gagal membaca file Excel. Pastikan format sesuai template. Error: ' . $e->getMessage());
+        }
+
+        $successCount = $import->successCount;
+        $errors = $import->errors;
+        $message = "Import selesai. $successCount user berhasil diperbarui RFID-nya.";
+        if (count($errors) > 0) {
+            $message .= " " . count($errors) . " baris gagal.";
+            return redirect()->route('users.index')->with('warning', $message)->with('errors_import', $errors);
+        }
+
+        return redirect()->route('users.index')->with('success', $message);
     }
 }

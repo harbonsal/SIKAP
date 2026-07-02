@@ -25,7 +25,7 @@ export default function Index({ kamars, categories, rubrics, students, existingA
         if (value === null || value === undefined || value === '') return '';
         const num = Number(value);
         if (!Number.isFinite(num) || num === 0) return '';
-        return String(Math.round(num));
+        return String(num);
     };
 
     // Initialize data from existing assessments when students load
@@ -187,14 +187,14 @@ export default function Index({ kamars, categories, rubrics, students, existingA
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        // Validation for values < 10 or > 100
+        // Validation for values < 70 or > 100
         let hasInvalidScore = false;
         for (const studentId in data.assessments) {
             for (const cat in data.assessments[studentId]) {
                 const val = data.assessments[studentId][cat];
                 if (val !== '') {
                     const score = Number(val);
-                    if (score < 10 || score > 100) {
+                    if (score < 70 || score > 100) {
                         hasInvalidScore = true;
                         break;
                     }
@@ -207,7 +207,7 @@ export default function Index({ kamars, categories, rubrics, students, existingA
             Swal.fire({
                 icon: 'warning',
                 title: 'Data Tidak Valid',
-                text: 'Harap periksa kembali. Skala input nilai akhlak harus berada di antara 10 hingga 100.',
+                text: 'Harap periksa kembali. Skala input nilai akhlak harus berada di antara 70 hingga 100.',
             });
             return;
         }

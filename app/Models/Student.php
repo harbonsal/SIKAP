@@ -81,11 +81,21 @@ class Student extends Model
         'entry_semester',
     ];
 
-    protected $appends = ['name', 'nomor_induk', 'kelas'];
+    protected $appends = ['name', 'nomor_induk', 'kelas', 'kamar', 'nis'];
 
     public function memorizations()
     {
         return $this->hasMany(TahfidzMemorization::class);
+    }
+
+    public function memorizationDetails()
+    {
+        return $this->hasMany(TahfidzMemorizationDetail::class);
+    }
+
+    public function latestMemorizationDetail()
+    {
+        return $this->hasOne(TahfidzMemorizationDetail::class)->latestOfMany();
     }
 
     public function academicYear()
@@ -106,6 +116,11 @@ class Student extends Model
     public function getNomorIndukAttribute()
     {
         return $this->user->nomor_induk ?? '-';
+    }
+
+    public function getNisAttribute()
+    {
+        return $this->nomor_induk;
     }
 
     public function studentGrades()
@@ -133,9 +148,19 @@ class Student extends Model
         return $this->hasOne(ClassMember::class)->latestOfMany();
     }
 
+    public function latestKamarMember()
+    {
+        return $this->hasOne(KamarMember::class)->latestOfMany();
+    }
+
     public function getKelasAttribute()
     {
         return $this->latestClassMember?->activeClass?->kelas;
+    }
+
+    public function getKamarAttribute()
+    {
+        return $this->latestKamarMember?->activeKamar?->kamar;
     }
 
     public function activeClass()

@@ -19,7 +19,7 @@ export default function Show({ student, activeClass, gradesData, academicYear, s
                         <div>
                             <h2 className="text-3xl font-bold tracking-tight text-foreground">Rekap Nilai Santri</h2>
                             <p className="text-muted-foreground">
-                                {student.name} ({student.nomor_induk}) - {activeClass.kelas.name} {activeClass.kelas_paralel?.name}
+                                {student.name} ({student.nomor_induk}) - {activeClass.kelas.name} {activeClass.kelas_paralel?.name || activeClass.kelasParalel?.name || ''}
                             </p>
                         </div>
                     </div>
@@ -52,7 +52,7 @@ export default function Show({ student, activeClass, gradesData, academicYear, s
                             </div>
                             <div>
                                 <div className="text-muted-foreground">Kelas</div>
-                                <div className="font-medium">{activeClass.kelas.name} {activeClass.kelas_paralel?.name}</div>
+                                <div className="font-medium">{activeClass.kelas.name} {activeClass.kelas_paralel?.name || activeClass.kelasParalel?.name || ''}</div>
                             </div>
                             <div>
                                 <div className="text-muted-foreground">Wali Kelas</div>
@@ -102,18 +102,18 @@ export default function Show({ student, activeClass, gradesData, academicYear, s
                                             {semester.name === 'Genap' || semester.name === 'Semester 2' ? (
                                                 <>
                                                     <td className={`px-4 py-3 border text-center font-medium bg-gray-50 ${Number(subject.final_score) > 0 && Number(subject.final_score) < Number(subject.kkm) ? 'text-red-600 font-bold' : ''}`}>
-                                                        {Number(subject.final_score) > 0 ? Number(subject.final_score).toFixed(0) : 0}
+                                                        {Number(subject.final_score) > 0 ? Number(subject.final_score).toFixed(1) : 0}
                                                     </td>
                                                     <td className={`px-4 py-3 border text-center font-medium bg-gray-50 ${Number(subject.sem1_score) > 0 && Number(subject.sem1_score) < Number(subject.kkm) ? 'text-red-600 font-bold' : ''}`}>
-                                                        {Number(subject.sem1_score) > 0 ? Number(subject.sem1_score).toFixed(0) : 0}
+                                                        {Number(subject.sem1_score) > 0 ? Number(subject.sem1_score).toFixed(1) : 0}
                                                     </td>
                                                     <td className={`px-4 py-3 border text-center font-bold bg-primary/10 ${Number(subject.rapor_score) > 0 && Number(subject.rapor_score) < Number(subject.kkm) ? 'text-red-600' : 'text-primary'}`}>
-                                                        {Number(subject.rapor_score) > 0 ? Number(subject.rapor_score).toFixed(0) : 0}
+                                                        {Number(subject.rapor_score) > 0 ? Number(subject.rapor_score).toFixed(1) : 0}
                                                     </td>
                                                 </>
                                             ) : (
                                                 <td className={`px-4 py-3 border text-center font-bold bg-primary/5 ${Number(subject.final_score) > 0 && Number(subject.final_score) < Number(subject.kkm) ? 'text-red-600' : ''}`}>
-                                                    {Number(subject.final_score) > 0 ? Number(subject.final_score).toFixed(0) : 0}
+                                                    {Number(subject.final_score) > 0 ? Number(subject.final_score).toFixed(1) : 0}
                                                 </td>
                                             )}
                                         </tr>

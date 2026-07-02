@@ -47,7 +47,7 @@ export default function Ledger({ activeClass, activeSubjects, gradeWeights, stud
                         </Link>
                         <div>
                             <h2 className="text-3xl font-bold tracking-tight text-foreground">
-                                Ledger Kelas {activeClass.kelas.name} {activeClass.kelas_paralel?.name || ''}
+                                Ledger Kelas {activeClass.kelas.name} {activeClass.kelas_paralel?.name || activeClass.kelasParalel?.name || ''}
                             </h2>
                             <p className="text-muted-foreground">
                                 Tahun Ajaran {academicYear?.name} - Semester {semester?.name}
@@ -84,10 +84,10 @@ export default function Ledger({ activeClass, activeSubjects, gradeWeights, stud
                 <div className="bg-blue-50 text-blue-800 p-4 rounded-md border border-blue-200 text-sm hidden print:hidden md:block">
                     <p className="font-semibold mb-1">ℹ️ Informasi Perhitungan Ledger Nilai Kelas</p>
                     <p>
-                        Setiap kolom <strong>NA</strong> (Nilai Akhir) didapat dari perkalian persentase bobot tiap kategori ujian (UH, UTS, UAS).<br/>
+                        Setiap kolom <strong>NA</strong> (Nilai Akhir) didapat dari perkalian persentase bobot tiap kategori ujian (seperti UH, UTS, UAS, dll).<br/>
                         <strong>Jumlah:</strong> Hasil penjumlahan seluruh NA yang dimiliki siswa pada mapel yang ada.<br/>
                         <strong>Rerata:</strong> Jumlah skor dibagi dengan total keseluruhan mapel wajib pada kelas ini tanpa mengecualikan mapel kosong.<br/>
-                        {semester?.name === 'Genap' && <span><strong>*Semester Genap:</strong> Rerata akhir menggabungkan nilai Sem Ganjil menggunakan rumus: (Ganjil + (2 &times; Genap)) / 3.</span>}
+                        {semester?.name === 'Genap' && <span><strong>*Semester Genap:</strong> Rerata akhir menggabungkan nilai Sem Ganjil menggunakan rumus: (Ganjil &times; {gradeConfig?.sem1_weight ?? 1} + Genap &times; {gradeConfig?.sem2_weight ?? 2}) / {(Number(gradeConfig?.sem1_weight ?? 1) + Number(gradeConfig?.sem2_weight ?? 2))}.</span>}
                     </p>
                 </div>
 
@@ -97,7 +97,7 @@ export default function Ledger({ activeClass, activeSubjects, gradeWeights, stud
                             LEDGER NILAI AKADEMIK
                         </CardTitle>
                         <CardDescription className="text-black text-lg mt-2">
-                            KELAS: {activeClass.kelas.name} {activeClass.kelas_paralel?.name || ''} <br />
+                            KELAS: {activeClass.kelas.name} {activeClass.kelas_paralel?.name || activeClass.kelasParalel?.name || ''} <br />
                             SEMESTER: {semester?.name} TAHUN AJARAN: {academicYear?.name}
                         </CardDescription>
                     </CardHeader>

@@ -473,10 +473,10 @@ class ScheduleController extends Controller
         $teacherBaseQuery = \App\Models\User::where('status', 'Aktif')
             ->where(function ($q) use ($activeYear) {
                 $q->whereHas('userLevel', function ($subQ) {
-                    $subQ->where('category', 'Ustadz');
+                    $subQ->whereNotIn('name', ['Santri', 'Siswa']);
                 })
                     ->orWhereHas('additionalLevels', function ($subQ) {
-                        $subQ->where('category', 'Ustadz');
+                        $subQ->whereNotIn('name', ['Santri', 'Siswa']);
                     })
                     ->orWhereHas('teacherQuota', function ($subQ) use ($activeYear) {
                         $subQ->where('academic_year_id', $activeYear->id);

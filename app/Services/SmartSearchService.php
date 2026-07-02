@@ -69,7 +69,7 @@ class SmartSearchService
         return [
             'type'    => $data ? 'data' : 'links',
             'answer'  => $answer['text'] ?? '',
-            'results' => $data ?? [],
+            'results' => $data['rows'] ?? [],
             'columns' => $answer['columns'] ?? [],
             'links'   => $answer['links'] ?? [],
         ];
@@ -79,6 +79,25 @@ class SmartSearchService
 
     protected function resolveIntent(string $query, string $snapshot): ?array
     {
+        // ─── Fast Heuristic: Simple Student Search ───
+        // Jika query 1-3 kata dan tidak mengandung keyword khusus, asumsikan cari nama santri.
+        $keywords = ['tertinggi', 'terendah', 'hafalan', 'kelas', 'kamar', 'jumlah', 'wali', 'guru', 'pengajar', 'jadwal', 'rapor', 'analisis', 'pandai', 'pintar', 'terbaik', 'asal', 'dari', 'provinsi', 'kota', 'jabar', 'jateng', 'jatim'];
+        $hasKeyword = false;
+        foreach ($keywords as $kw) {
+            if (stripos($query, $kw) !== false) {
+                $hasKeyword = true;
+                break;
+            }
+        }
+
+        if (!$hasKeyword && str_word_count($query) <= 3) {
+             return [
+                 'type' => 'search_student',
+                 'params' => ['name' => $query, 'limit' => 15],
+                 'reason' => 'heuristic: simple name search'
+             ];
+        }
+
         $pageList = collect($this->pageMap)
             ->map(fn($v, $k) => "- {$v['label']} → {$v['url']}")
             ->implode("\n");
@@ -104,6 +123,7 @@ TIPE DATA YANG BISA DIAMBIL:
 - list_teachers: daftar guru/pegawai
 - student_list_by_class: daftar santri per kelas
 - student_list_by_kamar: daftar santri per kamar
+- student_list_by_province: daftar santri dari provinsi/kota/daerah tertentu
 
 Jika query tidak bisa dijawab dengan data di atas, gunakan type "suggest_links".
 
@@ -131,8 +151,14 @@ PROMPT;
             ], $model, 0.1);
 
             $raw = trim($response['choices'][0]['message']['content'] ?? '');
-            $raw = preg_replace('/^```json|^```|```$/m', '', $raw);
-            $parsed = json_decode(trim($raw), true);
+            
+            // Ekstrak JSON yang lebih aman
+            if (preg_match('/\{.*\}/s', $raw, $matches)) {
+                $parsed = json_decode($matches[0], true);
+            } else {
+                $clean = preg_replace('/^```json|^```|```$/m', '', $raw);
+                $parsed = json_decode(trim($clean), true);
+            }
 
             return (is_array($parsed) && isset($parsed['type'])) ? $parsed : null;
         } catch (\Exception $e) {
@@ -161,6 +187,7 @@ PROMPT;
             'list_teachers'          => $this->dbListTeachers($limit),
             'student_list_by_class'  => $this->dbStudentsByClass($params['class'] ?? '', $academicYear, $limit),
             'student_list_by_kamar'  => $this->dbStudentsByKamar($params['kamar'] ?? '', $academicYear, $limit),
+            'student_list_by_province' => $this->dbStudentsByProvince($params['province'] ?? $params['name'] ?? '', $limit),
             default                  => null,
         };
     }
@@ -169,62 +196,28 @@ PROMPT;
 
     protected function composeAnswer(string $query, array $intent, ?array $data, string $snapshot): array
     {
-        $pageList = collect($this->pageMap)
-            ->map(fn($v, $k) => "- {$v['label']} → {$v['url']}")
-            ->implode("\n");
-
-        $dataJson = $data ? json_encode(array_slice($data['rows'] ?? [], 0, 5), JSON_UNESCAPED_UNICODE) : 'null';
         $totalRows = $data ? count($data['rows'] ?? []) : 0;
 
-        $system = <<<PROMPT
-Anda adalah asisten SIKAP yang menjawab pertanyaan tentang data pesantren.
-Jawab dalam Bahasa Indonesia, singkat dan informatif.
-
-KONTEKS: {$snapshot}
-HALAMAN TERSEDIA:
-{$pageList}
-
-DATA YANG DITEMUKAN ({$totalRows} baris, contoh 5 pertama):
-{$dataJson}
-
-INSTRUKSI:
-- Jika ada data: buat ringkasan singkat (1-2 kalimat), sebutkan jumlah total.
-- Jika tidak ada data atau suggest_links: arahkan user ke halaman yang relevan.
-- Sertakan link yang relevan jika membantu.
-- Jangan ulangi semua data, cukup ringkasan.
-
-Output JSON:
-{
-  "text": "Ditemukan 12 santri dengan nama Ahmad. ...",
-  "columns": ["name","nis","kelas"],
-  "links": [
-    {"label": "Lihat semua di Biodata Santri", "url": "/students"}
-  ]
-}
-PROMPT;
-
-        try {
-            $model    = $this->pickModel();
-            $response = $this->litellmService->chatCompletionWithFallback([
-                ['role' => 'system', 'content' => $system],
-                ['role' => 'user',   'content' => "Query: {$query}\nIntent: {$intent['type']}\nReason: {$intent['reason']}"],
-            ], $model, 0.3);
-
-            $raw = trim($response['choices'][0]['message']['content'] ?? '');
-            $raw = preg_replace('/^```json|^```|```$/m', '', $raw);
-            $parsed = json_decode(trim($raw), true);
-
-            if (is_array($parsed)) {
-                return $parsed;
-            }
-        } catch (\Exception $e) {
-            Log::warning('SmartSearch compose error: ' . $e->getMessage());
-        }
-
-        // Fallback answer
         if ($data && !empty($data['rows'])) {
+            $intentType = $intent['type'] ?? '';
+            $text = "Ditemukan {$totalRows} hasil pencarian.";
+            
+            if ($intentType === 'search_student') {
+                $text = "Ditemukan {$totalRows} santri yang relevan.";
+            } elseif (str_starts_with($intentType, 'student_grades')) {
+                $text = "Ditemukan {$totalRows} data nilai santri.";
+            } elseif (str_starts_with($intentType, 'student_hafalan')) {
+                $text = "Ditemukan {$totalRows} data hafalan santri.";
+            } elseif ($intentType === 'list_teachers') {
+                $text = "Ditemukan {$totalRows} data pengajar.";
+            } elseif ($intentType === 'homeroom_teacher') {
+                $text = "Ditemukan {$totalRows} data wali kelas.";
+            } elseif ($intentType === 'count_students') {
+                $text = "Hasil perhitungan jumlah santri.";
+            }
+
             return [
-                'text'    => "Ditemukan {$totalRows} hasil untuk pencarian Anda.",
+                'text'    => $text,
                 'columns' => array_keys($data['rows'][0] ?? []),
                 'links'   => [],
             ];
@@ -362,7 +355,7 @@ PROMPT;
     protected function dbListTeachers(int $limit): array
     {
         $rows = User::where('status', 'Aktif')
-            ->whereHas('userLevel', fn($q) => $q->whereNotIn('name', ['Santri', 'Siswa']))
+            ->whereHas('userLevel', fn($q) => $q->whereNotIn('name', ['Santri']))
             ->with('userLevel')
             ->orderBy('name')
             ->limit($limit)->get()
@@ -416,6 +409,28 @@ PROMPT;
         return ['rows' => $rows];
     }
 
+    protected function dbStudentsByProvince(string $province, int $limit): array
+    {
+        $q = Student::with(['user', 'latestClassMember.activeClass'])
+            ->whereHas('user', fn($q) => $q->where('status', 'Aktif'));
+
+        if ($province) {
+            $q->where(fn($q2) => 
+                $q2->whereRaw('LOWER(province) LIKE ?', ['%' . mb_strtolower($province) . '%'])
+                   ->orWhereRaw('LOWER(city) LIKE ?', ['%' . mb_strtolower($province) . '%'])
+            );
+        }
+
+        $rows = $q->limit($limit)->get()->map(fn($s) => [
+            'Nama'     => $s->user->name ?? '-',
+            'Kelas'    => $s->latestClassMember?->activeClass?->name ?? '-',
+            'Provinsi' => $s->province ?? '-',
+            'Kota'     => $s->city ?? '-',
+        ])->toArray();
+
+        return ['rows' => $rows];
+    }
+
     // ─── Helpers ────────────────────────────────────────────────────
 
     protected function buildSnapshot($academicYear, $semester): string
@@ -423,7 +438,7 @@ PROMPT;
         $studentCount = Student::whereHas('user', fn($q) => $q->where('status', 'Aktif'))->count();
         $classCount   = ActiveClass::when($academicYear, fn($q) => $q->where('academic_year_id', $academicYear->id))->count();
         $teacherCount = User::where('status', 'Aktif')
-            ->whereHas('userLevel', fn($q) => $q->whereNotIn('name', ['Santri', 'Siswa']))->count();
+            ->whereHas('userLevel', fn($q) => $q->whereNotIn('name', ['Santri']))->count();
 
         $classes = ActiveClass::with(['kelas', 'kelasParalel'])
             ->when($academicYear, fn($q) => $q->where('academic_year_id', $academicYear->id))

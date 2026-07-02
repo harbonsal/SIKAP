@@ -230,8 +230,12 @@ class CharacterAssessmentController extends Controller
                             continue;
                         }
 
+                        // Reject scores outside 70-100 to enforce strict validation
+                        if ((float) $score < 70 || (float) $score > 100) {
+                            throw new \Exception("Terdapat nilai akhlak yang tidak sesuai kriteria (harus antara 70 dan 100). Nilai yang dimasukkan: " . $score);
+                        }
+
                         $normalizedScore = (int) round((float) $score);
-                        $normalizedScore = max(10, min(100, $normalizedScore));
 
                         if (!$student->user_id) {
                             continue;

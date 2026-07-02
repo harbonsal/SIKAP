@@ -3,7 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Card, CardContent } from '@/Components/ui/card';
 import { isBelowKkm, formatScore } from './utils';
 
-export default function LedgerTab({ activeSubjects = [], gradeWeights = [], studentLedgers = [], kkms = {}, semester }) {
+export default function LedgerTab({ activeSubjects = [], gradeWeights = [], studentLedgers = [], ledgerSubjectAverages = [], kkms = {}, semester }) {
     const isSem2 = semester?.name === 'Genap' || semester?.name === 'Semester 2';
     // Safety check
     if (!activeSubjects || activeSubjects.length === 0) {
@@ -146,13 +146,56 @@ export default function LedgerTab({ activeSubjects = [], gradeWeights = [], stud
                                         </TableCell>
                                     </TableRow>
                                 ))
-                            ) : (
+                            ) : null}
+                            {studentLedgers && studentLedgers.length > 0 && (
+                                <TableRow className="bg-primary/10 font-bold hover:bg-primary/20">
+                                    <TableCell colSpan={2} className="text-right border-r sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] bg-primary/10">
+                                        Rata-rata Kelas
+                                    </TableCell>
+                                    {activeSubjects.map((subject, sIndex) => {
+                                        const isEven = sIndex % 2 === 0;
+                                        const mapelId = subject.mapel_id;
+                                        const subjectAverages = ledgerSubjectAverages?.[subject.id];
+                                        
+                                        return (
+                                            <React.Fragment key={subject.id}>
+                                                {gradeWeights.map((weight) => {
+                                                    const avgWeightScore = subjectAverages?.weights?.[weight.id] ?? 0;
+                                                    const isBelow = isBelowKkm(avgWeightScore, mapelId, kkms);
+                                                    return (
+                                                        <TableCell
+                                                            key={weight.id}
+                                                            className={`border border-gray-300 text-center py-2 ${isBelow ? 'text-red-600' : ''}`}
+                                                        >
+                                                            {formatScore(avgWeightScore)}
+                                                        </TableCell>
+                                                    );
+                                                })}
+                                                <TableCell
+                                                    className={`border border-gray-300 text-center py-2 ${!isSem2 ? 'border-r-2 border-r-gray-400' : ''} ${isBelowKkm(subjectAverages?.final_score, mapelId, kkms) ? 'text-red-600' : ''}`}
+                                                >
+                                                    {formatScore(subjectAverages?.final_score ?? 0)}
+                                                </TableCell>
+                                                {isSem2 && (
+                                                    <TableCell
+                                                        className={`border border-gray-300 border-r-2 border-r-gray-400 text-center py-2 ${isBelowKkm(subjectAverages?.r2_score, mapelId, kkms) ? 'text-red-600' : ''}`}
+                                                    >
+                                                        {formatScore(subjectAverages?.r2_score ?? 0)}
+                                                    </TableCell>
+                                                )}
+                                            </React.Fragment>
+                                        );
+                                    })}
+                                    <TableCell colSpan={3} className="border border-gray-300 text-center"></TableCell>
+                                </TableRow>
+                            )}
+                            {!studentLedgers || studentLedgers.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={activeSubjects.length * (gradeWeights.length + (isSem2 ? 2 : 1)) + 5} className="h-24 text-center text-muted-foreground border border-gray-300">
                                         Belum ada data nilai atau santri di kelas ini.
                                     </TableCell>
                                 </TableRow>
-                            )}
+                            ) : null}
                         </TableBody>
                     </Table>
                 </div>

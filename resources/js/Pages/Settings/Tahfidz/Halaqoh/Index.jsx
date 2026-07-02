@@ -94,7 +94,11 @@ export default function Index({ sessions, officers, musyrifs, users, students, f
 
     // --- Musyrif Form ---
     const { data: musyrifData, setData: setMusyrifData, post: postMusyrif, delete: deleteMusyrif, processing: musyrifProcessing, errors: musyrifErrors, reset: resetMusyrif } = useForm({
+        user_id: '',
         student_id: '',
+        bulk_nip_nis: '',
+        show_ustadz: false,
+        show_santri: true,
     });
 
     const openMusyrifModal = () => {
@@ -285,8 +289,13 @@ export default function Index({ sessions, officers, musyrifs, users, students, f
                                 <tbody className="bg-white divide-y divide-gray-200">
                                     {musyrifs.map((m) => (
                                         <tr key={m.id}>
-                                            <td className="px-6 py-4 whitespace-nowrap font-medium">{m.student?.name}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">{m.student?.class_members?.[m.student.class_members.length - 1]?.active_class?.name || '-'}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap font-medium">
+                                                {m.user_id ? m.user?.name : m.student?.name}
+                                                {m.user_id && <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">Ustadz</span>}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                {m.user_id ? '-' : (m.student?.class_members?.[m.student.class_members.length - 1]?.active_class?.name || '-')}
+                                            </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                 <button onClick={() => handleDeleteMusyrif(m.id)} className="text-red-600 hover:text-red-900"><Trash2 className="w-4 h-4" /></button>
                                             </td>
@@ -313,9 +322,12 @@ export default function Index({ sessions, officers, musyrifs, users, students, f
                                         onClick={() => setSelectedMusyrifId(m.id)}
                                         className={`p-3 cursor-pointer hover:bg-gray-50 transition-colors ${selectedMusyrifId === m.id ? 'bg-indigo-50 border-l-4 border-indigo-600' : ''}`}
                                     >
-                                        <div className="font-medium text-gray-900">{m.student?.name}</div>
+                                        <div className="font-medium text-gray-900">
+                                            {m.user_id ? m.user?.name : m.student?.name}
+                                            {m.user_id && <span className="ml-1 text-[10px] bg-blue-100 text-blue-800 px-1 py-0.5 rounded">Ustadz</span>}
+                                        </div>
                                         <div className="text-xs text-gray-500 flex justify-between mt-1">
-                                            <span>{m.student?.class_members?.[m.student.class_members.length - 1]?.active_class?.name || '-'}</span>
+                                            <span>{m.user_id ? '-' : (m.student?.class_members?.[m.student.class_members.length - 1]?.active_class?.name || '-')}</span>
                                             <span className="bg-gray-200 px-1.5 rounded text-gray-700">{m.members?.length || 0} Anggota</span>
                                         </div>
                                     </div>
@@ -495,13 +507,40 @@ export default function Index({ sessions, officers, musyrifs, users, students, f
                 <form onSubmit={submitMusyrif} className="p-6">
                     <h2 className="text-lg font-medium text-gray-900 mb-4">Tambah Musyrif</h2>
                     <div className="mb-4">
-                        <InputLabel value="Cari Santri" />
+                        <InputLabel value="Filter Pilihan Musyrif" className="mb-2" />
+                        <div className="flex gap-4">
+                            <label className="flex items-center">
+                                <input type="checkbox" checked={musyrifData.show_ustadz} onChange={e => setMusyrifData('show_ustadz', e.target.checked)} className="mr-2" />
+                                Ustadz
+                            </label>
+                            <label className="flex items-center">
+                                <input type="checkbox" checked={musyrifData.show_santri} onChange={e => setMusyrifData('show_santri', e.target.checked)} className="mr-2" />
+                                Santri
+                            </label>
+                        </div>
+                    </div>
+                    <div className="mb-4">
+                        <InputLabel value="Cari Musyrif (Pilih Satu)" />
                         <Select
-                            options={studentOptions}
-                            onChange={opt => setMusyrifData('student_id', opt.value)}
+                            options={[
+                                ...(musyrifData.show_ustadz ? userOptions.map(u => ({ ...u, type: 'user' })) : []),
+                                ...(musyrifData.show_santri ? studentOptions.map(s => ({ ...s, type: 'student' })) : [])
+                            ]}
+                            onChange={opt => {
+                                if (opt) {
+                                    if (opt.type === 'user') {
+                                        setMusyrifData({ ...musyrifData, user_id: opt.value, student_id: '', bulk_nip_nis: '' });
+                                    } else {
+                                        setMusyrifData({ ...musyrifData, student_id: opt.value, user_id: '', bulk_nip_nis: '' });
+                                    }
+                                } else {
+                                    setMusyrifData({ ...musyrifData, student_id: '', user_id: '', bulk_nip_nis: '' });
+                                }
+                            }}
                             className="mt-1"
-                            placeholder="Ketik nama santri..."
+                            placeholder="Ketik nama musyrif..."
                             isSearchable
+                            isClearable
                             menuPortalTarget={document.body}
                             styles={{
                                 menuPortal: (base) => ({ ...base, zIndex: 9999 }),
@@ -509,6 +548,26 @@ export default function Index({ sessions, officers, musyrifs, users, students, f
                             }}
                         />
                         <InputError message={musyrifErrors.student_id} className="mt-2" />
+                        <InputError message={musyrifErrors.user_id} className="mt-2" />
+                    </div>
+                    <div className="relative flex py-4 items-center">
+                        <div className="flex-grow border-t border-gray-300"></div>
+                        <span className="flex-shrink-0 mx-4 text-gray-400 text-xs uppercase tracking-wider">Atau Bulk Insert</span>
+                        <div className="flex-grow border-t border-gray-300"></div>
+                    </div>
+                    <div className="mb-4">
+                        <InputLabel value="Paste Nomor Induk (NIP/NIS) Musyrif" />
+                        <textarea
+                            className="w-full mt-1 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                            rows="4"
+                            placeholder="Paste NIP/NIS disini (pisahkan dengan enter atau koma)..."
+                            value={musyrifData.bulk_nip_nis}
+                            onChange={e => {
+                                setMusyrifData({ ...musyrifData, bulk_nip_nis: e.target.value, student_id: '', user_id: '' });
+                            }}
+                        ></textarea>
+                        <p className="text-xs text-gray-500 mt-1">Gunakan fitur ini untuk menambah banyak musyrif sekaligus.</p>
+                        <InputError message={musyrifErrors.bulk_nip_nis} className="mt-2" />
                     </div>
                     <div className="flex justify-end gap-2">
                         <SecondaryButton onClick={() => setShowMusyrifModal(false)}>Batal</SecondaryButton>

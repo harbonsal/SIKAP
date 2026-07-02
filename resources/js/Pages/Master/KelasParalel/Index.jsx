@@ -1,4 +1,4 @@
-import MainLayout from '@/Layouts/MainLayout';
+import MasterPendidikanLayout from '@/Layouts/MasterPendidikanLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import Pagination from '@/Components/Pagination';
@@ -13,7 +13,7 @@ export default function Index({ kelasParalels }) {
     };
 
     return (
-        <MainLayout>
+        <MasterPendidikanLayout>
             <Head title="Kelas Paralel" />
 
             <div className="space-y-6">
@@ -78,6 +78,6 @@ export default function Index({ kelasParalels }) {
 
                 <Pagination links={kelasParalels.links} />
             </div>
-        </MainLayout>
+        </MasterPendidikanLayout>
     );
 }

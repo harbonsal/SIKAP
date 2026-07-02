@@ -1,16 +1,18 @@
 
 import React, { useState, useEffect } from 'react';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import MainLayout from '@/Layouts/MainLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/Components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/Components/ui/table";
-import { Search, Trophy, BookOpen, Filter } from 'lucide-react';
+import { Search, Trophy, BookOpen, Filter, AlertTriangle, Printer } from 'lucide-react';
+import { Badge } from '@/Components/ui/badge';
 import Pagination from '@/Components/Pagination';
 import AsyncSelect from 'react-select/async';
 import JuzInputGrid from './JuzInputGrid';
+import TahfidzTabs from '@/Components/TahfidzTabs';
 import axios from 'axios';
 
 const BatteryProgress = ({ value, max, label, colorClass, emptyClass = "bg-slate-100", height = "h-4", showLabel = true, subLabel = "" }) => {
@@ -52,6 +54,7 @@ export default function Index({ auth, title, students, filters, classes, kamars,
     const [selectedClass, setSelectedClass] = useState(filters.active_class_id || 'all');
     const [selectedKamar, setSelectedKamar] = useState(filters.active_kamar_id || 'all');
     const [selectedMusyrif, setSelectedMusyrif] = useState(filters.musyrif_id || 'all');
+    const [showStagnantOnly, setShowStagnantOnly] = useState(filters.stagnant === '1');
 
     const handleSearch = (e) => {
         setSearchTerm(e.target.value);
@@ -63,6 +66,8 @@ export default function Index({ auth, title, students, filters, classes, kamars,
             active_kamar_id: selectedKamar,
             musyrif_id: selectedMusyrif,
             search: searchInput,
+            stagnant: showStagnantOnly ? '1' : '0',
+            tab: activeTab,
             [key]: value
         };
 
@@ -70,6 +75,7 @@ export default function Index({ auth, title, students, filters, classes, kamars,
         if (key === 'active_kamar_id') setSelectedKamar(value);
         if (key === 'musyrif_id') setSelectedMusyrif(value);
         if (key === 'search') setSearchInput(value);
+        if (key === 'stagnant') setShowStagnantOnly(value === '1');
 
         router.get(route('tahfidz.achievements.index'), newFilters, {
             preserveState: true,
@@ -82,7 +88,7 @@ export default function Index({ auth, title, students, filters, classes, kamars,
         handleFilterChange('search', searchInput);
     };
 
-    const [activeTab, setActiveTab] = useState('monitoring');
+    const activeTab = filters.tab || 'monitoring';
     const [inputStudent, setInputStudent] = useState(null);
     const [inputJuzData, setInputJuzData] = useState([]);
     const [loadingInput, setLoadingInput] = useState(false);
@@ -112,30 +118,13 @@ export default function Index({ auth, title, students, filters, classes, kamars,
     };
 
     return (
-        <AuthenticatedLayout
-            user={auth.user}
-            header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">{title}</h2>}
-        >
+        <MainLayout>
             <Head title={title} />
 
-            <div className="py-12">
-                <div className="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+            <div className="space-y-6">
 
-                    {/* TABS */}
-                    <div className="flex space-x-1 rounded-xl bg-gray-100/50 p-1 w-fit border">
-                        <button
-                            onClick={() => setActiveTab('monitoring')}
-                            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'monitoring' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-900'}`}
-                        >
-                            Monitoring Capaian
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('input')}
-                            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'input' ? 'bg-white shadow text-indigo-600' : 'text-gray-500 hover:text-gray-900'}`}
-                        >
-                            Input Hafalan
-                        </button>
-                    </div>
+                {/* TABS PENGGANTI */}
+                    <TahfidzTabs activeRoute="achievements" activeTabParams={activeTab} />
 
                     {activeTab === 'monitoring' && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -201,6 +190,17 @@ export default function Index({ auth, title, students, filters, classes, kamars,
                                             </SelectContent>
                                         </Select>
                                     </div>
+                                    <div className="flex items-center mt-2 md:mt-0 md:ml-2 text-sm text-gray-700">
+                                        <label className="flex items-center gap-2 cursor-pointer bg-red-50 hover:bg-red-100 text-red-700 px-3 py-2 rounded-md border border-red-200 transition-colors">
+                                            <input 
+                                                type="checkbox" 
+                                                className="rounded text-red-600 focus:ring-red-500 bg-white"
+                                                checked={showStagnantOnly}
+                                                onChange={(e) => handleFilterChange('stagnant', e.target.checked ? '1' : '0')}
+                                            />
+                                            <AlertTriangle className="w-4 h-4" /> Santri Stagnan
+                                        </label>
+                                    </div>
                                     {/* Search NIS / Nama */}
                                     <form onSubmit={handleSearchSubmit} className="flex gap-2 w-full md:w-auto flex-1">
                                         <Input
@@ -252,6 +252,12 @@ export default function Index({ auth, title, students, filters, classes, kamars,
                                                         <TableCell>
                                                             <div className="font-medium text-slate-900">{student.name}</div>
                                                             <div className="text-xs text-slate-500">NIS: {student.nis}</div>
+                                                            {student.is_stagnant && (
+                                                                <Badge variant="destructive" className="mt-1 bg-red-100 text-red-700 hover:bg-red-200 font-normal px-2 py-0.5 text-[10px] flex items-center gap-1 w-fit">
+                                                                    <AlertTriangle className="w-3 h-3" />
+                                                                    {student.days_since_last_setoran !== null ? `Stagnan (${student.days_since_last_setoran} hari)` : 'Belum Pernah'}
+                                                                </Badge>
+                                                            )}
                                                         </TableCell>
                                                         <TableCell>
                                                             <div className="text-sm">{student.class_name}</div>
@@ -293,11 +299,21 @@ export default function Index({ auth, title, students, filters, classes, kamars,
                                                             )}
                                                         </TableCell>
                                                         <TableCell className="text-right">
-                                                            <Button asChild size="sm" variant="outline">
-                                                                <Link href={route('tahfidz.achievements.show', student.id)}>
-                                                                    <BookOpen className="w-4 h-4 mr-2" /> Detail
-                                                                </Link>
-                                                            </Button>
+                                                            <div className="flex justify-end gap-2">
+                                                                <a 
+                                                                    href={route('tahfidz.report.print', student.id)}
+                                                                    target="_blank"
+                                                                    className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-indigo-200 bg-white hover:bg-indigo-50 text-indigo-600 h-9 px-2"
+                                                                    title="Cetak Rapor"
+                                                                >
+                                                                    <Printer className="h-4 w-4" />
+                                                                </a>
+                                                                <Button asChild size="sm" variant="outline">
+                                                                    <Link href={route('tahfidz.achievements.show', student.id)}>
+                                                                        <BookOpen className="w-4 h-4 mr-2" /> Detail
+                                                                    </Link>
+                                                                </Button>
+                                                            </div>
                                                         </TableCell>
                                                     </TableRow>
                                                 ))
@@ -375,7 +391,6 @@ export default function Index({ auth, title, students, filters, classes, kamars,
                         </div>
                     )}
                 </div>
-            </div>
-        </AuthenticatedLayout>
+        </MainLayout>
     );
 }

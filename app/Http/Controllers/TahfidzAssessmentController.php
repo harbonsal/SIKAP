@@ -75,8 +75,34 @@ class TahfidzAssessmentController extends Controller
         ]);
     }
 
+    private function authorizeTester($active_subject_id)
+    {
+        $user = Auth::user();
+        $isManagerTahfidz = optional($user->userLevel)->name === 'Manager Tahfidz'
+            || ($user->additionalLevels && $user->additionalLevels->contains('name', 'Manager Tahfidz'))
+            || optional($user->userLevel)->name === 'Administrator';
+
+        $canViewAll = $isManagerTahfidz || $user->hasPermission('view_all_tahfidz_grades');
+
+        $isGuru = optional($user->userLevel)->name === 'Guru';
+        if ($isGuru && !$isManagerTahfidz) {
+            $canViewAll = false;
+        }
+
+        if (!$canViewAll) {
+            $isTester = \App\Models\TahfidzTester::where('active_subject_id', $active_subject_id)
+                ->where('user_id', $user->id)
+                ->exists();
+            if (!$isTester) {
+                abort(403, 'Anda tidak diplot sebagai penguji untuk kelas ini.');
+            }
+        }
+    }
+
     public function show($id)
     {
+        $this->authorizeTester($id);
+
         // 1. Show List of Exams (GradeWeights) for this class
         $activeSubject = ActiveSubject::with(['activeClass.kelas', 'activeClass.kelasParalel', 'teacher'])->findOrFail($id);
         $activeYear = \App\Services\AcademicStateService::currentAcademicYear();
@@ -96,6 +122,8 @@ class TahfidzAssessmentController extends Controller
 
     public function showStudents(Request $request, $active_subject, $grade_weight)
     {
+        $this->authorizeTester($active_subject);
+
         // 2. Show List of Students for selected Exam
         $activeSubject = ActiveSubject::with(['activeClass.kelas', 'activeClass.kelasParalel', 'activeClass.classMembers.student.user'])->findOrFail($active_subject);
 
@@ -136,11 +164,14 @@ class TahfidzAssessmentController extends Controller
             'existingGrades' => $existingGrades,
             'kkm' => $kkmValue,
             'lockStatus' => $this->checkLockedStatus(),
+            'isAdminOrManager' => $this->isAdminOrManager(),
         ]);
     }
 
     public function assess(Request $request, $active_subject, $grade_weight, $student_id)
     {
+        $this->authorizeTester($active_subject);
+
         // 3. Assessment Interface
         $activeSubject = ActiveSubject::findOrFail($active_subject);
         $gradeWeight = GradeWeight::findOrFail($grade_weight);
@@ -207,6 +238,7 @@ class TahfidzAssessmentController extends Controller
             'nextStudentId' => $nextStudentId,
             'kkm' => $this->getKkmValue($activeSubject), // Fetch KKM
             'lockStatus' => $this->checkLockedStatus(),
+            'isAdminOrManager' => $this->isAdminOrManager(),
             'eligibleValidationJuz' => $eligibleValidationJuz,
         ]);
     }
@@ -242,12 +274,13 @@ class TahfidzAssessmentController extends Controller
         ]);
 
         $lockStatus = $this->checkLockedStatus();
-        if ($lockStatus === 'strict_lock') {
+        $isAdmin = $this->isAdminOrManager();
+        if ($lockStatus === 'strict_lock' && !$isAdmin) {
             return back()->with('error', 'Masa perbaikan ujian telah berakhir. Anda tidak dapat melakukan input nilai.');
         }
 
         try {
-            return \DB::transaction(function () use ($request, $id) {
+            return \DB::transaction(function () use ($request, $id, $lockStatus) {
                 $activeSemester = \App\Services\AcademicStateService::currentSemester();
 
                 // 1. Get or Create Main Grade Record
@@ -266,6 +299,10 @@ class TahfidzAssessmentController extends Controller
 
                 // 2. Save/Update Question Details
                 foreach ($request->answers as $answer) {
+                    $verseStart = isset($answer['verse_start']) && trim($answer['verse_start']) !== '' 
+                        ? (int) $answer['verse_start'] 
+                        : null;
+
                     TahfidzAssessmentDetail::updateOrCreate(
                         [
                             'student_grade_id' => $grade->id,
@@ -274,8 +311,7 @@ class TahfidzAssessmentController extends Controller
                         [
                             'mistakes' => $answer['mistakes'],
                             'surah_name' => $answer['surah_name'] ?? null,
-                            'verse_start' => $answer['verse_start'] ?? null,
-                            'juz' => $answer['juz'] ?? null,
+                            'verse_start' => $verseStart,
                         ]
                     );
                 }
@@ -298,27 +334,53 @@ class TahfidzAssessmentController extends Controller
                 $calculatedScore = $totalPoints / max(1, $totalQuestions);
                 $finalScore = $calculatedScore;
 
+                // Dynamically fetch KKM
+                $activeSubject = ActiveSubject::with(['activeClass'])->findOrFail($id);
+                $kkmValue = $this->getKkmValue($activeSubject);
+
                 // 4. Mode Distinction Logic
                 if ($request->boolean('is_remedial')) {
-                    // REMEDIAL MODE: Only take if better than current score
-                    if ($calculatedScore <= $existingScore) {
-                        // Throw exception to trigger DB::transaction rollback
-                        throw new \Exception('Nilai pengulangan (' . round($calculatedScore, 1) . ') tidak lebih tinggi dari nilai sebelumnya (' . round($existingScore, 1) . '). Data tidak disimpan.');
-                    }
+                    // REMEDIAL MODE: Cap at dynamic KKM
+                    $finalScore = min($kkmValue, $calculatedScore);
 
-                    // Cap at 70
-                    $finalScore = min(70, $calculatedScore);
+                    // Mark original_score to indicate it was a remedial
+                    if (is_null($grade->original_score)) {
+                        $grade->original_score = $existingScore;
+                    }
                 } else {
-                    // NORMAL MODE
-                    if ($lockStatus === 'late_phase' && $isNewSubmission && !$request->boolean('is_excused')) {
-                        // Telat & Tledor -> Cap at 70
-                        $finalScore = min(70, $calculatedScore);
+                    // NORMAL MODE / RETAKE
+                    if (($lockStatus === 'late_phase' || $lockStatus === 'strict_lock') && $isNewSubmission) {
+                        // Telat
+                        if (!$request->boolean('is_excused')) {
+                            // Tledor -> Cap at dynamic KKM
+                            $finalScore = min($kkmValue, $calculatedScore);
+                            if (is_null($grade->original_score)) {
+                                $grade->original_score = $calculatedScore;
+                            }
+                        } else {
+                            // Izin/Sakit -> Jatah full, but we still might want to mark it as delayed.
+                            // But requirement says "tetap mendapatkan jatah full".
+                            $finalScore = $calculatedScore;
+                            // Optionally mark original_score if we want to visually indicate it was late
+                            if (is_null($grade->original_score)) {
+                                $grade->original_score = $calculatedScore;
+                            }
+                        }
+                    } else if (!$isNewSubmission) {
+                        // This is a RETAKE (Ujian Ulang) - not new submission and not remedial mode
+                        // "ujian ulang nilai tetap full maksimal 100"
+                        $finalScore = $calculatedScore;
+                        // Mark original_score if not already marked so we know it was modified
+                        if (is_null($grade->original_score)) {
+                            $grade->original_score = $existingScore;
+                        }
                     }
                 }
 
                 // 5. Update Grade Record
                 $grade->update([
                     'score' => $finalScore,
+                    'original_score' => $grade->original_score,
                     'reading_quality' => $request->reading_quality,
                     'reading_deficiencies' => $request->reading_deficiencies ?? [],
                     'is_excused' => $request->boolean('is_excused', false),
@@ -500,22 +562,21 @@ class TahfidzAssessmentController extends Controller
             'academicYear' => $activeYear,
         ]);
     }
-    private function checkLockedStatus()
+    private function isAdminOrManager()
     {
         $user = Auth::user();
-
-        // 1. Bypass for Admin and Manager Tahfidz
         $userLevel = $user->userLevel->name ?? '';
         $additionalLevels = $user->additionalLevels->pluck('name')->toArray();
 
-        if (
+        return (
             $userLevel === 'Administrator' || $userLevel === 'Manager Tahfidz' ||
             in_array('Administrator', $additionalLevels) || in_array('Manager Tahfidz', $additionalLevels)
-        ) {
-            return 'open';
-        }
+        );
+    }
 
-        // 2. Check Dates
+    private function checkLockedStatus()
+    {
+        // 1. Check Dates (Strictly based on dates, no bypass here)
         $startDate = Setting::where('key', 'tahfidz_exam_start_date')->value('value');
         $endDate = Setting::where('key', 'tahfidz_exam_end_date')->value('value');
 
@@ -533,7 +594,10 @@ class TahfidzAssessmentController extends Controller
         if ($endDate) {
             $end = Carbon::parse($endDate);
             if ($now->gt($end)) {
-                $latePhaseEnd = $end->copy()->addDay();
+                $lateDays = (int) Setting::where('key', 'tahfidz_exam_late_days')->value('value');
+                if ($lateDays <= 0) $lateDays = 1; // Default to 1 day
+
+                $latePhaseEnd = $end->copy()->addDays($lateDays);
                 if ($now->lte($latePhaseEnd)) {
                     return 'late_phase';
                 }

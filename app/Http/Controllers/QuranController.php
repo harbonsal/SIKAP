@@ -32,12 +32,13 @@ class QuranController extends Controller
         $allowedJuz = null;
         $user = auth()->user();
 
-        if ($user && $user->user_level && in_array($user->user_level->name, ['Santri', 'Siswa'])) {
+        if ($user && $user->userLevel && in_array($user->userLevel->name, ['Santri', 'Siswa'])) {
             $student = \App\Models\Student::where('user_id', $user->id)->first();
             if ($student) {
                 $allowedJuz = \App\Models\TahfidzMemorization::where('student_id', $student->id)
                     ->where('is_completed', true)
                     ->pluck('juz')
+                    ->map(fn($juz) => (int) $juz)
                     ->toArray();
             } else {
                 $allowedJuz = [];
@@ -46,10 +47,16 @@ class QuranController extends Controller
 
         $quranProgress = [];
         if ($user) {
-            $quranProgress = \App\Models\QuranProgress::where('user_id', $user->id)
-                ->get()
-                ->keyBy('juz_number')
-                ->toArray();
+            try {
+                $quranProgress = \App\Models\QuranProgress::where('user_id', $user->id)
+                    ->get()
+                    ->keyBy('juz_number')
+                    ->toArray();
+            } catch (\Exception $e) {
+                // Log abaikan error jika tabel quran_progress belum di-migrate (karena fitur baru)
+                // Ini mencegah halaman Skrining yang lama ikut rusak
+                $quranProgress = [];
+            }
         }
 
         return Inertia::render('Quran/Index', array_merge([

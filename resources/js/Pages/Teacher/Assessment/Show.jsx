@@ -259,7 +259,13 @@ export default function Show({ activeSubject, gradeWeights, semester, previousPa
                     <Button variant="outline" asChild className="min-w-[120px] shadow-sm">
                         <a href={route('assessments.template', activeSubject.id)}>
                             <Download className="mr-2 h-4 w-4" />
-                            Download Template Excel/CSV
+                            Template Input (Excel)
+                        </a>
+                    </Button>
+                    <Button variant="outline" asChild className="min-w-[120px] shadow-sm">
+                        <a href={route('assessments.export', activeSubject.id)}>
+                            <Download className="mr-2 h-4 w-4" />
+                            Data Nilai (Excel)
                         </a>
                     </Button>
 
@@ -298,9 +304,12 @@ export default function Show({ activeSubject, gradeWeights, semester, previousPa
                                         <table className="w-full text-sm text-left border-collapse border border-gray-300">
                                             <thead className="text-xs uppercase bg-gray-100 text-gray-700 sticky top-0 z-30 shadow-sm">
                                                 <tr>
-                                                    <th className="px-4 py-3 font-bold w-12 text-center sticky left-0 z-40 bg-gray-100 border-b border-r border-gray-300 shadow-[1px_0_0_0_rgba(0,0,0,0.1)]">No</th>
-                                                    <th className="px-4 py-3 font-bold min-w-[220px] sticky left-12 z-40 bg-gray-100 border-b border-r border-gray-300 shadow-[4px_0_4px_-2px_rgba(0,0,0,0.1)]">
-                                                        Identitas Siswa
+                                                    <th className="px-4 py-3 font-bold w-[50px] min-w-[50px] max-w-[50px] text-center sticky left-0 z-40 bg-gray-100 border-b border-r border-gray-300 shadow-[1px_0_0_0_rgba(0,0,0,0.1)]">No</th>
+                                                    <th className="px-4 py-3 font-bold w-[130px] min-w-[130px] max-w-[130px] text-center sticky left-[50px] z-40 bg-gray-100 border-b border-r border-gray-300 shadow-[1px_0_0_0_rgba(0,0,0,0.1)]">
+                                                        NIS
+                                                    </th>
+                                                    <th className="px-4 py-3 font-bold min-w-[220px] sticky left-[180px] z-40 bg-gray-100 border-b border-r border-gray-300 shadow-[4px_0_4px_-2px_rgba(0,0,0,0.1)]">
+                                                        Nama Siswa
                                                     </th>
                                                     {gradeWeights.map(weight => (
                                                         <th key={weight.id} className="px-2 py-3 font-bold text-center min-w-[100px] border-b border-r border-gray-300 bg-gray-50">
@@ -335,11 +344,11 @@ export default function Show({ activeSubject, gradeWeights, semester, previousPa
                                                         <td className="px-4 py-3 text-center sticky left-0 z-20 bg-background group-hover:bg-blue-50/50 group-even:bg-gray-50/50 border-r border-gray-300 font-medium text-gray-700">
                                                             {index + 1}
                                                         </td>
-                                                        <td className="px-4 py-3 sticky left-12 z-20 bg-background group-hover:bg-blue-50/50 group-even:bg-gray-50/50 border-r border-gray-300 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
-                                                            <div className="flex flex-col">
-                                                                <span className="font-bold text-gray-800">{member.student.name}</span>
-                                                                <span className="text-xs text-gray-500 font-mono mt-0.5">{member.student.nomor_induk}</span>
-                                                            </div>
+                                                        <td className="px-4 py-3 text-center sticky left-[50px] z-20 bg-background group-hover:bg-blue-50/50 group-even:bg-gray-50/50 border-r border-gray-300 shadow-[1px_0_0_0_rgba(0,0,0,0.05)]">
+                                                            <span className="font-bold text-gray-800 font-mono text-[15px]">{member.student.nomor_induk || member.student.nis || '-'}</span>
+                                                        </td>
+                                                        <td className="px-4 py-3 sticky left-[180px] z-20 bg-background group-hover:bg-blue-50/50 group-even:bg-gray-50/50 border-r border-gray-300 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                                                            <span className="font-bold text-gray-800">{member.student.name}</span>
                                                         </td>
                                                         {gradeWeights.map(weight => (
                                                             <td key={weight.id} className="p-2 text-center border-r border-gray-300 relative">

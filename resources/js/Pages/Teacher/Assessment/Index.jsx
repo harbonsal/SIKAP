@@ -1,4 +1,4 @@
-import MainLayout from '@/Layouts/MainLayout';
+import PenilaianLayout from '@/Layouts/PenilaianLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import { Search, BookOpen, Filter, ClipboardList, GraduationCap, Download, Clock } from 'lucide-react';
 import Pagination from '@/Components/Pagination';
@@ -43,7 +43,7 @@ export default function Index({ activeSubjects, filters, academicYear, semester,
     };
 
     return (
-        <MainLayout>
+        <PenilaianLayout>
             <Head title="Input Nilai Guru" />
 
             <div className="space-y-6">
@@ -245,6 +245,6 @@ export default function Index({ activeSubjects, filters, academicYear, semester,
                     <Pagination links={activeSubjects.links} />
                 </div>
             </div >
-        </MainLayout >
+        </PenilaianLayout>
     );
 }

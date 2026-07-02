@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class QuranProgress extends Model
 {
-    protected $table = 'quran_progresses';
+    protected $table = 'quran_progress';
 
     protected $fillable = [
         'user_id',

@@ -1,6 +1,8 @@
 
 import { Head } from '@inertiajs/react';
-import { Printer } from 'lucide-react';
+import { Printer, Download } from 'lucide-react';
+import Swal from 'sweetalert2';
+import html2pdf from 'html2pdf.js';
 
 export default function Print({
     student,
@@ -37,7 +39,7 @@ export default function Print({
     const headerImage = settings.report_header_image ? `/storage/${settings.report_header_image}` : null;
     const stampImage = settings.stamp_image ? `/storage/${settings.stamp_image}` : null;
     const headmasterSignature = settings.headmaster_signature ? `/storage/${settings.headmaster_signature}` : null;
-    const totalScore = grades.reduce((acc, curr) => acc + (parseInt(curr.score, 10) || 0), 0);
+    const totalScore = parseFloat(grades.reduce((acc, curr) => acc + (parseFloat(curr.score) || 0), 0).toFixed(1));
 
     // Bilingual Labels
     const labels = {
@@ -56,7 +58,7 @@ export default function Print({
     };
 
     // Helper: Map Class Name to Arabic (Simple Heuristic)
-    const getArabicClassName = (className, jenjangName) => {
+    const getArabicClassName = (className, jenjangName, paralelName) => {
         const numMatch = className.match(/\d+/);
         const num = numMatch ? parseInt(numMatch[0], 10) : null;
         let ordinal = '';
@@ -69,18 +71,27 @@ export default function Print({
         if (levelStr.includes('ibtida')) levelAr = 'الإبتدائي';
         else if (levelStr.includes('mutawas')) levelAr = 'المتوسط';
         else if (levelStr.includes('tsanaw') || levelStr.includes('aliyah')) levelAr = 'الثانوي';
-        if (ordinal && levelAr) return `${ordinal} ${levelAr}`;
+        
+        let arClass = '';
+        if (ordinal && levelAr) {
+            arClass = `${ordinal} ${levelAr}`;
+        } else {
+            arClass = className.replace(/\d+/g, (d) => toArabicNums(d)); // Convert numbers
 
-        let arClass = className.replace(/\d+/g, (d) => toArabicNums(d)); // Convert numbers
+            // Map levels - separate Tsanawiyah from Mutawassith
+            if (jenjangName?.includes('Ibtida')) arClass = arClass.replace(/Ibtidai?y?a?h?/i, 'الإبتدائية');
+            if (jenjangName?.includes('Tsanaw')) arClass = arClass.replace(/Tsanawiy?a?h?/i, 'الثانوية');
+            if (jenjangName?.includes('Mutawas')) arClass = arClass.replace(/Mutawas+i?t?h?/i, 'المتوسطة');
+            if (jenjangName?.includes('Aliyah')) arClass = arClass.replace(/Aliyah?/i, 'الثانوية');
+        }
 
-        // Map levels - separate Tsanawiyah from Mutawassith
-        if (jenjangName?.includes('Ibtida')) arClass = arClass.replace(/Ibtidai?y?a?h?/i, 'الإبتدائية');
-        if (jenjangName?.includes('Tsanaw')) arClass = arClass.replace(/Tsanawiy?a?h?/i, 'الثانوية');
-        if (jenjangName?.includes('Mutawas')) arClass = arClass.replace(/Mutawas+i?t?h?/i, 'المتوسطة');
-        if (jenjangName?.includes('Aliyah')) arClass = arClass.replace(/Aliyah?/i, 'الثانوية');
+        // Map Paralel Name (e.g. A, B, C)
+        if (paralelName) {
+            const parMap = { 'A': 'أ', 'B': 'ب', 'C': 'ج', 'D': 'د', 'E': 'هـ', 'F': 'و' };
+            const arPar = parMap[paralelName.toUpperCase()] || paralelName;
+            arClass += ' ' + arPar;
+        }
 
-        // Map grades (1, 2, 3...) to ordinal words if strictly needed, but number + level is often okay.
-        // Example: "1 Mutawassith" -> "١ المتوسطة", "3 Tsanawiyah" -> "٣ الثانوية"
         return arClass;
     };
 
@@ -89,8 +100,8 @@ export default function Print({
             <Head title={`Rapor - ${student.name}`} />
             <style>{`
                 @page {
-                    size: 21cm 33cm;
-                    margin: 3.5cm 1cm 2cm 1cm;
+                    size: legal;
+                    margin: 0cm;
                 }
 
                 @media print {
@@ -103,15 +114,56 @@ export default function Print({
                         page-break-inside: avoid;
                         break-inside: avoid;
                     }
-                    * {
-                        page-break-inside: avoid;
-                        break-inside: avoid;
-                    }
                 }
             `}</style>
 
-            {/* Print Button */}
-            <div className="fixed bottom-4 right-4 z-50 print:hidden">
+            {/* Print Buttons */}
+            <div className="fixed bottom-4 right-4 z-50 print:hidden flex gap-3">
+                <button
+                    onClick={() => {
+                        const element = document.getElementById('report-container');
+                        
+                        // Show loading state
+                        Swal.fire({
+                            title: 'Menyiapkan PDF...',
+                            allowOutsideClick: false,
+                            didOpen: () => {
+                                Swal.showLoading();
+                            }
+                        });
+                        
+                        
+                        
+                        // Temporarily reset margins and paddings to prevent html2canvas offset issues
+                        const parent = element.parentElement;
+                        const originalParentPadding = parent.style.padding;
+                        const originalElementMargin = element.style.margin;
+                        
+                        parent.style.setProperty('padding', '0', 'important');
+                        element.style.setProperty('margin', '0', 'important');
+                        // Scroll to top to ensure exact capture
+                        window.scrollTo(0, 0);
+
+                        const opt = {
+                            margin:       0,
+                            filename:     `Rapor_${student.name}.pdf`,
+                            image:        { type: 'jpeg', quality: 1 },
+                            html2canvas:  { scale: 2, useCORS: true },
+                            jsPDF:        { unit: 'cm', format: 'legal', orientation: 'portrait' }
+                        };
+
+                        html2pdf().set(opt).from(element).save().then(() => {
+                            // Restore original styles
+                            parent.style.padding = originalParentPadding;
+                            element.style.margin = originalElementMargin;
+                            Swal.close();
+                        });
+                    }}
+                    className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-3 rounded-full shadow-lg hover:bg-emerald-700 transition-all font-medium"
+                >
+                    <Download className="w-5 h-5" />
+                    Download PDF
+                </button>
                 <button
                     onClick={() => window.print()}
                     className="flex items-center gap-2 bg-blue-600 text-white px-4 py-3 rounded-full shadow-lg hover:bg-blue-700 transition-all font-medium"
@@ -122,12 +174,45 @@ export default function Print({
             </div>
 
             {/* Legal Size Container (215mm x 330mm) */}
-            <div className="report-page mx-auto box-border bg-white shadow-xl print:shadow-none w-[21cm] min-h-[33cm] pl-[1cm] pr-[1cm] pt-[2cm] pb-[1.5cm] print:w-[19cm] print:h-auto print:max-w-none print:overflow-visible print:p-0 relative flex flex-col">
+            <div id="report-container" className="report-page mx-auto box-border bg-white shadow-xl print:shadow-none w-[21.59cm] min-h-[35.56cm] px-[1cm] pt-[2cm] pb-[1cm] print:h-auto print:min-h-0 print:max-w-none print:overflow-visible relative flex flex-col">
 
-                {/* Header - Space for Pre-printed Header */}
-                <header className="mb-2 text-center relative pt-0">
-                    {/* If using pre-printed paper, we just need space. The title 'Kasyf ad-Darajat' might be part of the content we print below the header space. */}
+                {/* Header System vs Pre-printed */}
+                {settings.header_config?.use_system_header ? (
+                    <div className="mb-2 border-b-4 border-black pb-2 relative flex items-center justify-center min-h-[100px]">
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2">
+                            {settings.kop_image && (
+                                <img src={`/storage/${settings.kop_image}`} alt="Logo" className="w-24 h-24 object-contain" />
+                            )}
+                        </div>
+                        <div className="text-center px-2 w-full">
+                            {settings.header_config?.yayasan_name && (
+                                <h2 className="text-lg font-bold uppercase tracking-wide leading-tight">
+                                    {settings.header_config.yayasan_name}
+                                </h2>
+                            )}
+                            {settings.header_config?.institution_name && (
+                                <h1 
+                                    className="text-2xl font-black uppercase tracking-widest text-emerald-800 leading-snug print:text-black"
+                                    style={{ fontFamily: "'Cooper Black', 'Georgia', serif" }}
+                                >
+                                    {settings.header_config.institution_name}
+                                </h1>
+                            )}
+                            {settings.header_config?.institution_location && (
+                                <h2 className="text-lg font-bold uppercase tracking-wide leading-tight">
+                                    {settings.header_config.institution_location}
+                                </h2>
+                            )}
+                            {settings.address && (
+                                <p className="text-xs mt-1 leading-tight">{settings.address}</p>
+                            )}
+                        </div>
+                    </div>
+                ) : (
                     <div className="h-14"></div>
+                )}
+
+                <header className="mb-2 text-center relative pt-0">
 
                     <div className="space-y-0.5">
                         <h1 className="text-3xl font-bold font-arabic mb-0">كشف الدرجات</h1>
@@ -166,7 +251,7 @@ export default function Print({
                             <tr>
                                 <td className="py-0.5">Kelas</td>
                                 <td className="text-center">:</td>
-                                <td className="uppercase">{active_class.kelas.name} {active_class.kelasParalel?.name}</td>
+                                <td className="uppercase">{active_class.kelas.name} {active_class.kelas_paralel?.name}</td>
                             </tr>
                             <tr>
                                 <td className="py-0.5">Semester</td>
@@ -192,7 +277,7 @@ export default function Print({
                              <tr>
                                  <td className="py-0.5 font-arabic">الصف</td>
                                  <td className="text-center">:</td>
-                                 <td className="font-arabic">{getArabicClassName(active_class.kelas.name, active_class.kelas?.jenjang?.name)}</td>
+                                 <td className="font-arabic">{getArabicClassName(active_class.kelas.name, active_class.kelas?.jenjang?.name, active_class.kelas_paralel?.name)}</td>
                              </tr>
                              <tr>
                                  <td className="py-0.5 font-arabic">الفصل الدراسي</td>
@@ -552,3 +637,5 @@ export default function Print({
         </div>
     );
 }
+
+

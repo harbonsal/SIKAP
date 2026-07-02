@@ -9,11 +9,16 @@ class TahfidzMusyrif extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['student_id', 'is_active'];
+    protected $fillable = ['student_id', 'user_id', 'is_active'];
 
     public function student()
     {
         return $this->belongsTo(Student::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function members()

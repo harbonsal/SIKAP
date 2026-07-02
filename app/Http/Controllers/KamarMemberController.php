@@ -15,6 +15,12 @@ class KamarMemberController extends Controller
      */
     public function index(Request $request)
     {
+        // CLEAR CACHE TEMPORARILY TO FIX C-PANEL ISSUE
+        try {
+            \Illuminate\Support\Facades\Artisan::call('route:clear');
+            \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+        } catch (\Exception $e) {}
+
         $activeKamarId = $request->query('active_kamar');
 
         if (!$activeKamarId) {
@@ -81,6 +87,74 @@ class KamarMemberController extends Controller
         KamarMember::create($validated);
 
         return redirect()->back()->with('success', 'Santri berhasil ditambahkan ke kamar.');
+    }
+
+    /**
+     * Store multiple resources in storage based on NIS list.
+     */
+    public function bulkStore(Request $request)
+    {
+        if (!$request->user()?->hasRole('Administrator')) {
+            abort(403, 'Anda tidak memiliki hak untuk menambah anggota kamar.');
+        }
+
+        $validated = $request->validate([
+            'active_kamar_id' => 'required|exists:active_kamars,id',
+            'nis_list' => 'required|string',
+        ]);
+
+        $activeKamar = ActiveKamar::findOrFail($validated['active_kamar_id']);
+
+        // Parse NIS list (split by newline, comma, or space)
+        $rawNisList = preg_split('/[\s,]+/', $validated['nis_list']);
+        $nisList = array_filter(array_map('trim', $rawNisList));
+
+        $addedCount = 0;
+        $failedNis = [];
+        $alreadyInKamarNis = [];
+
+        foreach ($nisList as $nis) {
+            $student = Student::whereHas('user', function($q) use ($nis) {
+                $q->where('nomor_induk', $nis);
+            })->first();
+
+            if (!$student) {
+                $failedNis[] = $nis;
+                continue;
+            }
+
+            $exists = KamarMember::where('student_id', $student->id)
+                ->whereHas('activeKamar', function ($q) use ($activeKamar) {
+                    $q->where('academic_year_id', $activeKamar->academic_year_id);
+                })->exists();
+
+            if ($exists) {
+                $alreadyInKamarNis[] = $nis;
+                continue;
+            }
+
+            KamarMember::create([
+                'active_kamar_id' => $activeKamar->id,
+                'student_id' => $student->id,
+            ]);
+
+            $addedCount++;
+        }
+
+        $messages = [];
+        if ($addedCount > 0) {
+            $messages[] = "Berhasil menambahkan $addedCount santri.";
+        }
+        if (!empty($failedNis)) {
+            $messages[] = "Gagal (NIS tidak ditemukan): " . implode(', ', $failedNis);
+        }
+        if (!empty($alreadyInKamarNis)) {
+            $messages[] = "Gagal (Sudah ada di kamar lain): " . implode(', ', $alreadyInKamarNis);
+        }
+
+        $finalMessage = implode(' | ', $messages);
+
+        return redirect()->back()->with('success', $finalMessage);
     }
 
     /**

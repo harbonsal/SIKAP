@@ -22,6 +22,7 @@ import {
     User,
     Users,
     X,
+    Shuffle,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/Components/ui/button';
@@ -36,6 +37,7 @@ import {
     DialogTitle,
 } from "@/Components/ui/dialog";
 import Swal from 'sweetalert2';
+import TabPlottingSantri from './TabPlottingSantri';
 
 const stringToColor = (str) => {
     if (!str) return 'bg-gray-50 border-gray-100 text-gray-500';
@@ -76,6 +78,7 @@ const topTabs = [
     { id: 'distribution', label: 'Distribusi', icon: FileSpreadsheet },
     { id: 'unavailable', label: 'Jam Off Guru', icon: Calendar },
     { id: 'time', label: 'Jam & Hari', icon: Clock },
+    { id: 'plotting', label: 'Plotting Santri', icon: Shuffle },
 ];
 
 export default function Workspace({
@@ -1446,14 +1449,16 @@ export default function Workspace({
                                     <table className="w-full text-sm">
                                         <thead className="bg-muted/50">
                                             <tr>
+                                                <th className="px-4 py-3 text-center font-medium w-16">No</th>
                                                 <th className="px-4 py-3 text-left font-medium">Mata Pelajaran</th>
                                                 <th className="px-4 py-3 text-center font-medium w-28">Jam</th>
                                                 <th className="px-4 py-3 text-center font-medium w-24">Aksi</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-border">
-                                            {subjectDrafts.length > 0 ? subjectDrafts.map((subject) => (
+                                            {subjectDrafts.length > 0 ? subjectDrafts.map((subject, index) => (
                                                 <tr key={subject.id}>
+                                                    <td className="px-4 py-3 text-center text-muted-foreground">{index + 1}</td>
                                                     <td className="px-4 py-3 font-medium">{subject.mapel?.name}</td>
                                                     <td className="px-4 py-3 text-center">
                                                         <input
@@ -1908,6 +1913,15 @@ export default function Workspace({
                             </table>
                         </div>
                     </div>
+                )}
+
+                {activeTab === 'plotting' && managementEnabled && (
+                    <TabPlottingSantri
+                        activeClasses={activeClasses}
+                        systemAcademicYear={systemAcademicYear}
+                        activeYear={activeYear}
+                        preparationSourceYears={preparationSourceYears}
+                    />
                 )}
             </div>
 

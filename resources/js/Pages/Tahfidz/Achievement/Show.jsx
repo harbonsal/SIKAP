@@ -1,9 +1,10 @@
 
 import React, { useState } from 'react';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, useForm, Link } from '@inertiajs/react'; // Link added import to Show.jsx
+import MainLayout from '@/Layouts/MainLayout';
+import { Head, useForm, Link } from '@inertiajs/react';
 import { Card, CardContent } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
+import TahfidzTabs from '@/Components/TahfidzTabs';
 // Keep Dialog but be careful. If it fails, we might need a custom modal.
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/Components/ui/dialog';
 
@@ -67,11 +68,12 @@ export default function Show({ auth, student, juz_data }) {
     }
 
     return (
-        <AuthenticatedLayout
-            user={auth.user}
-            header={
+        <MainLayout>
+            <Head title={`Hafalan ${student.name}`} />
+
+            <div className="space-y-6">
                 <div className="flex justify-between items-center">
-                    <h2 className="font-semibold text-xl text-gray-800 leading-tight">Detail Hafalan: {student.name}</h2>
+                    <h2 className="text-3xl font-bold tracking-tight text-foreground">Detail Hafalan: {student.name}</h2>
                     <Link
                         href={route('tahfidz.achievements.index')}
                         className="px-4 py-2 bg-gray-500 text-white rounded-md text-sm hover:bg-gray-600 transition-colors"
@@ -79,12 +81,8 @@ export default function Show({ auth, student, juz_data }) {
                         Kembali
                     </Link>
                 </div>
-            }
-        >
-            <Head title={`Hafalan ${student.name}`} />
-
-            <div className="py-12">
-                <div className="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+                <TahfidzTabs activeRoute="achievements" activeTabParams="input" />
+                    
                     <Card className="bg-white border shadow-sm">
                         <CardContent className="p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                             <div>
@@ -164,7 +162,6 @@ export default function Show({ auth, student, juz_data }) {
                         ))}
                     </div>
                 </div>
-            </div>
 
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -224,6 +221,6 @@ export default function Show({ auth, student, juz_data }) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </AuthenticatedLayout>
+        </MainLayout>
     );
 }

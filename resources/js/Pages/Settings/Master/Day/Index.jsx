@@ -1,4 +1,4 @@
-import MainLayout from '@/Layouts/MainLayout';
+import MasterPendidikanLayout from '@/Layouts/MasterPendidikanLayout';
 import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
@@ -18,7 +18,7 @@ export default function Index({ days }) {
     };
 
     return (
-        <MainLayout>
+        <MasterPendidikanLayout>
             <Head title="Master Hari" />
 
             <div className="space-y-6">
@@ -67,6 +67,6 @@ export default function Index({ days }) {
                     </CardContent>
                 </Card>
             </div>
-        </MainLayout>
+        </MasterPendidikanLayout>
     );
 }

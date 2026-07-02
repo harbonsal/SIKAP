@@ -42,12 +42,22 @@ class TahfidzAnalysisController extends Controller
             return Inertia::render('Tahfidz/Analysis/Index', ['error' => 'Mapel Tahfidz belum disetting.']);
         }
 
-        // 2. Fetch Grade Weights (Exam Types) - use cached version
-        $gradeWeights = $performanceService->getCachedGradeWeights($activeYear->id, $activeSemester->name);
+        // 2. Fetch Grade Weights (Exam Types) - Fetch all for the year
+        $allGradeWeights = GradeWeight::where('academic_year_id', $activeYear->id)
+            ->where('category', 'pengetahuan')
+            ->get();
 
-        // Filter out "Validasi" and sort columns
-        $gradeWeights = $gradeWeights->filter(function($gw) {
-            return stripos($gw->name, 'Validasi') === false;
+        $sem1Weights = $allGradeWeights->filter(function($gw) {
+            return in_array(strtolower($gw->semester), ['all', 'semua', 'ganjil']);
+        });
+
+        $sem2Weights = $allGradeWeights->filter(function($gw) {
+            return in_array(strtolower($gw->semester), ['all', 'semua', 'genap']);
+        });
+
+        // Current semester columns for the top table
+        $gradeWeights = $allGradeWeights->filter(function($gw) use ($activeSemester) {
+            return stripos($gw->name, 'Validasi') === false && in_array(strtolower($gw->semester), ['all', 'semua', strtolower($activeSemester->name)]);
         })->sortBy(function($gw) {
             $name = strtoupper($gw->name);
             if (str_contains($name, 'UH1') || str_contains($name, 'UH 1')) return 1;
@@ -69,12 +79,11 @@ class TahfidzAnalysisController extends Controller
             'tahfidzTesters.user',
             'teacher',
             // Optimize grade loading with specific filters
-            'activeClass.classMembers.student.studentGrades' => function ($q) use ($activeSemester, $tahfidzMapel) {
-                $q->where('semester_id', $activeSemester->id)
-                    ->whereHas('activeSubject', function ($sq) use ($tahfidzMapel) {
+            'activeClass.classMembers.student.studentGrades' => function ($q) use ($tahfidzMapel) {
+                $q->whereHas('activeSubject', function ($sq) use ($tahfidzMapel) {
                         $sq->where('mapel_id', $tahfidzMapel->id);
                     })
-                    ->with('gradeWeight'); // Add gradeWeight relationship
+                    ->with(['gradeWeight', 'semester']); // Add gradeWeight and semester relationship
             }
         ])
             ->where('mapel_id', $tahfidzMapel->id)
@@ -98,16 +107,21 @@ class TahfidzAnalysisController extends Controller
                 $student = $member->student;
                 $grades = $student->studentGrades; // Collection
 
-                // Calculate Averages & Status
+                // Calculate Averages & Status for Current Semester
                 $count = 0;
-                $examStatus = []; // For Check/X status logic (optional if we switch to scores)
+                $examStatus = []; // For Check/X status logic
                 $scoresMap = []; // To hold actual values
 
                 $totalWeightSum = $gradeWeights->sum('weight');
                 $weightedSum = 0;
 
                 foreach ($gradeWeights as $gw) {
-                    $gradeRecord = $grades->where('grade_weight_id', $gw->id)->first();
+                    $gradeRecord = $grades->where('grade_weight_id', $gw->id)->where('semester.name', $activeSemester->name)->first();
+                    // Fallback to check without semester relation if not loaded correctly
+                    if (!$gradeRecord) {
+                        $gradeRecord = $grades->where('grade_weight_id', $gw->id)->first();
+                    }
+
                     $hasGrade = $gradeRecord && $gradeRecord->score > 0;
                     $examStatus[$gw->id] = $hasGrade;
 
@@ -123,21 +137,51 @@ class TahfidzAnalysisController extends Controller
                     $weightedSum += $scoreVal * $weight;
                 }
 
-                // Average is now calculated like academic score: (Sum of Score * Weight) / Total Weight
+                // Average current semester
                 $average = $totalWeightSum > 0 ? round($weightedSum / $totalWeightSum, 2) : 0;
+
+                // Calculate Sem 1 Average
+                $totalWeightSem1 = $sem1Weights->sum('weight');
+                $sumSem1 = 0;
+                foreach ($sem1Weights as $gw) {
+                    $gRec = $grades->where('grade_weight_id', $gw->id)->filter(function($q) {
+                        return strtolower($q->semester->name ?? '') === 'ganjil';
+                    })->first();
+                    // Fallback
+                    if (!$gRec) $gRec = $grades->where('grade_weight_id', $gw->id)->first();
+                    $sVal = ($gRec && $gRec->score > 0) ? $gRec->score : 0;
+                    $sumSem1 += $sVal * ($gw->weight ?? 0);
+                }
+                $averageSem1 = $totalWeightSem1 > 0 ? round($sumSem1 / $totalWeightSem1, 2) : 0;
+
+                // Calculate Sem 2 Average
+                $totalWeightSem2 = $sem2Weights->sum('weight');
+                $sumSem2 = 0;
+                foreach ($sem2Weights as $gw) {
+                    $gRec = $grades->where('grade_weight_id', $gw->id)->filter(function($q) {
+                        return strtolower($q->semester->name ?? '') === 'genap';
+                    })->first();
+                    if (!$gRec) $gRec = $grades->where('grade_weight_id', $gw->id)->first();
+                    $sVal = ($gRec && $gRec->score > 0) ? $gRec->score : 0;
+                    $sumSem2 += $sVal * ($gw->weight ?? 0);
+                }
+                $averageSem2 = $totalWeightSem2 > 0 ? round($sumSem2 / $totalWeightSem2, 2) : 0;
 
                 // Build Row Data
                 $row = [
+                    'active_subject_id' => $subject->id,
                     'student_id' => $student->id,
                     'student_name' => $student->name,
                     'nis' => $student->nis,
                     'class_name' => ($subject->activeClass->kelas->name ?? '-') . ' ' . ($subject->activeClass->kelasParalel->name ?? ''),
                     'tester_name' => $testerNames,
                     'exam_status' => $examStatus,
-                    'scores' => $scoresMap, // [NEW] Actual scores
+                    'scores' => $scoresMap,
                     'average' => $average,
+                    'average_sem1' => $averageSem1,
+                    'average_sem2' => $averageSem2,
                     'filled_count' => $count,
-                    'kkm' => $kkm // Added to fix frontend Remedial table
+                    'kkm' => $kkm
                 ];
 
                 $data[] = $row;

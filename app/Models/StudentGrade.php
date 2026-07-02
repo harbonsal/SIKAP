@@ -18,6 +18,7 @@ class StudentGrade extends Model
         'original_score',
         'reading_quality',
         'reading_deficiencies',
+        'is_excused',
     ];
 
     protected $casts = [

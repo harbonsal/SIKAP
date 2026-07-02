@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import MainLayout from '@/Layouts/MainLayout';
+import ToolsLayout from '@/Layouts/ToolsLayout';
 import { Head, useForm } from '@inertiajs/react'; // Import Link if needed
 import { Button } from "@/Components/ui/button";
 import { Upload, Database, AlertCircle, Check } from 'lucide-react';
@@ -52,7 +52,7 @@ export default function Character() {
     };
 
     return (
-        <MainLayout>
+        <ToolsLayout>
             <Head title="Sinkronisasi Nilai Akhlak Lama" />
 
             <div className="space-y-6 max-w-4xl mx-auto">
@@ -140,6 +140,6 @@ export default function Character() {
                     )}
                 </div>
             </div>
-        </MainLayout>
+        </ToolsLayout>
     );
 }

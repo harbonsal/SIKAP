@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import MainLayout from '@/Layouts/MainLayout';
 import { Head, Link } from '@inertiajs/react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
@@ -8,7 +8,9 @@ import { Badge } from '@/Components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 import { Input } from '@/Components/ui/input';
 import { Button } from '@/Components/ui/button';
-import { Check, X, Trophy, AlertTriangle, Filter, Search, Download } from 'lucide-react';
+import { Check, X, Trophy, AlertTriangle, Filter, Search, Download, TrendingUp, CalendarDays, Loader2 } from 'lucide-react';
+import axios from 'axios';
+import TahfidzTabs from '@/Components/TahfidzTabs';
 
 export default function Index({ gradeWeights, allData, error, kkm = 75 }) {
     const formatScore = (val) => {
@@ -23,6 +25,10 @@ export default function Index({ gradeWeights, allData, error, kkm = 75 }) {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedClass, setSelectedClass] = useState("all");
     const [statusFilter, setStatusFilter] = useState("all"); // all, done, not_done
+
+    const [trendData, setTrendData] = useState([]);
+    const [isLoadingTrend, setIsLoadingTrend] = useState(false);
+    const [trendFetched, setTrendFetched] = useState(false);
 
     // Extract Unique Classes
     const uniqueClasses = useMemo(() => {
@@ -89,6 +95,30 @@ export default function Index({ gradeWeights, allData, error, kkm = 75 }) {
             belowKkmStudents: below
         };
     }, [allData, selectedExamId, searchQuery, selectedClass, statusFilter, kkm]);
+
+    // Derived Logic for Trend Tab
+    const processedTrendData = useMemo(() => {
+        return trendData.filter(row => {
+            const matchesSearch = row.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (row.nis && row.nis.includes(searchQuery));
+            const matchesClass = selectedClass === "all" || row.class_name === selectedClass;
+            return matchesSearch && matchesClass;
+        });
+    }, [trendData, searchQuery, selectedClass]);
+
+    const fetchTrendData = async () => {
+        if (trendFetched) return;
+        setIsLoadingTrend(true);
+        try {
+            const response = await axios.get(route('tahfidz.analysis.trend.api'));
+            setTrendData(response.data);
+            setTrendFetched(true);
+        } catch (err) {
+            console.error("Failed to load trend data", err);
+        } finally {
+            setIsLoadingTrend(false);
+        }
+    };
 
     const handleDownload = () => {
         if (!processedData || processedData.length === 0) {
@@ -164,6 +194,7 @@ export default function Index({ gradeWeights, allData, error, kkm = 75 }) {
             <Head title="Analisa Tahfidz" />
 
             <div className="space-y-6">
+                <TahfidzTabs activeRoute="analysis" />
                 <div className="flex flex-col gap-4">
                     <div>
                         <h2 className="text-3xl font-bold tracking-tight text-foreground">Analisa Tahfidz</h2>
@@ -239,12 +270,107 @@ export default function Index({ gradeWeights, allData, error, kkm = 75 }) {
                     </div>
                 </div>
 
-                <Tabs defaultValue="status" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3 max-w-[600px] mb-4">
+                <Tabs defaultValue="status" className="w-full" onValueChange={(val) => {
+                    if (val === 'trend') fetchTrendData();
+                }}>
+                    <TabsList className="grid w-full grid-cols-4 max-w-[800px] mb-4">
                         <TabsTrigger value="status">Status Ujian</TabsTrigger>
                         <TabsTrigger value="top10">Top 10 Santri</TabsTrigger>
                         <TabsTrigger value="remedial">Di Bawah KKM</TabsTrigger>
+                        <TabsTrigger value="trend" className="bg-indigo-50 text-indigo-700 data-[state=active]:bg-indigo-600 data-[state=active]:text-white transition-colors">
+                            <TrendingUp className="w-4 h-4 mr-2" />
+                            Kecepatan & Prediksi
+                        </TabsTrigger>
                     </TabsList>
+
+                    {/* TAB: KECEPATAN & PREDIKSI */}
+                    <TabsContent value="trend">
+                        <Card className="border-indigo-100 shadow-md">
+                            <CardHeader className="bg-gradient-to-r from-indigo-50 to-white rounded-t-lg border-b border-indigo-100">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-indigo-100 rounded-lg text-indigo-700">
+                                        <TrendingUp className="w-6 h-6" />
+                                    </div>
+                                    <div>
+                                        <CardTitle className="text-xl text-indigo-900">Kecepatan Hafalan & Prediksi Khatam</CardTitle>
+                                        <CardDescription className="text-indigo-600/80">
+                                            Analisa rata-rata kecepatan hafalan per bulan dan estimasi waktu selesai 30 Juz.
+                                        </CardDescription>
+                                    </div>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                {isLoadingTrend ? (
+                                    <div className="flex flex-col items-center justify-center p-12 text-indigo-400">
+                                        <Loader2 className="w-8 h-8 animate-spin mb-4" />
+                                        <p>Sedang menghitung prediksi...</p>
+                                    </div>
+                                ) : (
+                                    <div className="rounded-b-md">
+                                        <Table>
+                                            <TableHeader className="bg-indigo-50/50">
+                                                <TableRow>
+                                                    <TableHead className="font-semibold text-indigo-900">Nama Santri</TableHead>
+                                                    <TableHead className="font-semibold text-indigo-900">Kelas</TableHead>
+                                                    <TableHead className="text-center font-semibold text-indigo-900">Total Hafalan</TableHead>
+                                                    <TableHead className="text-center font-semibold text-indigo-900">Kecepatan (Hal/Bln)</TableHead>
+                                                    <TableHead className="text-center font-semibold text-indigo-900">Estimasi Khatam</TableHead>
+                                                    <TableHead className="text-right font-semibold text-indigo-900">Aksi</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {processedTrendData.map((row) => (
+                                                    <TableRow key={row.student_id} className="hover:bg-indigo-50/30 transition-colors">
+                                                        <TableCell className="font-medium">
+                                                            <div>{row.student_name}</div>
+                                                            <div className="text-xs text-muted-foreground">{row.nis}</div>
+                                                        </TableCell>
+                                                        <TableCell>{row.class_name}</TableCell>
+                                                        <TableCell className="text-center">
+                                                            <Badge variant="outline" className="bg-white">
+                                                                {row.total_pages} Hal
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell className="text-center">
+                                                            <div className="inline-flex items-center gap-1 font-semibold text-emerald-600">
+                                                                {row.avg_speed > 0 && <TrendingUp className="w-3 h-3" />}
+                                                                {row.avg_speed}
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell className="text-center">
+                                                            {row.predicted_months ? (
+                                                                <div className="flex flex-col items-center">
+                                                                    <span className="font-medium text-indigo-700">{row.predicted_date}</span>
+                                                                    <span className="text-xs text-muted-foreground">{row.predicted_months} bulan lagi</span>
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-muted-foreground text-sm">Belum ada data</span>
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            <Link 
+                                                                href={route('tahfidz.analysis.trend.show', row.student_id)}
+                                                                className="inline-flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-50 rounded-md hover:bg-indigo-100 hover:text-indigo-900 transition-colors"
+                                                            >
+                                                                Lihat Grafik
+                                                            </Link>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                                {processedTrendData.length === 0 && (
+                                                    <TableRow>
+                                                        <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                                                            Data tidak ditemukan.
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
 
                     {/* TAB 1: STATUS UJIAN */}
                     <TabsContent value="status">
@@ -315,7 +441,12 @@ export default function Index({ gradeWeights, allData, error, kkm = 75 }) {
                                                     )}
 
                                                     <TableCell className="text-right font-bold">
-                                                        {row.displayScore > 0 ? formatScore(row.displayScore) : '-'}
+                                                        <Link 
+                                                            href={route('tahfidz.assessments.history', { active_subject: row.active_subject_id, student_id: row.student_id })}
+                                                            className="hover:underline hover:text-blue-700 transition-colors cursor-pointer inline-block px-2 py-1 bg-blue-50 text-blue-700 rounded"
+                                                        >
+                                                            {row.displayScore > 0 ? formatScore(row.displayScore) : '-'}
+                                                        </Link>
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
@@ -363,7 +494,12 @@ export default function Index({ gradeWeights, allData, error, kkm = 75 }) {
                                                 </div>
                                             </div>
                                             <div className="text-xl font-bold text-primary">
-                                                {formatScore(student.displayScore)}
+                                                <Link 
+                                                    href={route('tahfidz.assessments.history', { active_subject: student.active_subject_id, student_id: student.student_id })}
+                                                    className="hover:underline hover:text-blue-700 transition-colors cursor-pointer"
+                                                >
+                                                    {formatScore(student.displayScore)}
+                                                </Link>
                                             </div>
                                         </div>
                                     ))}
@@ -393,7 +529,9 @@ export default function Index({ gradeWeights, allData, error, kkm = 75 }) {
                                                 <TableHead>Nama Santri</TableHead>
                                                 <TableHead>Kelas</TableHead>
                                                 <TableHead>Target KKM</TableHead>
-                                                <TableHead className="text-right">Nilai</TableHead>
+                                                <TableHead className="text-center">Rapor Sem 1</TableHead>
+                                                <TableHead className="text-center">Nilai Sem 2</TableHead>
+                                                <TableHead className="text-center">Rapor Sem 2</TableHead>
                                                 <TableHead className="text-right">Selisih</TableHead>
                                             </TableRow>
                                         </TableHeader>
@@ -405,8 +543,19 @@ export default function Index({ gradeWeights, allData, error, kkm = 75 }) {
                                                     </TableCell>
                                                     <TableCell>{row.class_name}</TableCell>
                                                     <TableCell><Badge variant="outline">{row.kkm}</Badge></TableCell>
-                                                    <TableCell className="text-right font-bold text-red-600">
-                                                        {formatScore(row.displayScore)}
+                                                    <TableCell className="text-center font-medium">
+                                                        {formatScore(row.average_sem1)}
+                                                    </TableCell>
+                                                    <TableCell className="text-center font-bold text-red-600">
+                                                        <Link 
+                                                            href={route('tahfidz.assessments.history', { active_subject: row.active_subject_id, student_id: row.student_id })}
+                                                            className="hover:underline hover:text-red-800 transition-colors cursor-pointer inline-block px-2 py-1 bg-red-50 rounded"
+                                                        >
+                                                            {formatScore(row.displayScore)}
+                                                        </Link>
+                                                    </TableCell>
+                                                    <TableCell className="text-center font-medium text-red-600">
+                                                        {formatScore(row.average_sem2)}
                                                     </TableCell>
                                                     <TableCell className="text-right text-red-500 text-xs">
                                                         -{parseFloat((row.kkm - row.displayScore).toFixed(2))}
