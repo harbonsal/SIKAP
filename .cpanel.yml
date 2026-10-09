@@ -2,8 +2,8 @@
 deployment:
   tasks:
     # Target folder aplikasi aktif SIKAP di cPanel
-    - export DEPLOYPATH=/home/slnawang/sikap-app/
+    - export DEPLOYPATH=/home/sinawang/sikap-app/
     
     # Sinkronisasi file dari repositori ke direktori aplikasi
-    # Mengecualikan .git, .env, dan direktori storage agar data upload & konfigurasi aman
-    - /bin/rsync -av --exclude='.git' --exclude='.env' --exclude='storage' ./ $DEPLOYPATH
+    # Mengecualikan .git, .cpanel.yml, .env, dan storage agar aman
+    - /bin/rsync -aP --exclude='.git' --exclude='.cpanel.yml' --exclude='.env' --exclude='storage' ./ $DEPLOYPATH
