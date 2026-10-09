@@ -1,10 +1,9 @@
 ---
 deployment:
   tasks:
-    # CATATAN: Sesuaikan path DEPLOYPATH di bawah ini dengan direktori website Anda di cPanel.
-    # Contoh 1 (Domain Utama): export DEPLOYPATH=/home/username/public_html/
-    # Contoh 2 (Subdomain/Folder): export DEPLOYPATH=/home/username/sikap.domainanda.com/
-    - export DEPLOYPATH=/home/YOUR_CPANEL_USERNAME/public_html/
+    # Target folder aplikasi aktif SIKAP di cPanel
+    - export DEPLOYPATH=/home/slnawang/sikap-app/
     
-    # Sinkronisasi file proyek ke folder web (mengecualikan file sensitif .git, .env, dan isi storage)
-    - /bin/rsync -av --exclude='.git' --exclude='.env' --exclude='storage/app' --exclude='storage/logs' ./ $DEPLOYPATH
+    # Sinkronisasi file dari repositori ke direktori aplikasi
+    # Mengecualikan .git, .env, dan direktori storage agar data upload & konfigurasi aman
+    - /bin/rsync -av --exclude='.git' --exclude='.env' --exclude='storage' ./ $DEPLOYPATH
