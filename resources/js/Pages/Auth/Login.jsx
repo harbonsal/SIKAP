@@ -123,7 +123,7 @@ export default function Login({ status, canResetPassword }) {
             </form>
 
             <div className="mt-8 text-center text-xs text-gray-500 dark:text-gray-400">
-                🚀 SIKAP Auto-Deploy Connected
+                ⚡ Last Update: 09 Okt 2026 15:30 WIB
             </div>
         </GuestLayout>
     );
