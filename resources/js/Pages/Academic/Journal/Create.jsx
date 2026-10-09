@@ -40,8 +40,14 @@ export default function Create({ academicYear, currentPekan, jamKe, activeSubjec
                         note: ''
                     }));
                     setStudents(studentList);
+
+                    // Set attendances immediately so students table renders without delay
+                    setData(prev => ({
+                        ...prev,
+                        attendances: studentList,
+                    }));
                     
-                    // We also fetch syllabus here to avoid state race condition in Inertia useForm
+                    // 2. Fetch syllabus
                     axios.get(route('journals.get-silabus', data.active_subject_id))
                         .then(silabusRes => {
                             setSilabuses(silabusRes.data);
@@ -56,14 +62,13 @@ export default function Create({ academicYear, currentPekan, jamKe, activeSubjec
                                 }
                             }
                             
-                            // Also fetch last journal
+                            // 3. Fetch last journal
                             axios.get(route('journals.last-journal', data.active_subject_id))
                                 .then(lastJournalRes => {
                                     const lastJournal = lastJournalRes.data;
                                     setData(prev => ({
                                         ...prev,
-                                        attendances: studentList,
-                                        topic: newTopic,
+                                        topic: newTopic || prev.topic,
                                         last_topic: lastJournal ? lastJournal.topic : null,
                                         last_description: lastJournal ? lastJournal.description : null
                                     }));
@@ -71,21 +76,23 @@ export default function Create({ academicYear, currentPekan, jamKe, activeSubjec
                                 .catch(() => {
                                     setData(prev => ({
                                         ...prev,
-                                        attendances: studentList,
-                                        topic: newTopic,
+                                        topic: newTopic || prev.topic,
                                         last_topic: null,
                                         last_description: null
                                     }));
                                 });
+                        })
+                        .catch(err => {
+                            console.error("Error fetching silabus:", err);
                         });
                 })
-                .catch(error => console.error("Error fetching data:", error))
+                .catch(error => console.error("Error fetching students:", error))
                 .finally(() => setIsLoadingStudents(false));
                 
         } else {
             setStudents([]);
             setSilabuses([]);
-            setData(prev => ({ ...prev, attendances: [], topic: '' }));
+            setData(prev => ({ ...prev, attendances: [], topic: '', last_topic: '', last_description: '' }));
         }
     }, [data.active_subject_id]);
 

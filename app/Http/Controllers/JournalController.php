@@ -126,6 +126,7 @@ class JournalController extends Controller
                 return [
                     'id' => $subject->id,
                     'name' => ($subject->mapel?->name ?? 'Mapel?') . ' - ' . ($subject->activeClass?->kelas?->name ?? '?') . ' ' . ($subject->activeClass?->kelasParalel?->name ?? ''),
+                    'class_name' => ($subject->activeClass?->kelas?->name ?? '?') . ' ' . ($subject->activeClass?->kelasParalel?->name ?? ''),
                 ];
             });
 
@@ -141,20 +142,178 @@ class JournalController extends Controller
 
     public function getStudents(ActiveSubject $activeSubject)
     {
-        // Check authorization if needed (e.g., is this teacher assigned?)
-
-        $students = $activeSubject->activeClass->classMembers()
-            ->with('student')
+        $students = $activeSubject->activeClass?->classMembers()
+            ->with(['student.user'])
             ->get()
+            ->filter(fn($member) => $member->student !== null)
             ->map(function ($member) {
                 return [
-                    'id' => $member->student->user_id, // Fix: Use User ID, not Student ID
+                    'id' => $member->student->user_id ?? $member->student->id,
                     'name' => $member->student->name,
-                    'nis' => $member->student->nomor_induk ?? '-', // Fix: Use 'nomor_induk' accessor
+                    'nis' => $member->student->nomor_induk ?? $member->student->nis ?? '-',
                 ];
-            });
+            })
+            ->values() ?? collect();
 
         return response()->json($students);
+    }
+
+    public function getSilabus(ActiveSubject $activeSubject)
+    {
+        $mapelId = $activeSubject->mapel_id;
+        $kelasId = $activeSubject->activeClass?->kelas_id;
+
+        $defaultSemester = \App\Services\AcademicStateService::currentSemester()->name ?? 'Ganjil';
+        $semesterValues = (strtolower($defaultSemester) === 'ganjil' || $defaultSemester == '1')
+            ? ['Ganjil', 'ganjil', '1']
+            : ['Genap', 'genap', '2'];
+
+        $query = \App\Models\Silabus::where('mapel_id', $mapelId);
+
+        if ($kelasId) {
+            $query->where(function ($q) use ($kelasId) {
+                $q->where('kelas_id', $kelasId)
+                  ->orWhereNull('kelas_id');
+            });
+        }
+
+        if (!empty($semesterValues)) {
+            $query->where(function ($q) use ($semesterValues) {
+                $q->whereIn('semester', $semesterValues)
+                  ->orWhereNull('semester');
+            });
+        }
+
+        $silabuses = $query->orderBy('pekan', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        // Fallback jika tidak ditemukan spesifik kelas/semester
+        if ($silabuses->isEmpty()) {
+            $silabuses = \App\Models\Silabus::where('mapel_id', $mapelId)
+                ->orderBy('pekan', 'asc')
+                ->orderBy('id', 'asc')
+                ->get();
+        }
+
+        return response()->json($silabuses);
+    }
+
+    public function getLastJournal(ActiveSubject $activeSubject)
+    {
+        $lastJournal = ClassJournal::where('active_subject_id', $activeSubject->id)
+            ->latest('date')
+            ->latest('id')
+            ->first(['id', 'topic', 'description', 'date', 'jam_ke']);
+
+        return response()->json($lastJournal);
+    }
+
+    public function missing(Request $request)
+    {
+        $startDate = $request->input('start_date', \Carbon\Carbon::now()->startOfWeek()->format('Y-m-d'));
+        $endDate = $request->input('end_date', \Carbon\Carbon::now()->endOfWeek()->format('Y-m-d'));
+        $teacherId = $request->input('teacher_id');
+        $activeClassId = $request->input('active_class_id');
+
+        $academicYear = \App\Models\AcademicYear::where('is_active', true)->first();
+
+        $teachers = \App\Models\User::whereHas('activeSubjects')->orderBy('name')->get(['id', 'name']);
+        $classes = \App\Models\ActiveClass::with(['kelas', 'kelasParalel'])
+            ->where('academic_year_id', $academicYear?->id)
+            ->get()
+            ->map(fn($c) => [
+                'id' => $c->id,
+                'name' => ($c->kelas?->name ?? '') . ' ' . ($c->kelasParalel?->name ?? ''),
+            ])->sortBy('name')->values();
+
+        $schedulesQuery = \App\Models\Schedule::with(['activeSubject.mapel', 'activeSubject.activeClass.kelas', 'activeSubject.activeClass.kelasParalel', 'day', 'teacher', 'learningHour'])
+            ->where('academic_year_id', $academicYear?->id);
+
+        if ($teacherId) {
+            $schedulesQuery->where('teacher_id', $teacherId);
+        }
+        if ($activeClassId) {
+            $schedulesQuery->whereHas('activeSubject', function($q) use ($activeClassId) {
+                $q->where('active_class_id', $activeClassId);
+            });
+        }
+
+        $schedules = $schedulesQuery->get();
+
+        $journals = ClassJournal::whereBetween('date', [$startDate, $endDate])
+            ->where('academic_year_id', $academicYear?->id)
+            ->get();
+
+        $currentDate = \Carbon\Carbon::parse($startDate);
+        $endDateObj = \Carbon\Carbon::parse($endDate);
+        $today = \Carbon\Carbon::today();
+        $loopEndDate = $endDateObj->gt($today) ? $today : $endDateObj;
+
+        $carbonToDayName = [
+            1 => 'Senin',
+            2 => 'Selasa',
+            3 => 'Rabu',
+            4 => 'Kamis',
+            5 => 'Jumat',
+            6 => 'Sabtu',
+            7 => 'Ahad',
+        ];
+
+        $days = \App\Models\Day::all()->keyBy('name');
+        $missingGrouped = [];
+
+        while ($currentDate->lte($loopEndDate)) {
+            $dayName = $carbonToDayName[$currentDate->dayOfWeekIso];
+            $dayNameAlt = ($dayName === 'Ahad') ? 'Minggu' : $dayName;
+            $dayModel = $days->get($dayName) ?? $days->get($dayNameAlt);
+
+            if ($dayModel) {
+                $dailySchedules = $schedules->where('day_id', $dayModel->id);
+                $dateStr = $currentDate->format('Y-m-d');
+
+                foreach ($dailySchedules as $sch) {
+                    $tId = $sch->teacher_id;
+                    $subjectId = $sch->active_subject_id;
+
+                    $hasJournal = $journals->where('teacher_id', $tId)
+                        ->where('active_subject_id', $subjectId)
+                        ->where('date', $dateStr)
+                        ->first();
+
+                    if (!$hasJournal) {
+                        if (!isset($missingGrouped[$tId])) {
+                            $missingGrouped[$tId] = [
+                                'teacher_name' => $sch->teacher?->name ?? 'Unknown',
+                                'schedules' => [],
+                            ];
+                        }
+
+                        $missingGrouped[$tId]['schedules'][] = [
+                            'day_name' => $dayName,
+                            'date' => $currentDate->translatedFormat('d M Y'),
+                            'jam_ke' => $sch->learningHour?->hour_number ?? '-',
+                            'waktu' => ($sch->learningHour ? $sch->learningHour->start_time . ' - ' . $sch->learningHour->end_time : '-'),
+                            'class_name' => ($sch->activeSubject?->activeClass?->kelas?->name ?? '-') . ' ' . ($sch->activeSubject?->activeClass?->kelasParalel?->name ?? ''),
+                            'mapel_name' => $sch->activeSubject?->mapel?->name ?? '-',
+                        ];
+                    }
+                }
+            }
+            $currentDate->addDay();
+        }
+
+        return Inertia::render('Academic/Journal/Missing', [
+            'missing' => array_values($missingGrouped),
+            'filters' => [
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'teacher_id' => $teacherId,
+                'active_class_id' => $activeClassId,
+            ],
+            'teachers' => $teachers,
+            'classes' => $classes,
+        ]);
     }
 
     public function store(Request $request)
