@@ -57,6 +57,9 @@ try {
         
         \Illuminate\Support\Facades\Artisan::call('optimize:clear');
         echo "Cache aplikasi & views berhasil dibersihkan.\n";
+
+        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        echo "Database migration berhasil disinkronkan.\n";
     }
 } catch (\Throwable $e) {
     echo "Peringatan Cache: " . $e->getMessage() . "\n";

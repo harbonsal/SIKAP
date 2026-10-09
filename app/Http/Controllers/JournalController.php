@@ -11,6 +11,7 @@ use App\Models\LearningHour;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 
 class JournalController extends Controller

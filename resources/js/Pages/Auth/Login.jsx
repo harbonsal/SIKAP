@@ -123,7 +123,7 @@ export default function Login({ status, canResetPassword }) {
             </form>
 
             <div className="mt-8 text-center text-xs text-gray-500 dark:text-gray-400">
-                ⚡ Last Update: 09 Okt 2026 21:45 WIB
+                ⚡ Last Update: 09 Okt 2026 22:35 WIB
             </div>
         </GuestLayout>
     );
