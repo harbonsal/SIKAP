@@ -441,8 +441,10 @@ class ReportController extends Controller
             $hasFailed = $reportGrades->contains(function ($g) {
                 return $g['score'] < $g['kkm'];
             });
+            $isFemale = strtolower($student->gender) === 'p';
+            $statusAr = !$hasFailed ? ($isFemale ? 'ناجحة' : 'ناجح') : ($isFemale ? 'راسبة' : 'راسب');
             $decision = [
-                'status_ar' => !$hasFailed ? 'ناجح' : 'راسب',
+                'status_ar' => $statusAr,
             ];
         }
 
@@ -492,6 +494,7 @@ class ReportController extends Controller
                         'name' => $jenjang->headmaster->name,
                         'nip' => $jenjang->headmaster->nomor_induk,
                         'title' => $jenjang->headmaster_title ?? 'Kepala Sekolah',
+                        'signature' => $jenjang->headmaster->signature,
                     ];
                 }
             }

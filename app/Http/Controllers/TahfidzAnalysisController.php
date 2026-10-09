@@ -214,4 +214,75 @@ class TahfidzAnalysisController extends Controller
             'kkm' => $kkm
         ]);
     }
+
+    public function targetAnalysisApi(Request $request)
+    {
+        $period = $request->get('period', 'weekly'); // weekly, monthly, mid_semester, semester, yearly
+        $musyrifId = $request->get('musyrif_id', 'all');
+        
+        $startDate = now();
+        $endDate = now();
+
+        switch ($period) {
+            case 'weekly':
+                $startDate = now()->startOfWeek();
+                $endDate = now()->endOfWeek();
+                break;
+            case 'monthly':
+                $startDate = now()->startOfMonth();
+                $endDate = now()->endOfMonth();
+                break;
+            case 'mid_semester':
+                // Approximation for mid semester, 3 months from start of semester
+                // In a real scenario, this would check academic calendar dates
+                $activeSemester = \App\Services\AcademicStateService::currentSemester();
+                $startDate = now()->startOfYear(); // Placeholder
+                $endDate = now();
+                break;
+            case 'semester':
+                $activeSemester = \App\Services\AcademicStateService::currentSemester();
+                $startDate = now()->startOfYear(); // Placeholder
+                $endDate = now();
+                break;
+            case 'yearly':
+                $activeYear = \App\Services\AcademicStateService::currentAcademicYear();
+                $startDate = now()->startOfYear(); // Placeholder
+                $endDate = now();
+                break;
+        }
+
+        $service = app(\App\Services\TahfidzTargetAnalysisService::class);
+        $data = $service->analyzeTargets($startDate, $endDate, $musyrifId);
+
+        return response()->json($data);
+    }
+
+    public function mistakesAnalysisApi(Request $request)
+    {
+        $period = $request->get('period', 'weekly');
+        $musyrifId = $request->get('musyrif_id', 'all');
+        
+        $startDate = now();
+        $endDate = now();
+
+        switch ($period) {
+            case 'weekly':
+                $startDate = now()->startOfWeek();
+                $endDate = now()->endOfWeek();
+                break;
+            case 'monthly':
+                $startDate = now()->startOfMonth();
+                $endDate = now()->endOfMonth();
+                break;
+            default:
+                $startDate = now()->subMonths(6); // Default 6 months for general
+                $endDate = now();
+                break;
+        }
+
+        $service = app(\App\Services\TahfidzTargetAnalysisService::class);
+        $data = $service->getMistakesAnalysis($startDate, $endDate, $musyrifId);
+
+        return response()->json($data);
+    }
 }

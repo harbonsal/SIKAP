@@ -69,6 +69,12 @@ export default function Create({ existingUser }) {
         guardian_occupation: '',
         guardian_income: '',
         guardian_address: '',
+        guardian_phone: '',
+
+        // Admission
+        previous_school: '',
+        accepted_grade: '',
+        accepted_date: '',
     });
 
     const [activeTab, setActiveTab] = useState('pribadi');
@@ -500,6 +506,25 @@ export default function Create({ existingUser }) {
                             </div>
                         </div>
 
+                        {/* DATA PENDIDIKAN & PENERIMAAN */}
+                        <div className={activeTab === 'pribadi' ? 'block space-y-6 mt-6 border-t pt-6' : 'hidden'}>
+                            <h4 className="font-semibold text-primary">Data Pendidikan & Penerimaan</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium leading-none">Madrasah/Sekolah Asal</label>
+                                    <input type="text" value={data.previous_school} onChange={(e) => setData('previous_school', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium leading-none">Diterima di Kelas</label>
+                                    <input type="text" value={data.accepted_grade} onChange={(e) => setData('accepted_grade', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium leading-none">Pada Tanggal</label>
+                                    <input type="date" value={data.accepted_date} onChange={(e) => setData('accepted_date', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                                </div>
+                            </div>
+                        </div>
+
                         {/* DATA FISIK */}
                         <div className={activeTab === 'fisik' ? 'block space-y-6' : 'hidden'}>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -584,6 +609,10 @@ export default function Create({ existingUser }) {
                                         <input type="text" value={data.mother_income} onChange={(e) => setData('mother_income', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
                                     </div>
                                 </div>
+                                <div className="col-span-1 md:col-span-2 space-y-2 border-t pt-4 mt-2">
+                                    <label className="text-sm font-medium leading-none">No HP/Telepon Orang Tua</label>
+                                    <input type="text" value={data.parent_phone} onChange={(e) => setData('parent_phone', e.target.value)} className="flex h-10 w-full md:w-1/2 rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="Contoh: 081234567890" />
+                                </div>
                             </div>
                         </div>
 
@@ -616,8 +645,12 @@ export default function Create({ existingUser }) {
                                         <input type="text" value={data.guardian_occupation} onChange={(e) => setData('guardian_occupation', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium leading-none">Penghasilan</label>
+                                        <label className="text-sm font-medium leading-none">Penghasilan Wali</label>
                                         <input type="text" value={data.guardian_income} onChange={(e) => setData('guardian_income', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium leading-none">No HP/Telepon Wali</label>
+                                        <input type="text" value={data.guardian_phone} onChange={(e) => setData('guardian_phone', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
                                     </div>
                                     <div className="space-y-2 md:col-span-2">
                                         <label className="text-sm font-medium leading-none">Alamat Wali</label>

@@ -9,7 +9,7 @@ export default function TahfidzTabs({ activeRoute, activeTabParams = '' }) {
             active: activeRoute === 'dashboard'
         },
         {
-            name: 'Pantauan Hafalan',
+            name: 'Input Hafalan',
             href: route('tahfidz.achievements.index', { tab: 'input' }),
             active: activeRoute === 'achievements' && activeTabParams === 'input'
         },
@@ -22,6 +22,11 @@ export default function TahfidzTabs({ activeRoute, activeTabParams = '' }) {
             name: 'Analisa Tahfidz',
             href: route('tahfidz.analysis.index'),
             active: activeRoute === 'analysis'
+        },
+        {
+            name: 'Input Manual',
+            href: route('tahfidz.achievements.index', { tab: 'mass-input' }),
+            active: activeRoute === 'achievements' && activeTabParams === 'mass-input'
         }
     ];
 

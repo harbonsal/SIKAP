@@ -1,12 +1,18 @@
 import MainLayout from '@/Layouts/MainLayout';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Plus, Search, Eye, Trash2 } from 'lucide-react';
+import { Plus, Search, Eye, Trash2, Edit } from 'lucide-react';
 import { useState } from 'react';
+import Modal from '@/Components/Modal';
+import TextInput from '@/Components/TextInput';
+import InputLabel from '@/Components/InputLabel';
+import PrimaryButton from '@/Components/PrimaryButton';
+import SecondaryButton from '@/Components/SecondaryButton';
 
 export default function Index({ kamars, permissions, filters }) {
     const [selectedKamarId, setSelectedKamarId] = useState(filters.active_kamar_id || '');
     const [selectedIds, setSelectedIds] = useState([]);
-    
+    const [showBulkEditModal, setShowBulkEditModal] = useState(false);
+    const [bulkEndTime, setBulkEndTime] = useState('');
     const { auth } = usePage().props;
     const userRole = auth?.user?.user_level?.name;
     const canManagePermissions = ['Administrator', 'Sekertaris Divisi', 'Kepala Sekolah', 'Manager'].includes(userRole);
@@ -43,6 +49,20 @@ export default function Index({ kamars, permissions, filters }) {
                 onSuccess: () => setSelectedIds([])
             });
         }
+    };
+
+    const handleBulkUpdate = (e) => {
+        e.preventDefault();
+        router.post(route('permissions.bulk-update-time'), { 
+            ids: selectedIds, 
+            end_time: bulkEndTime 
+        }, {
+            onSuccess: () => {
+                setShowBulkEditModal(false);
+                setSelectedIds([]);
+                setBulkEndTime('');
+            }
+        });
     };
 
     return (
@@ -106,13 +126,22 @@ export default function Index({ kamars, permissions, filters }) {
                         </select>
                     </div>
                     {selectedIds.length > 0 && (
-                        <button
-                            onClick={handleBulkDelete}
-                            className="inline-flex items-center justify-center rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground shadow hover:bg-destructive/90 transition-colors"
-                        >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Hapus Terpilih ({selectedIds.length})
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setShowBulkEditModal(true)}
+                                className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-blue-700 transition-colors"
+                            >
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit Waktu Terpilih ({selectedIds.length})
+                            </button>
+                            <button
+                                onClick={handleBulkDelete}
+                                className="inline-flex items-center justify-center rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground shadow hover:bg-destructive/90 transition-colors"
+                            >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Hapus Terpilih ({selectedIds.length})
+                            </button>
+                        </div>
                     )}
                 </div>
 
@@ -189,6 +218,32 @@ export default function Index({ kamars, permissions, filters }) {
                     </div>
                 </div>
             </div>
+
+            <Modal show={showBulkEditModal} onClose={() => setShowBulkEditModal(false)} maxWidth="md">
+                <form onSubmit={handleBulkUpdate} className="p-6">
+                    <h2 className="text-lg font-medium text-foreground mb-4">Edit Waktu Kedatangan Massal</h2>
+                    <p className="text-sm text-muted-foreground mb-6">
+                        Ubah batas waktu kedatangan untuk {selectedIds.length} jadwal perizinan terpilih.
+                    </p>
+                    
+                    <div className="mb-4">
+                        <InputLabel htmlFor="bulk_end_time" value="Waktu Akhir/Kedatangan Baru" />
+                        <TextInput
+                            id="bulk_end_time"
+                            type="datetime-local"
+                            className="mt-1 block w-full"
+                            value={bulkEndTime}
+                            onChange={e => setBulkEndTime(e.target.value)}
+                            required
+                        />
+                    </div>
+
+                    <div className="mt-6 flex justify-end gap-3">
+                        <SecondaryButton onClick={() => setShowBulkEditModal(false)}>Batal</SecondaryButton>
+                        <PrimaryButton type="submit">Simpan Perubahan</PrimaryButton>
+                    </div>
+                </form>
+            </Modal>
         </MainLayout>
     );
 }

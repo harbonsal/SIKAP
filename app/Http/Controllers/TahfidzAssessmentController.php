@@ -31,7 +31,7 @@ class TahfidzAssessmentController extends Controller
             return redirect()->back()->with('error', 'Mata pelajaran Tahfidz belum dikonfigurasi (Mapel: Tahfizh Al-Quran).');
         }
 
-        $query = ActiveSubject::with(['activeClass.kelas', 'activeClass.kelasParalel', 'tahfidzTesters.user'])
+        $query = ActiveSubject::with(['activeClass.kelas', 'activeClass.kelasParalel', 'tahfidzTesters.user', 'activeClass.teacher', 'teacher'])
             ->where('mapel_id', $tahfidzMapel->id)
             ->whereHas('activeClass', function ($q) use ($activeYear) {
                 $q->where('academic_year_id', $activeYear->id);
@@ -57,8 +57,26 @@ class TahfidzAssessmentController extends Controller
         }
 
         if (!$canViewAll) {
-            $query->whereHas('tahfidzTesters', function ($subQ) use ($user) {
-                $subQ->where('user_id', $user->id);
+            $query->where(function ($q) use ($user) {
+                // 1. Sebagai penguji yang diplot secara khusus
+                $q->whereHas('tahfidzTesters', function ($subQ) use ($user) {
+                    $subQ->where('user_id', $user->id);
+                })
+                // 2. Sebagai Wali Kelas, JIKA tidak ada penguji yang diplot
+                ->orWhere(function ($subQ) use ($user) {
+                    $subQ->doesntHave('tahfidzTesters')
+                         ->whereHas('activeClass', function ($classQ) use ($user) {
+                             $classQ->where('teacher_id', $user->id);
+                         });
+                })
+                // 3. Sebagai Guru Mapel, JIKA tidak ada penguji yang diplot DAN tidak ada Wali Kelas
+                ->orWhere(function ($subQ) use ($user) {
+                    $subQ->doesntHave('tahfidzTesters')
+                         ->whereHas('activeClass', function ($classQ) {
+                             $classQ->whereNull('teacher_id');
+                         })
+                         ->where('teacher_id', $user->id);
+                });
             });
         }
 
@@ -93,6 +111,18 @@ class TahfidzAssessmentController extends Controller
             $isTester = \App\Models\TahfidzTester::where('active_subject_id', $active_subject_id)
                 ->where('user_id', $user->id)
                 ->exists();
+                
+            if (!$isTester) {
+                $subject = \App\Models\ActiveSubject::with(['tahfidzTesters', 'activeClass'])->find($active_subject_id);
+                if ($subject && $subject->tahfidzTesters->isEmpty()) {
+                    if ($subject->activeClass && $subject->activeClass->teacher_id == $user->id) {
+                        $isTester = true;
+                    } elseif (empty($subject->activeClass->teacher_id) && $subject->teacher_id == $user->id) {
+                        $isTester = true;
+                    }
+                }
+            }
+
             if (!$isTester) {
                 abort(403, 'Anda tidak diplot sebagai penguji untuk kelas ini.');
             }
@@ -109,10 +139,10 @@ class TahfidzAssessmentController extends Controller
         $activeSemester = \App\Services\AcademicStateService::currentSemester();
 
         // Fetch ALL Standard Grade Weights (UH1, UTS, UAS, etc.) for this semester
-        $gradeWeights = GradeWeight::where('academic_year_id', $activeYear->id)
+        $gradeWeightsRaw = GradeWeight::where('academic_year_id', $activeYear->id)
             ->whereIn('semester', ['all', 'semua', 'All', $activeSemester->name, strtolower($activeSemester->name)])
-            ->orderBy('name')
             ->get();
+        $gradeWeights = \App\Helpers\GradeHelper::sortGradeWeights($gradeWeightsRaw);
 
         return Inertia::render('Teacher/TahfidzAssessment/Show', [
             'activeSubject' => $activeSubject,
@@ -474,14 +504,7 @@ class TahfidzAssessmentController extends Controller
             ->whereIn('semester', ['all', 'semua', 'All', $activeSemester->name, strtolower($activeSemester->name)])
             ->get();
 
-        $orderMap = ['UH1' => 1, 'UTS' => 2, 'UH2' => 3, 'UKK' => 4, 'UAS' => 4, 'VALIDASI' => 5];
-        $gradeWeights = $gradeWeightsRaw->sortBy(function ($gw) use ($orderMap) {
-            $nameUpper = strtoupper(trim($gw->name));
-            foreach ($orderMap as $key => $order) {
-                if (str_contains($nameUpper, $key)) return $order;
-            }
-            return 99;
-        })->values();
+        $gradeWeights = \App\Helpers\GradeHelper::sortGradeWeights($gradeWeightsRaw);
 
         // 2. Get ALL Students for the rows (Vertical)
         $students = $activeSubject->activeClass->classMembers->map(function ($member) {

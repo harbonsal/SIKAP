@@ -98,6 +98,10 @@
             width: 16px;
         }
 
+        .col-day {
+            width: 14px;
+        }
+
         /* Print specific styles */
         thead {
             display: table-header-group;
@@ -155,12 +159,12 @@
             <tr>
                 <!-- Periods 1-6 for each of the 6 days -->
                 @for($d=0; $d<6; $d++)
-                    <th>١</th>
-                    <th>٢</th>
-                    <th>٣</th>
-                    <th>٤</th>
-                    <th>٥</th>
-                    <th>٦</th>
+                    <th class="col-day">١</th>
+                    <th class="col-day">٢</th>
+                    <th class="col-day">٣</th>
+                    <th class="col-day">٤</th>
+                    <th class="col-day">٥</th>
+                    <th class="col-day">٦</th>
                 @endfor
                 
                 <!-- Summary Sub-headers -->
@@ -174,7 +178,7 @@
             <tr>
                 <td>{{ toArabicNumerals($index + 1) }}</td>
                 <td>{{ toArabicNumerals($member->student->user->nomor_induk) }}</td>
-                <td class="text-right name-col">{{ $member->student->user->nama_arab ?? $member->student->user->name }}</td>
+                <td class="text-right name-col">{{ !empty($member->student->user->nama_arab) ? $member->student->user->nama_arab : $member->student->user->name }}</td>
 
                 <!-- Cells for each day (6 days * 6 periods = 36 cells) -->
                 @for($i=0; $i<36; $i++)

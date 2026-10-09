@@ -9,7 +9,7 @@ class AttendancePrintController extends Controller
 {
     public function index()
     {
-        $activeAcademicYear = \App\Models\AcademicYear::where('is_active', true)->first();
+        $activeAcademicYear = \App\Services\AcademicStateService::currentAcademicYear();
 
         $activeClasses = \App\Models\ActiveClass::with(['kelas', 'kelasParalel'])
             ->where('academic_year_id', $activeAcademicYear->id ?? 0)
@@ -30,7 +30,7 @@ class AttendancePrintController extends Controller
         return Inertia::render('Academic/Attendance/Print/Index', [
             'title' => 'Cetak Absensi Manual',
             'activeClasses' => $activeClasses,
-            'academicYear' => \App\Models\AcademicYear::where('is_active', true)->first(),
+            'academicYear' => \App\Services\AcademicStateService::currentAcademicYear(),
         ]);
     }
 
@@ -62,16 +62,16 @@ class AttendancePrintController extends Controller
         if ($request->type === 'jurnal') {
             return view('reports.attendance.journal_sheet', [
                 'activeClass' => $activeClass,
-                'activeAcademicYear' => \App\Models\AcademicYear::where('is_active', true)->first(),
-                'activeSemester' => \App\Models\Semester::where('is_active', true)->first(),
+                'activeAcademicYear' => \App\Services\AcademicStateService::currentAcademicYear(),
+                'activeSemester' => \App\Services\AcademicStateService::currentSemester(),
             ]);
         }
 
         if ($request->type === 'sampul') {
             return view('reports.attendance.cover_sheet', [
                 'activeClass' => $activeClass,
-                'activeAcademicYear' => \App\Models\AcademicYear::where('is_active', true)->first(),
-                'activeSemester' => \App\Models\Semester::where('is_active', true)->first(),
+                'activeAcademicYear' => \App\Services\AcademicStateService::currentAcademicYear(),
+                'activeSemester' => \App\Services\AcademicStateService::currentSemester(),
             ]);
         }
 

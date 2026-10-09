@@ -16,7 +16,7 @@ const MISTAKE_TYPES = [
 
 const toArabicNum = (n) => String(n).replace(/[0-9]/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
 
-export default function QuranSetoranViewer({ studentId, juz, initialPageNumber, juzDetails, onClose, onUpdate }) {
+export default function QuranSetoranViewer({ studentId, juz, initialPageNumber, juzDetails, onClose, onUpdate, sessionType }) {
     const [verses, setVerses] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -66,7 +66,8 @@ export default function QuranSetoranViewer({ studentId, juz, initialPageNumber, 
                 verse_key: selectedAyah.verseKey,
                 surah_name: selectedAyah.surahName,
                 action: actionType,
-                mistake_type: mistakeType
+                mistake_type: mistakeType,
+                type: sessionType
             });
             if (response.data && response.data.success) {
                 setLocalMistakesCount(response.data.mistake_count);
@@ -90,7 +91,8 @@ export default function QuranSetoranViewer({ studentId, juz, initialPageNumber, 
                 page_number: initialPageNumber,
                 status: 'half',
                 verse_key: selectedAyah.verseKey,
-                surah_name: selectedAyah.surahName
+                surah_name: selectedAyah.surahName,
+                type: sessionType
             });
             setIsActionModalOpen(false);
             if (onUpdate) onUpdate();
@@ -108,7 +110,8 @@ export default function QuranSetoranViewer({ studentId, juz, initialPageNumber, 
                 student_id: studentId,
                 juz: juz,
                 page_number: initialPageNumber,
-                status: 'full'
+                status: 'full',
+                type: sessionType
             });
             onClose();
             if (onUpdate) onUpdate();

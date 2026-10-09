@@ -21,7 +21,7 @@ class StudentTahfidzController extends Controller
         }
 
         $student = $user->student;
-        $activeSemester = \App\Models\Semester::where('is_active', true)->first();
+        $activeSemester = \App\Services\AcademicStateService::currentSemester();
 
         // Load Active Class & Members ONLY FOR CURRENT ACADEMIC YEAR
         $academicYearId = \App\Services\AcademicStateService::currentAcademicYear()->id;
@@ -120,3 +120,4 @@ class StudentTahfidzController extends Controller
         ]);
     }
 }
+

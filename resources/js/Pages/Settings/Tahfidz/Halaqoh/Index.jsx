@@ -224,6 +224,7 @@ export default function Index({ sessions, officers, musyrifs, users, students, f
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">No</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sesi</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Petugas</th>
@@ -231,8 +232,9 @@ export default function Index({ sessions, officers, musyrifs, users, students, f
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                    {officers.length > 0 ? officers.map((off) => (
+                                    {officers.length > 0 ? officers.map((off, index) => (
                                         <tr key={off.id}>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">{index + 1}</td>
                                             <td className="px-6 py-4 whitespace-nowrap">{formatDate(off.assigned_date)}</td>
                                             <td className="px-6 py-4 whitespace-nowrap">{off.session?.name}</td>
                                             <td className="px-6 py-4 whitespace-nowrap">{off.user?.name}</td>
@@ -281,20 +283,22 @@ export default function Index({ sessions, officers, musyrifs, users, students, f
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">No</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Musyrif</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kelas</th>
                                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                    {musyrifs.map((m) => (
+                                    {musyrifs.map((m, index) => (
                                         <tr key={m.id}>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">{index + 1}</td>
                                             <td className="px-6 py-4 whitespace-nowrap font-medium">
                                                 {m.user_id ? m.user?.name : m.student?.name}
                                                 {m.user_id && <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">Ustadz</span>}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                {m.user_id ? '-' : (m.student?.class_members?.[m.student.class_members.length - 1]?.active_class?.name || '-')}
+                                                {m.user_id ? '-' : (m.student?.kelas_name || '-')}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                 <button onClick={() => handleDeleteMusyrif(m.id)} className="text-red-600 hover:text-red-900"><Trash2 className="w-4 h-4" /></button>
@@ -316,18 +320,21 @@ export default function Index({ sessions, officers, musyrifs, users, students, f
                                 <h3 className="font-semibold text-gray-700">Pilih Musyrif</h3>
                             </div>
                             <div className="divide-y max-h-[600px] overflow-y-auto">
-                                {musyrifs.map(m => (
+                                {musyrifs.map((m, index) => (
                                     <div
                                         key={m.id}
                                         onClick={() => setSelectedMusyrifId(m.id)}
                                         className={`p-3 cursor-pointer hover:bg-gray-50 transition-colors ${selectedMusyrifId === m.id ? 'bg-indigo-50 border-l-4 border-indigo-600' : ''}`}
                                     >
-                                        <div className="font-medium text-gray-900">
-                                            {m.user_id ? m.user?.name : m.student?.name}
-                                            {m.user_id && <span className="ml-1 text-[10px] bg-blue-100 text-blue-800 px-1 py-0.5 rounded">Ustadz</span>}
+                                        <div className="font-medium text-gray-900 flex items-start gap-2">
+                                            <span className="text-gray-500 w-5 shrink-0">{index + 1}.</span>
+                                            <div>
+                                                {m.user_id ? m.user?.name : m.student?.name}
+                                                {m.user_id && <span className="ml-1 text-[10px] bg-blue-100 text-blue-800 px-1 py-0.5 rounded">Ustadz</span>}
+                                            </div>
                                         </div>
-                                        <div className="text-xs text-gray-500 flex justify-between mt-1">
-                                            <span>{m.user_id ? '-' : (m.student?.class_members?.[m.student.class_members.length - 1]?.active_class?.name || '-')}</span>
+                                        <div className="text-xs text-gray-500 flex justify-between mt-1 pl-7">
+                                            <span>{m.user_id ? '-' : (m.student?.kelas_name || '-')}</span>
                                             <span className="bg-gray-200 px-1.5 rounded text-gray-700">{m.members?.length || 0} Anggota</span>
                                         </div>
                                     </div>
@@ -382,6 +389,7 @@ export default function Index({ sessions, officers, musyrifs, users, students, f
                                         <table className="min-w-full divide-y divide-gray-200">
                                             <thead className="bg-gray-50">
                                                 <tr>
+                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase w-10">No</th>
                                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">NIS</th>
                                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nama Santri</th>
                                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Kelas</th>
@@ -389,11 +397,12 @@ export default function Index({ sessions, officers, musyrifs, users, students, f
                                                 </tr>
                                             </thead>
                                             <tbody className="bg-white divide-y divide-gray-200">
-                                                {activeMusyrif.members && activeMusyrif.members.length > 0 ? activeMusyrif.members.map(mem => (
+                                                {activeMusyrif.members && activeMusyrif.members.length > 0 ? activeMusyrif.members.map((mem, index) => (
                                                     <tr key={mem.id}>
+                                                        <td className="px-4 py-3 text-sm text-gray-500 text-center">{index + 1}</td>
                                                         <td className="px-4 py-3 text-sm text-gray-500">{mem.student?.user?.nomor_induk || '-'}</td>
                                                         <td className="px-4 py-3 text-sm font-medium text-gray-900">{mem.student?.name}</td>
-                                                        <td className="px-4 py-3 text-sm text-gray-500">{mem.student?.class_members?.[mem.student.class_members.length - 1]?.active_class?.name || '-'}</td>
+                                                        <td className="px-4 py-3 text-sm text-gray-500">{mem.student?.kelas_name || '-'}</td>
                                                         <td className="px-4 py-3 text-right">
                                                             <button onClick={() => handleDeleteMember(mem.id)} className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded">
                                                                 <Trash2 className="w-4 h-4" />
@@ -402,7 +411,7 @@ export default function Index({ sessions, officers, musyrifs, users, students, f
                                                     </tr>
                                                 )) : (
                                                     <tr>
-                                                        <td colSpan="4" className="px-4 py-8 text-center text-gray-400">
+                                                        <td colSpan="5" className="px-4 py-8 text-center text-gray-400">
                                                             Belum ada anggota di halaqoh ini.
                                                         </td>
                                                     </tr>

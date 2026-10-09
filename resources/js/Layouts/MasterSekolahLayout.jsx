@@ -1,12 +1,13 @@
 import MainLayout from '@/Layouts/MainLayout';
 import { Link, usePage } from '@inertiajs/react';
 import { cn } from '@/lib/utils';
-import { School, MapPin, Users } from 'lucide-react';
+import { School, MapPin, Users, Printer } from 'lucide-react';
 
 const tabs = [
     { title: 'Identitas Sekolah', route: 'settings.school-info.index', icon: School },
     { title: 'Level Pengguna', route: 'user-levels.index', icon: Users },
     { title: 'Master Wilayah', route: 'settings.regions.index', icon: MapPin },
+    { title: 'Pengaturan Cetak Rapor', route: 'settings.report.index', icon: Printer },
 ];
 
 export default function MasterSekolahLayout({ children, breadcrumbItems }) {

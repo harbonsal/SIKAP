@@ -1,18 +1,65 @@
 import MainLayout from '@/Layouts/MainLayout';
-import { Head, Link, usePage, router } from '@inertiajs/react';
+import { Head, Link, usePage, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
-import { AlertCircle, Clock, ShieldCheck, Activity, CheckCircle, Wallet, Package, FileText, Search } from 'lucide-react';
+import { AlertCircle, Clock, ShieldCheck, Activity, CheckCircle, Wallet, Package, FileText, Search, Edit } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
+import Modal from '@/Components/Modal';
+import PrimaryButton from '@/Components/PrimaryButton';
+import SecondaryButton from '@/Components/SecondaryButton';
+import TextInput from '@/Components/TextInput';
+import InputLabel from '@/Components/InputLabel';
 
 export default function Monitor({ pending_permissions = [], active_permissions = [], returned_permissions = [], late_returns = [], summary = { total_uang_saku: 0 } }) {
+    const uangSakuList = returned_permissions.filter(p => parseFloat(p.uang_saku) > 0);
     const barangTitipanList = returned_permissions.filter(p => p.barang_titipan);
-    const catatanList = returned_permissions.filter(p => p.keterangan);
+    
+    const isSystemLateNote = (note) => {
+        if (!note) return false;
+        return /^Terlambat( \d+ [a-zA-Z]+)?$/i.test(note.trim());
+    };
+
+    const lateReturnIds = late_returns.map(l => l.id);
+
+    const catatanList = returned_permissions.filter(p => {
+        if (!p.keterangan) return false;
+        if (lateReturnIds.includes(p.id) && isSystemLateNote(p.keterangan)) return false;
+        return true;
+    });
 
     const { auth } = usePage().props;
     const userRole = auth?.user?.user_level?.name;
     const canManagePermissions = ['Administrator', 'Sekertaris Divisi', 'Kepala Sekolah', 'Manager'].includes(userRole);
 
     const [searchQuery, setSearchQuery] = useState('');
+    const [editingPermission, setEditingPermission] = useState(null);
+
+    const { data, setData, put, processing, errors, reset } = useForm({
+        uang_saku: '',
+        barang_titipan: '',
+        keterangan: ''
+    });
+
+    const openEditModal = (p) => {
+        setEditingPermission(p);
+        setData({
+            uang_saku: p.uang_saku || '',
+            barang_titipan: p.barang_titipan || '',
+            keterangan: p.keterangan || ''
+        });
+    };
+
+    const closeEditModal = () => {
+        setEditingPermission(null);
+        reset();
+    };
+
+    const submitEdit = (e) => {
+        e.preventDefault();
+        put(route('permissions.student.details', editingPermission.id), {
+            preserveScroll: true,
+            onSuccess: () => closeEditModal(),
+        });
+    };
 
     const filterByName = (item) => {
         if (!searchQuery) return true;
@@ -236,9 +283,17 @@ export default function Monitor({ pending_permissions = [], active_permissions =
                     {/* Titipan Keuangan & Barang */}
                     <Card className="border-amber-100 shadow-sm">
                         <CardHeader className="bg-amber-50/50 pb-4">
-                            <CardTitle className="text-lg flex items-center text-amber-800">
-                                <Wallet className="w-5 h-5 mr-2" />
-                                Titipan (Uang & Barang)
+                            <CardTitle className="text-lg flex items-center justify-between text-amber-800 w-full">
+                                <div className="flex items-center">
+                                    <Wallet className="w-5 h-5 mr-2" />
+                                    Titipan (Uang & Barang)
+                                </div>
+                                <a 
+                                    href={route('permissions.monitor.export')}
+                                    className="inline-flex items-center px-3 py-1 text-sm bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors shadow-sm"
+                                >
+                                    Download Excel
+                                </a>
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-4 space-y-6">
@@ -251,13 +306,35 @@ export default function Monitor({ pending_permissions = [], active_permissions =
 
                             <div>
                                 <h4 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                                    <Wallet className="w-4 h-4" /> Daftar Titipan Uang ({uangSakuList.length})
+                                </h4>
+                                {uangSakuList.length > 0 ? (
+                                    <ul className="space-y-2 max-h-48 overflow-auto mb-6">
+                                        {uangSakuList.map(p => (
+                                            <li key={p.id} onClick={() => openEditModal(p)} className="text-sm p-2 rounded bg-muted/50 border border-border cursor-pointer hover:bg-muted/80 flex justify-between group transition-colors">
+                                                <div className="font-semibold">{p.student_name}</div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-bold text-amber-700">Rp {new Intl.NumberFormat('id-ID').format(p.uang_saku)}</span>
+                                                    <Edit className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground italic mb-6">Belum ada titipan uang.</p>
+                                )}
+
+                                <h4 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
                                     <Package className="w-4 h-4" /> Daftar Barang Titipan ({barangTitipanList.length})
                                 </h4>
                                 {barangTitipanList.length > 0 ? (
                                     <ul className="space-y-2 max-h-48 overflow-auto">
                                         {barangTitipanList.map(p => (
-                                            <li key={p.id} className="text-sm p-2 rounded bg-muted/50 border border-border">
-                                                <div className="font-semibold">{p.student_name}</div>
+                                            <li key={p.id} onClick={() => openEditModal(p)} className="text-sm p-2 rounded bg-muted/50 border border-border cursor-pointer hover:bg-muted/80 group transition-colors">
+                                                <div className="flex justify-between items-start">
+                                                    <div className="font-semibold">{p.student_name}</div>
+                                                    <Edit className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity mt-0.5" />
+                                                </div>
                                                 <div className="text-muted-foreground mt-0.5">{p.barang_titipan}</div>
                                             </li>
                                         ))}
@@ -281,8 +358,11 @@ export default function Monitor({ pending_permissions = [], active_permissions =
                             {catatanList.length > 0 ? (
                                 <ul className="divide-y">
                                     {catatanList.map(p => (
-                                        <li key={p.id} className="p-4 hover:bg-muted/30">
-                                            <div className="font-semibold text-foreground text-sm">{p.student_name}</div>
+                                        <li key={p.id} onClick={() => openEditModal(p)} className="p-4 hover:bg-muted/50 cursor-pointer group transition-colors">
+                                            <div className="flex justify-between items-center">
+                                                <div className="font-semibold text-foreground text-sm">{p.student_name}</div>
+                                                <Edit className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            </div>
                                             <div className="mt-1 text-sm text-indigo-700 bg-indigo-50 p-2 rounded border border-indigo-100">
                                                 {p.keterangan}
                                             </div>
@@ -298,6 +378,61 @@ export default function Monitor({ pending_permissions = [], active_permissions =
                     </Card>
                 </div>
             </div>
+
+            <Modal show={!!editingPermission} onClose={closeEditModal} maxWidth="md">
+                <form onSubmit={submitEdit} className="p-6">
+                    <h2 className="text-lg font-medium text-slate-900 border-b pb-3 mb-4">
+                        Edit Detail: {editingPermission?.student_name}
+                    </h2>
+
+                    <div className="space-y-4">
+                        <div>
+                            <InputLabel htmlFor="uang_saku" value="Titipan Uang Saku (Rp)" />
+                            <TextInput
+                                id="uang_saku"
+                                type="number"
+                                className="mt-1 block w-full"
+                                value={data.uang_saku}
+                                onChange={e => setData('uang_saku', e.target.value)}
+                            />
+                            {errors.uang_saku && <p className="text-sm text-red-600 mt-1">{errors.uang_saku}</p>}
+                        </div>
+
+                        <div>
+                            <InputLabel htmlFor="barang_titipan" value="Barang Titipan" />
+                            <textarea
+                                id="barang_titipan"
+                                className="border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 block w-full"
+                                rows="3"
+                                value={data.barang_titipan}
+                                onChange={e => setData('barang_titipan', e.target.value)}
+                                placeholder="Contoh: Obat batuk, makanan ringan"
+                            />
+                            {errors.barang_titipan && <p className="text-sm text-red-600 mt-1">{errors.barang_titipan}</p>}
+                        </div>
+
+                        <div>
+                            <InputLabel htmlFor="keterangan" value="Catatan Kedatangan / Keterangan Lain" />
+                            <textarea
+                                id="keterangan"
+                                className="border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 block w-full"
+                                rows="3"
+                                value={data.keterangan}
+                                onChange={e => setData('keterangan', e.target.value)}
+                                placeholder="Contoh: Wali santri telat karena macet"
+                            />
+                            {errors.keterangan && <p className="text-sm text-red-600 mt-1">{errors.keterangan}</p>}
+                        </div>
+                    </div>
+
+                    <div className="mt-6 flex justify-end gap-3 border-t pt-4">
+                        <SecondaryButton onClick={closeEditModal} type="button">Batal</SecondaryButton>
+                        <PrimaryButton disabled={processing} type="submit">
+                            Simpan Perubahan
+                        </PrimaryButton>
+                    </div>
+                </form>
+            </Modal>
         </MainLayout>
     );
 }

@@ -16,7 +16,7 @@ class StudentGradeRecapController extends Controller
 {
     public function index(Request $request)
     {
-        $activeYear = AcademicYear::where('is_active', true)->first();
+        $activeYear = \App\Services\AcademicStateService::currentAcademicYear();
 
         $query = Student::with(['user', 'classMembers' => function ($q) use ($activeYear) {
             // Filter classMembers to only eager load the one for the current active year
@@ -92,8 +92,8 @@ class StudentGradeRecapController extends Controller
         $student = Student::with(['user', 'classMembers.activeClass.kelas', 'classMembers.activeClass.kelasParalel'])
             ->findOrFail($id);
 
-        $activeYear = AcademicYear::where('is_active', true)->first();
-        $activeSemester = Semester::where('is_active', true)->first();
+        $activeYear = \App\Services\AcademicStateService::currentAcademicYear();
+        $activeSemester = \App\Services\AcademicStateService::currentSemester();
 
         // Use requested semester, fallback to active or Ganjil
         $targetSemesterName = $request->semester ?: ($activeSemester ? $activeSemester->name : 'Ganjil');
@@ -132,28 +132,8 @@ class StudentGradeRecapController extends Controller
         }
 
         // 3. Get Grade Weights
-        $sortGradeWeights = function ($collection) {
-            $orderMap = [
-                'UH1' => 1,
-                'UTS' => 2,
-                'UH2' => 3,
-                'UKK' => 4,
-                'UAS' => 5,
-            ];
-            
-            return $collection
-                ->filter(function ($w) {
-                    $name = strtoupper($w->name);
-                    return !str_contains($name, 'VALIDASI') && !str_contains($name, 'VALIDATION');
-                })
-                ->sortBy(function ($w) use ($orderMap) {
-                    $name = strtoupper($w->name);
-                    foreach ($orderMap as $key => $order) {
-                        if (str_contains($name, $key)) return $order;
-                    }
-                    return 99; // Others at the end
-                })
-                ->values();
+        $sortGradeWeights = function ($weights) {
+            return \App\Helpers\GradeHelper::sortGradeWeights($weights);
         };
 
         // Target Semester Weights
@@ -254,3 +234,4 @@ class StudentGradeRecapController extends Controller
         ]);
     }
 }
+

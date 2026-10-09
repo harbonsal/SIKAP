@@ -186,8 +186,8 @@ class SupervisionController extends Controller
         $questions = SupervisionQuestion::with('rubrics')->orderBy('number')->get();
 
         // Fetch Academic Year and Semester context
-        $academicYear = \App\Models\AcademicYear::where('is_active', true)->first();
-        $semester = \App\Models\Semester::where('is_active', true)->first();
+        $academicYear = \App\Services\AcademicStateService::currentAcademicYear();
+        $semester = \App\Services\AcademicStateService::currentSemester();
 
         $categories = \App\Models\SupervisionCategory::orderBy('min_score', 'desc')->get();
 
@@ -289,8 +289,8 @@ class SupervisionController extends Controller
 
         $questions = SupervisionQuestion::with('rubrics')->orderBy('number')->get();
 
-        $academicYear = \App\Models\AcademicYear::where('is_active', true)->first();
-        $semester = \App\Models\Semester::where('is_active', true)->first();
+        $academicYear = \App\Services\AcademicStateService::currentAcademicYear();
+        $semester = \App\Services\AcademicStateService::currentSemester();
         $categories = \App\Models\SupervisionCategory::orderBy('min_score', 'desc')->get();
 
         return Inertia::render('Settings/Education/Supervision/AICreate', [
@@ -614,3 +614,4 @@ class SupervisionController extends Controller
         ]);
     }
 }
+

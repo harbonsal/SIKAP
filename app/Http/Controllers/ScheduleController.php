@@ -133,7 +133,7 @@ class ScheduleController extends Controller
 
         // 2. Cek Bentrok Guru (Guru ini sudah mengajar di jam segitu?)
         // Cari semester aktif
-        $activeSemester = \App\Models\Semester::where('is_active', true)->first();
+        $activeSemester = \App\Services\AcademicStateService::currentSemester();
         $systemYear = \App\Services\AcademicStateService::activeAcademicYear();
 
         // Tentukan guru: cek override semester dulu, kalau tidak ada pakai guru tahunan
@@ -223,7 +223,7 @@ class ScheduleController extends Controller
         ]);
 
         $activeYear = $this->currentPlanningYear();
-        $activeSemester = \App\Models\Semester::where('is_active', true)->first();
+        $activeSemester = \App\Services\AcademicStateService::currentSemester();
 
         $activeClassId = $request->active_class_id;
         $items = $request->schedule_items ?? [];
@@ -431,7 +431,7 @@ class ScheduleController extends Controller
             ->withCount('classMembers')
             ->with([
                 'academicYear',
-                'kelas',
+                'kelas.jenjang',
                 'kelasParalel',
                 'teacher',
                 'activeSubjects.mapel',
@@ -441,6 +441,12 @@ class ScheduleController extends Controller
             ])
             ->get()
             ->sort(function ($a, $b) {
+                // Sort by jenjang name first (e.g. Mutawasith before Tsanawiy)
+                $jenjangCmp = strnatcmp($a->kelas->jenjang->name ?? '', $b->kelas->jenjang->name ?? '');
+                if ($jenjangCmp !== 0) {
+                    return $jenjangCmp;
+                }
+
                 $nameCmp = strnatcmp($a->kelas->name ?? '', $b->kelas->name ?? '');
                 if ($nameCmp !== 0) {
                     return $nameCmp;
@@ -591,3 +597,4 @@ class ScheduleController extends Controller
             ?? AcademicYear::where('is_active', true)->firstOrFail();
     }
 }
+

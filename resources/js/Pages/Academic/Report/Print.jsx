@@ -174,7 +174,18 @@ export default function Print({
             </div>
 
             {/* Legal Size Container (215mm x 330mm) */}
-            <div id="report-container" className="report-page mx-auto box-border bg-white shadow-xl print:shadow-none w-[21.59cm] min-h-[35.56cm] px-[1cm] pt-[2cm] pb-[1cm] print:h-auto print:min-h-0 print:max-w-none print:overflow-visible relative flex flex-col">
+            <div id="report-container" className="report-page mx-auto box-border bg-white shadow-xl print:shadow-none w-[21.59cm] min-h-[35.56cm] px-[1cm] pt-[1cm] pb-[1cm] print:h-auto print:min-h-0 print:max-w-none print:overflow-visible relative flex flex-col">
+
+                {/* Watermark (Optional) */}
+                {settings.header_config?.use_watermark && (
+                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-0 opacity-[0.08]">
+                        <img 
+                            src={settings.header_config?.watermark_image ? `/storage/${settings.header_config.watermark_image}` : (settings.kop_image ? `/storage/${settings.kop_image}` : '')} 
+                            alt="Watermark" 
+                            className="w-[14cm] h-auto object-contain"
+                        />
+                    </div>
+                )}
 
                 {/* Header System vs Pre-printed */}
                 {settings.header_config?.use_system_header ? (
@@ -184,27 +195,43 @@ export default function Print({
                                 <img src={`/storage/${settings.kop_image}`} alt="Logo" className="w-24 h-24 object-contain" />
                             )}
                         </div>
+                        <div className="absolute right-0 top-1/2 -translate-y-1/2">
+                            {settings.header_config?.kop_image_right && (
+                                <img src={`/storage/${settings.header_config.kop_image_right}`} alt="Logo Yayasan" className="w-24 h-24 object-contain" />
+                            )}
+                        </div>
                         <div className="text-center px-2 w-full">
                             {settings.header_config?.yayasan_name && (
-                                <h2 className="text-lg font-bold uppercase tracking-wide leading-tight">
+                                <h2 
+                                    className="text-lg uppercase tracking-wide leading-tight"
+                                    style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700 }}
+                                >
                                     {settings.header_config.yayasan_name}
                                 </h2>
                             )}
                             {settings.header_config?.institution_name && (
                                 <h1 
-                                    className="text-2xl font-black uppercase tracking-widest text-emerald-800 leading-snug print:text-black"
-                                    style={{ fontFamily: "'Cooper Black', 'Georgia', serif" }}
+                                    className="text-5xl uppercase tracking-widest text-emerald-800 leading-snug mt-1 mb-1"
+                                    style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 900 }}
                                 >
                                     {settings.header_config.institution_name}
                                 </h1>
                             )}
                             {settings.header_config?.institution_location && (
-                                <h2 className="text-lg font-bold uppercase tracking-wide leading-tight">
+                                <h2 
+                                    className="text-lg uppercase tracking-wide leading-tight"
+                                    style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 600 }}
+                                >
                                     {settings.header_config.institution_location}
                                 </h2>
                             )}
                             {settings.address && (
-                                <p className="text-xs mt-1 leading-tight">{settings.address}</p>
+                                <p 
+                                    className="text-[11pt] mt-1 leading-tight"
+                                    style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400 }}
+                                >
+                                    {settings.address}
+                                </p>
                             )}
                         </div>
                     </div>
@@ -234,7 +261,7 @@ export default function Print({
                 </header>
 
                 {/* Identity Section - Bilingual Left/Right */}
-                <div className="flex justify-between items-start mb-2 text-xs font-medium px-1 leading-tight">
+                <div className="flex justify-between items-start mb-2 text-sm font-medium px-1 leading-tight">
                     {/* Left: Indonesian */}
                     <table className="w-1/2">
                         <tbody>
@@ -297,7 +324,7 @@ export default function Print({
                 <div className="flex justify-between gap-1 mb-1.5">
                     {/* Left Table: Indonesian */}
                     <div className="w-[49%]">
-                        <table className="w-full text-[10px] border-collapse border border-black h-full leading-tight">
+                        <table className="w-full text-xs border-collapse border border-black h-full leading-tight">
                             <thead className="text-center bg-gray-100 h-8">
                                 <tr>
                                     <th className="border border-black w-6">NO</th>
@@ -342,14 +369,14 @@ export default function Print({
 
                     {/* Right Table: Arabic (Mirrored Order) */}
                     <div className="w-[49%]">
-                        <table className="w-full text-[10px] border-collapse border border-black h-full leading-tight" dir="rtl">
+                        <table className="w-full text-xs border-collapse border border-black h-full leading-tight" dir="rtl">
                             <thead className="text-center bg-gray-100 h-8 font-arabic">
                                 <tr>
                                     <th className="border border-black w-6">رقم</th>
                                     <th className="border border-black">المواد الدراسية</th>
-                                    <th className="border border-black w-8 text-[10px]">الدرجة الصغرى</th>
+                                    <th className="border border-black w-8 text-[11px]">الدرجة الصغرى</th>
                                     <th className="border border-black w-8">النتيجة</th>
-                                    <th className="border border-black w-12 text-[10px]">المعدل التراكمي</th>
+                                    <th className="border border-black w-12 text-[11px]">المعدل التراكمي</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -393,8 +420,8 @@ export default function Print({
                     <div className="w-[49%] flex border border-black">
                         {/* Kepribadian Left */}
                         <div className="flex-1 border-r border-black">
-                            <h3 className="font-bold text-[10px] px-1 border-b border-black text-center h-4 flex items-center justify-center">Kepribadian</h3>
-                            <table className="w-full text-[10px] border-collapse leading-tight">
+                            <h3 className="font-bold text-xs px-1 border-b border-black text-center h-4 flex items-center justify-center">Kepribadian</h3>
+                            <table className="w-full text-xs border-collapse leading-tight">
                                 <tbody>
                                     {[
                                         { key: 'Ibadah', label: 'Ibadah' },
@@ -416,8 +443,8 @@ export default function Print({
                         </div>
                         {/* Kehadiran Right (of Left Block) */}
                         <div className="w-[35%]">
-                            <h3 className="font-bold text-[10px] px-1 border-b border-black text-center h-4 flex items-center justify-center">Kehadiran</h3>
-                            <table className="w-full text-[10px] border-collapse leading-tight">
+                            <h3 className="font-bold text-xs px-1 border-b border-black text-center h-4 flex items-center justify-center">Kehadiran</h3>
+                            <table className="w-full text-xs border-collapse leading-tight">
                                 <tbody>
                                     <tr className="h-4">
                                         <td className="border-b border-r border-black px-2">Sakit</td>
@@ -440,8 +467,8 @@ export default function Print({
                     <div className="w-[49%] flex border border-black" dir="rtl">
                         {/* Behavior Right (Arabic, Far Right visually) */}
                         <div className="flex-1 border-l border-black">
-                            <h3 className="font-bold text-[11px] px-1 border-b border-black text-center h-5 flex items-center justify-center font-arabic">السلوك</h3>
-                            <table className="w-full text-[10px] border-collapse leading-tight" dir="rtl">
+                            <h3 className="font-bold text-sm px-1 border-b border-black text-center h-5 flex items-center justify-center font-arabic">السلوك</h3>
+                            <table className="w-full text-xs border-collapse leading-tight" dir="rtl">
                                 <tbody>
                                     {[
                                         { key: 'Ibadah', ar: 'العبادة' },
@@ -464,8 +491,8 @@ export default function Print({
 
                         {/* Attendance Left (of Right Block) */}
                         <div className="w-[35%]">
-                            <h3 className="font-bold text-[11px] px-1 border-b border-black text-center h-5 flex items-center justify-center font-arabic">سجل الحضور</h3>
-                            <table className="w-full text-[10px] border-collapse leading-tight" dir="rtl">
+                            <h3 className="font-bold text-sm px-1 border-b border-black text-center h-5 flex items-center justify-center font-arabic">سجل الحضور</h3>
+                            <table className="w-full text-xs border-collapse leading-tight" dir="rtl">
                                 <tbody>
                                     <tr className="h-4">
                                         <td className="border-b border-l border-black px-2 font-arabic text-right">المرض</td>
@@ -486,8 +513,8 @@ export default function Print({
                 </div>
 
                 {/* Note Section - Arabic Style */}
-                <div className="mb-2 border border-black flex">
-                    <div className="flex-1 p-1.5 text-xs text-justify leading-snug font-serif relative">
+                <div className="mb-1 border border-black flex">
+                    <div className="flex-1 p-1 text-xs text-justify leading-snug font-serif relative">
                         {/* Check if note content exists, else default text */}
                         <p className="whitespace-pre-wrap px-2 py-1">
                             {note || "Semoga ananda tetap istiqamah dalam belajar dan tidak cepat puas. Semoga Allah selalu menuntun ananda untuk menjadi pribadi yang berilmu, beradab, dan bermanfaat bagi umat. Jazaakumullahukhairaa khairan atas usaha yang sudah dilakukan wabaarakallahu fiikum"}
@@ -501,11 +528,11 @@ export default function Print({
 
                 {/* Conclusion Box (Al-Qarar) - Only for Semester 2 (Genap) */}
                 {academic_year.semester === 'Genap' && decision && (
-                    <div className="mb-2 border border-black px-4 py-3 flex justify-end">
+                    <div className="mb-1 border border-black px-4 py-1.5 flex justify-end">
                         <div className="w-full text-right" dir="rtl">
                             
                             <p className="font-arabic text-base mb-2 leading-relaxed"><span className="font-bold">القرار : </span>
-                                بناءً على النتائج التي تحققت في الفصل الدراسي الأول والثاني ، يثبت أن الطالب <span className="font-bold underline text-lg px-1">{decision.status_ar || 'ناجح'}</span>
+                                بناءً على النتائج التي تحققت في الفصل الدراسي الأول والثاني ، يثبت أن {student.gender?.toUpperCase() === 'P' ? 'الطالبة' : 'الطالب'} <span className="font-bold underline text-lg px-1">{decision.status_ar || (student.gender?.toUpperCase() === 'P' ? 'ناجحة' : 'ناجح')}</span>
                             </p>
                         </div>
                     </div>
@@ -513,7 +540,7 @@ export default function Print({
 
                 {/* Signatures - 2 Columns (Parent & Homeroom) per user request for Semester 1 */}
                 {/* Signatures */}
-                <div className="mt-2 pt-1 text-xs px-6">
+                <div className="mt-1 pt-0 text-xs px-6">
                     <div className="flex justify-between items-start text-center">
                         {/* Parent (Left) */}
                         {/* Parent (Left) */}
@@ -523,7 +550,7 @@ export default function Print({
                             <p className="mb-0 font-arabic font-bold text-[15px]">ولي الأمر</p>
 
                             {/* Signature Spacer used to match Right Side Image Height */}
-                            <div className="h-16 w-full my-1"></div>
+                            <div className="h-12 w-full my-1"></div>
 
                             <p className="font-bold border-b border-black text-[13px] uppercase inline-block min-w-[150px]">
                                 ( {student.father_name || "......................................."} )
@@ -547,7 +574,7 @@ export default function Print({
                             <p className="mb-0 font-arabic font-bold text-[15px] text-center">مشرف الصف</p>
 
                             {/* Signature Image Cascade */}
-                            <div className="h-16 flex items-center justify-center relative w-full my-1">
+                            <div className="h-12 flex items-center justify-center relative w-full my-1">
                                 {active_class.teacher?.signature && (
                                     <img
                                         src={`/storage/${active_class.teacher.signature}`}
@@ -576,12 +603,12 @@ export default function Print({
 
                     {/* Headmaster (Center Below) - Only for Semester 2 (Genap) */}
                     {academic_year.semester === 'Genap' && (
-                        <div className="flex justify-center mt-1 text-center">
+                        <div className="flex justify-center mt-0 text-center">
                             <div className="w-1/3 relative">
                                 <p className="mb-0 font-arabic font-bold text-[15px]">مدير المدرسة</p>
 
                                 {/* Signature & Stamp Cascade */}
-                                <div className="h-20 flex items-center justify-center relative w-full my-1">
+                                <div className="h-16 flex items-center justify-center relative w-full my-0.5">
                                     {/* Stamp */}
                                     {stampImage && (
                                         <img

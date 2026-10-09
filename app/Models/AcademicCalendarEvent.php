@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 class AcademicCalendarEvent extends Model
 {
     protected $fillable = [
+        'academic_year_id',
+        'semester_id',
         'title',
         'category',
         'start_date',

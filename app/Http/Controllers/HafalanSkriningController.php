@@ -174,7 +174,7 @@ class HafalanSkriningController extends Controller
         });
 
         // Query for Reports using the same base filers (user_id and juz if applicable)
-        $reportQuery = \App\Models\HafalanSkriningReport::with([
+        $reportQuery = \App\Models\QuranProgress::with([
             'user:id,name,nomor_induk,user_level_id',
             'user.userLevel:id,name',
             'user.student.latestClassMember.activeClass.kelas',
@@ -237,20 +237,39 @@ class HafalanSkriningController extends Controller
         }
 
         if ($request->filled('start_date')) {
-            $reportQuery->whereDate('created_at', '>=', $request->start_date);
+            $reportQuery->whereDate('updated_at', '>=', $request->start_date);
         }
 
         if ($request->filled('end_date')) {
-            $reportQuery->whereDate('created_at', '<=', $request->end_date);
+            $reportQuery->whereDate('updated_at', '<=', $request->end_date);
         }
 
-        $reports = $reportQuery->latest()->paginate(20, ['*'], 'reports_page')->withQueryString();
-        $reports->getCollection()->transform(function ($item) {
+        $reports = $reportQuery->latest('updated_at')->paginate(20, ['*'], 'reports_page')->withQueryString();
+        
+        $userIds = $reports->pluck('user_id')->unique();
+        $juzNumbers = $reports->pluck('juz_number')->unique();
+        
+        $skriningReports = \App\Models\HafalanSkriningReport::whereIn('user_id', $userIds)
+            ->whereIn('juz_number', $juzNumbers)
+            ->get()
+            ->keyBy(function($item) {
+                return $item->user_id . '_' . $item->juz_number;
+            });
+
+        $reports->getCollection()->transform(function ($item) use ($skriningReports) {
             if ($item->relationLoaded('user') && $item->user) {
                 $item->user->setAppends([]);
                 if ($item->user->relationLoaded('student') && $item->user->student) {
                     $item->user->student->setAppends([]);
                 }
+            }
+            $key = $item->user_id . '_' . $item->juz_number;
+            if ($item->is_completed && $skriningReports->has($key)) {
+                $item->total_mistakes = $skriningReports->get($key)->total_mistakes;
+                $item->report_created_at = $skriningReports->get($key)->created_at;
+            } else {
+                $item->total_mistakes = null;
+                $item->report_created_at = null;
             }
             return $item;
         });
@@ -306,8 +325,7 @@ class HafalanSkriningController extends Controller
             // Ambil semua QuranProgress milik santri ini
             $userIds = $students->pluck('user_id')->filter()->unique()->toArray();
             $allProgress = QuranProgress::whereIn('user_id', $userIds)
-                ->where('is_completed', true)
-                ->select(['user_id', 'juz_number'])
+                ->select(['user_id', 'juz_number', 'is_completed'])
                 ->get()
                 ->groupBy('user_id');
 
@@ -330,10 +348,13 @@ class HafalanSkriningController extends Controller
                 $userId = $student->user_id;
                 $studentId = $student->id;
 
-                // 1. Screening Progress (yang sudah discreening)
+                // 1. Screening Progress (yang sudah discreening & yang ongoing)
                 $completedJuz = [];
+                $ongoingJuz = [];
                 if ($userId && $allProgress->has($userId)) {
-                    $completedJuz = $allProgress->get($userId)->pluck('juz_number')->sort()->values()->toArray();
+                    $userProg = $allProgress->get($userId);
+                    $completedJuz = $userProg->where('is_completed', true)->pluck('juz_number')->sort()->values()->toArray();
+                    $ongoingJuz = $userProg->where('is_completed', false)->pluck('juz_number')->sort()->values()->toArray();
                 }
 
                 // 2. Attainment Progress (target: jumlah juz yang sudah dihafal)
@@ -360,7 +381,9 @@ class HafalanSkriningController extends Controller
                 // Filter status
                 $rekapStatus = $request->input('rekap_status', '');
                 if ($rekapStatus === 'selesai' && !$isCompleted) continue;
-                if ($rekapStatus === 'belum' && $isCompleted) continue;
+                if ($rekapStatus === 'belum' && ($isCompleted || count($screenedTargetJuz) === 0 || $totalTarget === 0)) continue;
+                if ($rekapStatus === 'belum_mulai' && (count($screenedTargetJuz) > 0 || $totalTarget === 0)) continue;
+                if ($rekapStatus === 'belum_ada_target' && $totalTarget > 0) continue;
 
                 // Sort missing juz for display
                 sort($missingJuz);
@@ -373,18 +396,20 @@ class HafalanSkriningController extends Controller
                 }
 
                 $rekapData[] = [
-                    'student_id'    => $student->id,
+                    'student_id'    => $studentId,
                     'user_id'       => $userId,
-                    'name'          => $student->user?->name ?? '-',
-                    'nomor_induk'   => $student->user?->nomor_induk ?? '-',
-                    'kelas'         => $student->latestClassMember?->activeClass?->kelas?->name,
-                    'kamar'         => $kamarInfo?->name,
+                    'name'          => $student->user->name,
+                    'nomor_induk'   => $student->user->nomor_induk,
+                    'kelas'         => $student->latestClassMember?->activeClass?->kelas?->name ?? '-',
+                    'kamar'         => $kamarInfo ? $kamarInfo->name . ' - ' . $kamarInfo->building : '-',
                     'completed_juz' => $screenedTargetJuz,
                     'missing_juz'   => $missingJuz,
                     'total_done'    => count($screenedTargetJuz),
                     'total_missing' => count($missingJuz),
                     'total_target'  => $totalTarget,
                     'is_completed'  => $isCompleted,
+                    'ongoing_juz'   => $ongoingJuz,
+                    'all_completed_juz' => $completedJuz,
                 ];
             }
         }
@@ -404,6 +429,92 @@ class HafalanSkriningController extends Controller
                 'kelasList'  => $kelasList,
                 'kamarList'  => $kamarList,
             ],
+        ]);
+    }
+
+    /**
+     * API Endpoint to retrieve analytics data for Pantau Skrining.
+     */
+    public function analytics(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        // 1. Top Kesalahan Ayat (Mutasyabihat)
+        // Groups by surah_number and ayat_number, counts frequency
+        $topMistakesQuery = \App\Models\HafalanSkrining::select(
+                'surah_number', 
+                'ayat_number', 
+                \Illuminate\Support\Facades\DB::raw('count(*) as total_errors')
+            )
+            ->groupBy('surah_number', 'ayat_number')
+            ->orderBy('total_errors', 'desc')
+            ->limit(10);
+            
+        // Optional filters for analytics (e.g. by kelas/kamar) can be added here in the future
+        
+        $topMistakes = $topMistakesQuery->get()->map(function($item) {
+            // Get surah name (optional, you can fetch from Quran API or hardcode if available in DB)
+            return [
+                'surah' => 'Surah ' . $item->surah_number, // Simplify to Surah Number if name is not directly available
+                'surah_number' => $item->surah_number,
+                'ayat_number' => $item->ayat_number,
+                'total_errors' => $item->total_errors
+            ];
+        });
+
+        // 2. Statistik Mutqan Global (Average mistakes per Juz)
+        // Group by juz_number and get average mistakes
+        $avgMistakesPerJuz = \App\Models\HafalanSkriningReport::select(
+                'juz_number',
+                \Illuminate\Support\Facades\DB::raw('AVG(total_mistakes) as avg_mistakes'),
+                \Illuminate\Support\Facades\DB::raw('COUNT(*) as total_reports')
+            )
+            ->groupBy('juz_number')
+            ->orderBy('juz_number', 'asc')
+            ->get();
+
+        // 3. Tren Kesalahan Seiring Waktu (Monthly)
+        $monthlyTrend = \App\Models\HafalanSkriningReport::select(
+                \Illuminate\Support\Facades\DB::raw('DATE_FORMAT(created_at, "%Y-%m") as month'),
+                \Illuminate\Support\Facades\DB::raw('AVG(total_mistakes) as avg_mistakes')
+            )
+            ->groupBy('month')
+            ->orderBy('month', 'asc')
+            ->limit(12)
+            ->get();
+
+        // 4. Qari Stats
+        $qariStats = \App\Models\QuranProgress::select(
+                'last_qari_id as qari_id',
+                \Illuminate\Support\Facades\DB::raw('count(DISTINCT user_id) as total_users')
+            )
+            ->whereNotNull('last_qari_id')
+            ->groupBy('last_qari_id')
+            ->orderBy('total_users', 'desc')
+            ->get();
+
+        // 5. Qari Errors
+        $qariErrors = \App\Models\QuranAudioError::select(
+                'qari_id',
+                \Illuminate\Support\Facades\DB::raw('count(*) as total_errors')
+            )
+            ->groupBy('qari_id')
+            ->orderBy('total_errors', 'desc')
+            ->get();
+
+        $hiddenQorisSetting = \App\Models\Setting::where('key', 'quran_hidden_qoris')->first();
+        $hiddenQoris = $hiddenQorisSetting ? json_decode($hiddenQorisSetting->value, true) : [];
+
+        return response()->json([
+            'top_mistakes' => $topMistakes,
+            'avg_mistakes_per_juz' => $avgMistakesPerJuz,
+            'monthly_trend' => $monthlyTrend,
+            'qari_stats' => $qariStats,
+            'qari_errors' => $qariErrors,
+            'hidden_qoris' => $hiddenQoris,
         ]);
     }
 }

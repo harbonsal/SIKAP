@@ -22,6 +22,8 @@ export default function StudentList({ activeSubject, gradeWeight, existingGrades
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [remedialConfirmOpen, setRemedialConfirmOpen] = useState(false);
     const [remedialStudent, setRemedialStudent] = useState(null);
+    const [isLateSubmission, setIsLateSubmission] = useState(false);
+    const [isExcused, setIsExcused] = useState(null);
     const [targetUrl, setTargetUrl] = useState('');
 
     const isLatePhase = lockStatus === 'late_phase' || lockStatus === 'strict_lock';
@@ -214,6 +216,8 @@ export default function StudentList({ activeSubject, gradeWeight, existingGrades
                                                         grade_weight: gradeWeight.id,
                                                         student_id: student.id
                                                     }));
+                                                    setIsLateSubmission(!hasGrade && (lockStatus === 'late_phase' || lockStatus === 'strict_lock'));
+                                                    setIsExcused(null);
                                                     setConfirmOpen(true);
                                                 }}
                                                 className={`flex items-center transition-colors cursor-pointer ${actionLocked ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 group-hover:text-indigo-600'}`}
@@ -242,12 +246,42 @@ export default function StudentList({ activeSubject, gradeWeight, existingGrades
                                 Pastikan ananda sudah setor hafalan ke Musrif Halaqoh
                             </DialogDescription>
                         </DialogHeader>
-                        <DialogFooter className="flex flex-row space-x-2 sm:justify-end">
+                        {isLateSubmission && (
+                            <div className="flex flex-col gap-2 pt-4 border-t border-gray-100 mt-2">
+                                <h3 className="font-bold text-gray-900 text-sm">Alasan Keterlambatan Ujian</h3>
+                                <div className="flex flex-col gap-2">
+                                    <div onClick={() => setIsExcused(true)}
+                                        className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${isExcused === true ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' : 'border-gray-200 hover:border-gray-300'}`}>
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${isExcused === true ? 'border-indigo-600' : 'border-gray-400'}`}>
+                                                {isExcused === true && <div className="w-2 h-2 bg-indigo-600 rounded-full" />}
+                                            </div>
+                                            <span className="font-bold text-gray-800 text-sm">Izin / Sakit</span>
+                                        </div>
+                                        <span className="text-xs text-gray-500 ml-7 block">Mendapatkan jatah nilai penuh (Maks 100).</span>
+                                    </div>
+                                    <div onClick={() => setIsExcused(false)}
+                                        className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${isExcused === false ? 'border-red-500 bg-red-50 ring-2 ring-red-200' : 'border-gray-200 hover:border-gray-300'}`}>
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${isExcused === false ? 'border-red-600' : 'border-gray-400'}`}>
+                                                {isExcused === false && <div className="w-2 h-2 bg-red-600 rounded-full" />}
+                                            </div>
+                                            <span className="font-bold text-gray-800 text-sm">Tledor / Tanpa Udzur</span>
+                                        </div>
+                                        <span className="text-xs text-gray-500 ml-7 block">Nilai maksimal dibatasi KKM ({kkm}).</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        <DialogFooter className="flex flex-row space-x-2 sm:justify-end mt-4">
                             <Button variant="secondary" onClick={() => setConfirmOpen(false)}>
                                 Batal
                             </Button>
-                            <Link href={targetUrl} className="w-full sm:w-auto">
-                                <Button className="w-full">Lanjut Menilai</Button>
+                            <Link 
+                                href={targetUrl + (isLateSubmission && isExcused !== null ? `?is_excused=${isExcused ? '1' : '0'}` : '')} 
+                                className={`w-full sm:w-auto ${isLateSubmission && isExcused === null ? 'pointer-events-none opacity-50' : ''}`}
+                            >
+                                <Button className="w-full" disabled={isLateSubmission && isExcused === null}>Lanjut Menilai</Button>
                             </Link>
                         </DialogFooter>
                     </DialogContent>

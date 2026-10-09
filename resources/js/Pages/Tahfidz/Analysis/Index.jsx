@@ -8,9 +8,10 @@ import { Badge } from '@/Components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 import { Input } from '@/Components/ui/input';
 import { Button } from '@/Components/ui/button';
-import { Check, X, Trophy, AlertTriangle, Filter, Search, Download, TrendingUp, CalendarDays, Loader2 } from 'lucide-react';
+import { Check, X, Trophy, AlertTriangle, Filter, Search, Download, TrendingUp, CalendarDays, Loader2, Target } from 'lucide-react';
 import axios from 'axios';
 import TahfidzTabs from '@/Components/TahfidzTabs';
+import TargetAnalysisTab from './TargetAnalysisTab';
 
 export default function Index({ gradeWeights, allData, error, kkm = 75 }) {
     const formatScore = (val) => {
@@ -273,7 +274,7 @@ export default function Index({ gradeWeights, allData, error, kkm = 75 }) {
                 <Tabs defaultValue="status" className="w-full" onValueChange={(val) => {
                     if (val === 'trend') fetchTrendData();
                 }}>
-                    <TabsList className="grid w-full grid-cols-4 max-w-[800px] mb-4">
+                    <TabsList className="grid w-full grid-cols-5 max-w-[1000px] mb-4">
                         <TabsTrigger value="status">Status Ujian</TabsTrigger>
                         <TabsTrigger value="top10">Top 10 Santri</TabsTrigger>
                         <TabsTrigger value="remedial">Di Bawah KKM</TabsTrigger>
@@ -281,7 +282,16 @@ export default function Index({ gradeWeights, allData, error, kkm = 75 }) {
                             <TrendingUp className="w-4 h-4 mr-2" />
                             Kecepatan & Prediksi
                         </TabsTrigger>
+                        <TabsTrigger value="target" className="bg-emerald-50 text-emerald-700 data-[state=active]:bg-emerald-600 data-[state=active]:text-white transition-colors">
+                            <Target className="w-4 h-4 mr-2" />
+                            Target & Setoran
+                        </TabsTrigger>
                     </TabsList>
+
+                    {/* TAB: TARGET & SETORAN */}
+                    <TabsContent value="target">
+                        <TargetAnalysisTab />
+                    </TabsContent>
 
                     {/* TAB: KECEPATAN & PREDIKSI */}
                     <TabsContent value="trend">
@@ -384,6 +394,7 @@ export default function Index({ gradeWeights, allData, error, kkm = 75 }) {
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
+                                                <TableHead className="w-12 text-center">No.</TableHead>
                                                 <TableHead>Nama Santri</TableHead>
                                                 <TableHead>Kelas</TableHead>
                                                 <TableHead>Penguji</TableHead>
@@ -406,8 +417,9 @@ export default function Index({ gradeWeights, allData, error, kkm = 75 }) {
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {processedData.map((row) => (
+                                            {processedData.map((row, index) => (
                                                 <TableRow key={row.student_id}>
+                                                    <TableCell className="text-center text-muted-foreground">{index + 1}</TableCell>
                                                     <TableCell className="font-medium">
                                                         <div>{row.student_name}</div>
                                                         <div className="text-xs text-muted-foreground">{row.nis}</div>
@@ -452,7 +464,7 @@ export default function Index({ gradeWeights, allData, error, kkm = 75 }) {
                                             ))}
                                             {processedData.length === 0 && (
                                                 <TableRow>
-                                                    <TableCell colSpan={10} className="h-24 text-center">
+                                                    <TableCell colSpan={11} className="h-24 text-center">
                                                         Data santri tidak ditemukan.
                                                     </TableCell>
                                                 </TableRow>
@@ -526,6 +538,7 @@ export default function Index({ gradeWeights, allData, error, kkm = 75 }) {
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
+                                                <TableHead className="w-12 text-center">No.</TableHead>
                                                 <TableHead>Nama Santri</TableHead>
                                                 <TableHead>Kelas</TableHead>
                                                 <TableHead>Target KKM</TableHead>
@@ -536,8 +549,9 @@ export default function Index({ gradeWeights, allData, error, kkm = 75 }) {
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {belowKkmStudents.map((row) => (
+                                            {belowKkmStudents.map((row, index) => (
                                                 <TableRow key={row.student_id}>
+                                                    <TableCell className="text-center text-muted-foreground">{index + 1}</TableCell>
                                                     <TableCell className="font-medium">
                                                         <div>{row.student_name}</div>
                                                     </TableCell>
@@ -564,7 +578,7 @@ export default function Index({ gradeWeights, allData, error, kkm = 75 }) {
                                             ))}
                                             {belowKkmStudents.length === 0 && (
                                                 <TableRow>
-                                                    <TableCell colSpan={5} className="h-24 text-center text-green-600 font-medium">
+                                                    <TableCell colSpan={8} className="h-24 text-center text-green-600 font-medium">
                                                         Alhamdulillah, tidak ada santri di bawah KKM.
                                                     </TableCell>
                                                 </TableRow>

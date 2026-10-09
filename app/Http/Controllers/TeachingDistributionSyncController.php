@@ -16,7 +16,7 @@ class TeachingDistributionSyncController extends Controller
     public function sync(Request $request)
     {
         // 1. Get SIKAP Active Year
-        $activeYear = AcademicYear::where('is_active', true)->first();
+        $activeYear = \App\Services\AcademicStateService::currentAcademicYear();
         if (!$activeYear) {
             return back()->with('error', 'Tidak ada tahun ajaran aktif di SIKAP.');
         }
@@ -152,3 +152,4 @@ class TeachingDistributionSyncController extends Controller
         return implode(' ', $parts);
     }
 }
+

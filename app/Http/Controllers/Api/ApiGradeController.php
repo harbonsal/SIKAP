@@ -60,7 +60,7 @@ class ApiGradeController extends Controller
             ], 404);
         }
 
-        $academicYear = AcademicYear::where('is_active', true)->first();
+        $academicYear = \App\Services\AcademicStateService::currentAcademicYear();
 
         // Ambil kelas aktif
         $activeMember = $student->classMembers
@@ -169,13 +169,13 @@ class ApiGradeController extends Controller
         if ($request->has('academic_year_id')) {
             $academicYear = AcademicYear::find($request->academic_year_id);
         } else {
-            $academicYear = AcademicYear::where('is_active', true)->first();
+            $academicYear = \App\Services\AcademicStateService::currentAcademicYear();
         }
 
         if ($request->has('semester_id')) {
             $activeSemester = Semester::find($request->semester_id);
         } else {
-            $activeSemester = Semester::where('is_active', true)->first();
+            $activeSemester = \App\Services\AcademicStateService::currentSemester();
         }
 
         if (!$academicYear || !$activeSemester) {
@@ -488,13 +488,13 @@ class ApiGradeController extends Controller
         if ($request->has('academic_year_id')) {
             $academicYear = AcademicYear::find($request->academic_year_id);
         } else {
-            $academicYear = AcademicYear::where('is_active', true)->first();
+            $academicYear = \App\Services\AcademicStateService::currentAcademicYear();
         }
 
         if ($request->has('semester_id')) {
             $activeSemester = Semester::find($request->semester_id);
         } else {
-            $activeSemester = Semester::where('is_active', true)->first();
+            $activeSemester = \App\Services\AcademicStateService::currentSemester();
         }
 
         if (!$academicYear || !$activeSemester) {
@@ -874,3 +874,4 @@ class ApiGradeController extends Controller
         return $monthlyData;
     }
 }
+

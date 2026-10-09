@@ -13,16 +13,10 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
-        return fetch(event.request);
-      })
-  );
+  // Bypassing respondWith for dynamic Laravel routes prevents the 
+  // "redirected response was used for a request whose redirect mode is not follow"
+  // error in Chrome, while still satisfying the PWA install requirement.
+  return;
 });
 
 self.addEventListener('activate', event => {

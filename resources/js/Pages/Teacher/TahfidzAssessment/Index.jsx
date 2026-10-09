@@ -27,11 +27,13 @@ export default function Index({ activeSubjects }) {
                                         <BookOpen className="h-4 w-4 text-muted-foreground" />
                                     </CardHeader>
                                     <CardContent>
-                                        <div className="text-2xl font-bold">{subject.active_class?.name}</div>
+                                        <div className="text-2xl font-bold">
+                                            {subject.active_class?.name || `${subject.active_class?.kelas?.name || ''} ${subject.active_class?.kelas_paralel?.name || ''}`}
+                                        </div>
                                         <p className="text-xs text-muted-foreground mt-1 text-wrap break-words">
                                             Penguji: {subject.tahfidz_testers && subject.tahfidz_testers.length > 0
                                                 ? subject.tahfidz_testers.map(t => t.user.name).join(', ')
-                                                : (subject.teacher?.name || '-')}
+                                                : (subject.active_class?.teacher?.name || subject.teacher?.name || '-')}
                                         </p>
                                     </CardContent>
                                 </Card>

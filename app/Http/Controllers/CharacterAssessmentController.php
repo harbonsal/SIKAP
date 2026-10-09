@@ -24,7 +24,7 @@ class CharacterAssessmentController extends Controller
 
     public function index(Request $request)
     {
-        $academicYear = AcademicYear::where('is_active', true)->first();
+        $academicYear = \App\Services\AcademicStateService::currentAcademicYear();
 
         $user = auth()->user()->load('userLevel');
         $canViewAll = $user->hasPermission('view_all_character_assessments');
@@ -172,7 +172,7 @@ class CharacterAssessmentController extends Controller
 
         DB::beginTransaction();
         try {
-            $academicYear = AcademicYear::where('is_active', true)->first();
+            $academicYear = \App\Services\AcademicStateService::currentAcademicYear();
             if (!$academicYear) {
                 DB::rollBack();
                 return back()->withErrors(['error' => 'Tahun ajaran aktif tidak ditemukan.']);
@@ -300,7 +300,7 @@ class CharacterAssessmentController extends Controller
         $rows = [];
 
         if ($selectedKamarId && $selectedMonth) {
-            $academicYear = AcademicYear::where('is_active', true)->first();
+            $academicYear = \App\Services\AcademicStateService::currentAcademicYear();
 
             $activeKamar = \App\Models\ActiveKamar::with([
                 'members.student.user',
@@ -381,3 +381,4 @@ class CharacterAssessmentController extends Controller
         abort(404);
     }
 }
+

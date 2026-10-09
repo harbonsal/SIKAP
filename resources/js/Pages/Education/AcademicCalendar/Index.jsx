@@ -197,12 +197,28 @@ export default function Index({
 
     const getEventStyles = (colorCode) => {
         const maps = {
-            indigo: { bg: 'bg-indigo-100 text-indigo-800 border-indigo-200', dot: 'bg-indigo-500', outline: 'border-indigo-200 text-indigo-700' },
-            rose: { bg: 'bg-rose-100 text-rose-800 border-rose-200', dot: 'bg-rose-500', outline: 'border-rose-200 text-rose-700' },
+            slate: { bg: 'bg-slate-100 text-slate-800 border-slate-200', dot: 'bg-slate-500', outline: 'border-slate-200 text-slate-700' },
+            gray: { bg: 'bg-gray-100 text-gray-800 border-gray-200', dot: 'bg-gray-500', outline: 'border-gray-200 text-gray-700' },
+            zinc: { bg: 'bg-zinc-100 text-zinc-800 border-zinc-200', dot: 'bg-zinc-500', outline: 'border-zinc-200 text-zinc-700' },
+            neutral: { bg: 'bg-neutral-100 text-neutral-800 border-neutral-200', dot: 'bg-neutral-500', outline: 'border-neutral-200 text-neutral-700' },
+            stone: { bg: 'bg-stone-100 text-stone-800 border-stone-200', dot: 'bg-stone-500', outline: 'border-stone-200 text-stone-700' },
+            red: { bg: 'bg-red-100 text-red-800 border-red-200', dot: 'bg-red-500', outline: 'border-red-200 text-red-700' },
+            orange: { bg: 'bg-orange-100 text-orange-800 border-orange-200', dot: 'bg-orange-500', outline: 'border-orange-200 text-orange-700' },
             amber: { bg: 'bg-amber-100 text-amber-800 border-amber-200', dot: 'bg-amber-500', outline: 'border-amber-200 text-amber-700' },
+            yellow: { bg: 'bg-yellow-100 text-yellow-800 border-yellow-200', dot: 'bg-yellow-500', outline: 'border-yellow-200 text-yellow-700' },
+            lime: { bg: 'bg-lime-100 text-lime-800 border-lime-200', dot: 'bg-lime-500', outline: 'border-lime-200 text-lime-700' },
+            green: { bg: 'bg-green-100 text-green-800 border-green-200', dot: 'bg-green-500', outline: 'border-green-200 text-green-700' },
             emerald: { bg: 'bg-emerald-100 text-emerald-800 border-emerald-200', dot: 'bg-emerald-500', outline: 'border-emerald-200 text-emerald-700' },
+            teal: { bg: 'bg-teal-100 text-teal-800 border-teal-200', dot: 'bg-teal-500', outline: 'border-teal-200 text-teal-700' },
             cyan: { bg: 'bg-cyan-100 text-cyan-800 border-cyan-200', dot: 'bg-cyan-500', outline: 'border-cyan-200 text-cyan-700' },
-            violet: { bg: 'bg-violet-100 text-violet-800 border-violet-200', dot: 'bg-violet-500', outline: 'border-violet-200 text-violet-700' }
+            sky: { bg: 'bg-sky-100 text-sky-800 border-sky-200', dot: 'bg-sky-500', outline: 'border-sky-200 text-sky-700' },
+            blue: { bg: 'bg-blue-100 text-blue-800 border-blue-200', dot: 'bg-blue-500', outline: 'border-blue-200 text-blue-700' },
+            indigo: { bg: 'bg-indigo-100 text-indigo-800 border-indigo-200', dot: 'bg-indigo-500', outline: 'border-indigo-200 text-indigo-700' },
+            violet: { bg: 'bg-violet-100 text-violet-800 border-violet-200', dot: 'bg-violet-500', outline: 'border-violet-200 text-violet-700' },
+            purple: { bg: 'bg-purple-100 text-purple-800 border-purple-200', dot: 'bg-purple-500', outline: 'border-purple-200 text-purple-700' },
+            fuchsia: { bg: 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200', dot: 'bg-fuchsia-500', outline: 'border-fuchsia-200 text-fuchsia-700' },
+            pink: { bg: 'bg-pink-100 text-pink-800 border-pink-200', dot: 'bg-pink-500', outline: 'border-pink-200 text-pink-700' },
+            rose: { bg: 'bg-rose-100 text-rose-800 border-rose-200', dot: 'bg-rose-500', outline: 'border-rose-200 text-rose-700' }
         };
         return maps[colorCode] || maps.indigo;
     };
@@ -216,6 +232,15 @@ export default function Index({
         };
         return map[cat] || cat;
     };
+
+    // Filter events for sidebar (current viewed month and upcoming)
+    const sidebarEvents = useMemo(() => {
+        const startOfViewedMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        return events.filter(event => {
+            const eventEndDate = new Date(event.end_date);
+            return eventEndDate >= startOfViewedMonth;
+        });
+    }, [events, currentDate]);
 
     return (
         <MainLayout>
@@ -374,8 +399,8 @@ export default function Index({
                                     <CardTitle className="text-lg font-bold text-slate-800">Daftar Agenda Kegiatan</CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-4 space-y-4 max-h-[480px] overflow-y-auto">
-                                    {events.length > 0 ? (
-                                        events.map(event => (
+                                    {sidebarEvents.length > 0 ? (
+                                        sidebarEvents.map(event => (
                                             <div key={event.id} className="flex gap-3 p-3 rounded-xl border border-slate-50 bg-slate-50/50 hover:bg-slate-50 transition-colors">
                                                 <span className={`h-2.5 w-2.5 rounded-full mt-1.5 flex-shrink-0 ${getEventStyles(event.color).dot}`}></span>
                                                 <div className="space-y-1">
@@ -816,12 +841,28 @@ export default function Index({
                                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                                         required
                                     >
-                                        <option value="indigo">Indigo / Violet</option>
-                                        <option value="rose">Merah / Pink</option>
-                                        <option value="amber">Kuning / Orange</option>
-                                        <option value="emerald">Hijau</option>
-                                        <option value="cyan">Biru Muda</option>
-                                        <option value="violet">Ungu</option>
+                                        <option value="slate">Slate (Abu-abu Gelap)</option>
+                                        <option value="gray">Gray (Abu-abu)</option>
+                                        <option value="zinc">Zinc (Abu-abu Seng)</option>
+                                        <option value="neutral">Neutral (Netral)</option>
+                                        <option value="stone">Stone (Batu)</option>
+                                        <option value="red">Red (Merah)</option>
+                                        <option value="orange">Orange (Oranye)</option>
+                                        <option value="amber">Amber (Kuning Tua)</option>
+                                        <option value="yellow">Yellow (Kuning)</option>
+                                        <option value="lime">Lime (Hijau Muda)</option>
+                                        <option value="green">Green (Hijau)</option>
+                                        <option value="emerald">Emerald (Zamrud)</option>
+                                        <option value="teal">Teal (Hijau Kebiruan)</option>
+                                        <option value="cyan">Cyan (Sian)</option>
+                                        <option value="sky">Sky (Biru Langit)</option>
+                                        <option value="blue">Blue (Biru)</option>
+                                        <option value="indigo">Indigo (Nila)</option>
+                                        <option value="violet">Violet (Ungu Muda)</option>
+                                        <option value="purple">Purple (Ungu)</option>
+                                        <option value="fuchsia">Fuchsia (Merah Keunguan)</option>
+                                        <option value="pink">Pink (Merah Muda)</option>
+                                        <option value="rose">Rose (Mawar)</option>
                                     </select>
                                     {eventErrors.color && <p className="text-xs text-rose-500">{eventErrors.color}</p>}
                                 </div>

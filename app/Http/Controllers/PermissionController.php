@@ -7,12 +7,40 @@ use App\Models\ActiveKamar;
 use App\Models\PermissionGroup;
 use App\Models\StudentPermission;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Inertia\Inertia;
+use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\DB;
 
 class PermissionController extends Controller
 {
+    private function syncLateStatuses($permissionGroupIds)
+    {
+        $permissions = StudentPermission::with('permissionGroup')
+            ->whereIn('permission_group_id', (array)$permissionGroupIds)
+            ->where('status', 'Returned')
+            ->get();
+
+        foreach ($permissions as $sp) {
+            if (!$sp->return_at || !$sp->permissionGroup) continue;
+
+            $isLate = $sp->return_at->gt($sp->permissionGroup->end_time);
+            $isSystemNote = $sp->keterangan && str_starts_with($sp->keterangan, 'Terlambat ');
+
+            if ($isLate) {
+                $newNote = 'Terlambat ' . $sp->permissionGroup->end_time->diffForHumans($sp->return_at, true);
+                $noteToSave = ($isSystemNote || !$sp->keterangan) ? $newNote : $sp->keterangan;
+            } else {
+                $noteToSave = $isSystemNote ? null : $sp->keterangan;
+            }
+
+            $sp->update([
+                'is_late' => $isLate,
+                'keterangan' => $noteToSave
+            ]);
+        }
+    }
+
     public function index(Request $request)
     {
         $user = auth()->user()->load('userLevel');
@@ -25,7 +53,7 @@ class PermissionController extends Controller
 
         $isAdmin = $userRole === 'Administrator';
 
-        $academicYear = AcademicYear::where('is_active', true)->first();
+        $academicYear = \App\Services\AcademicStateService::currentAcademicYear() ?? \App\Services\AcademicStateService::currentAcademicYear();
 
         // Kamar Filter Options
         $kamarQuery = ActiveKamar::where('academic_year_id', $academicYear->id)
@@ -45,8 +73,13 @@ class PermissionController extends Controller
 
         // Permissions List
         $permissionsQuery = PermissionGroup::with(['activeKamar.kamar', 'creator'])
-            ->whereHas('activeKamar', function ($q) use ($academicYear) {
-                $q->where('academic_year_id', $academicYear->id);
+            ->where(function ($query) use ($academicYear) {
+                $query->whereHas('activeKamar', function ($q) use ($academicYear) {
+                    $q->where('academic_year_id', $academicYear->id);
+                })
+                ->orWhereHas('studentPermissions', function ($q) {
+                    $q->whereIn('status', ['Out', 'Pending']);
+                });
             })
             ->latest();
 
@@ -78,7 +111,7 @@ class PermissionController extends Controller
     {
         $user = auth()->user()->load('userLevel');
         $isAdmin = $user->userLevel && $user->userLevel->name === 'Administrator';
-        $academicYear = AcademicYear::where('is_active', true)->first();
+        $academicYear = \App\Services\AcademicStateService::currentAcademicYear() ?? \App\Services\AcademicStateService::currentAcademicYear();
 
         // Ambil data santri yang masih "Out" (di luar) atau "Returned" tapi "is_late = true" pada hari ini atau yang masih menggantung.
         $now = Carbon::now();
@@ -101,7 +134,7 @@ class PermissionController extends Controller
         $activePermissions = (clone $query)->where('status', 'Out')->latest('exit_at')->get();
         
         $returnedPermissions = (clone $query)->where('status', 'Returned')
-            ->whereDate('return_at', $today)
+            ->where('return_at', '>=', Carbon::now()->subDays(7)->startOfDay())
             ->latest('return_at')
             ->get();
 
@@ -129,9 +162,21 @@ class PermissionController extends Controller
             'returned_permissions' => $returnedPermissions->map($mapPermission),
             'late_returns' => $lateReturns->map($mapPermission),
             'summary' => [
-                'total_uang_saku' => $returnedPermissions->sum('uang_saku'),
+                'total_uang_saku' => $returnedPermissions->where('uang_saku', '>', 0)->sum('uang_saku'),
             ]
         ]);
+    }
+
+    public function exportTitipan(Request $request)
+    {
+        $user = auth()->user()->load('userLevel');
+        $allowedRoles = ['Administrator', 'Sekertaris Divisi', 'Kepala Sekolah', 'Manager', 'Musrif', 'Musyrif', 'Musrif Asrama'];
+        
+        if (!$user->hasRole($allowedRoles)) {
+            abort(403, 'Anda tidak memiliki hak akses untuk mengunduh laporan ini.');
+        }
+
+        return Excel::download(new \App\Exports\PermissionTitipanExport(), 'Laporan_Titipan_Uang_Barang.xlsx');
     }
 
     public function manualUpdate(Request $request, StudentPermission $studentPermission)
@@ -169,6 +214,30 @@ class PermissionController extends Controller
         return redirect()->back()->withErrors(['error' => 'Tindakan tidak valid atau status tidak sesuai.']);
     }
 
+    public function updateDetails(Request $request, StudentPermission $studentPermission)
+    {
+        $user = auth()->user()->load(['userLevel', 'additionalLevels']);
+        $allowedRoles = ['Administrator', 'Sekertaris Divisi', 'Kepala Sekolah', 'Manager', 'Musrif', 'Musyrif', 'Musrif Asrama'];
+        
+        if (!$user->hasRole($allowedRoles)) {
+            abort(403, 'Anda tidak memiliki hak akses untuk mengubah data.');
+        }
+
+        $request->validate([
+            'uang_saku' => 'nullable|numeric',
+            'barang_titipan' => 'nullable|string|max:500',
+            'keterangan' => 'nullable|string|max:500'
+        ]);
+
+        $studentPermission->update([
+            'uang_saku' => $request->uang_saku,
+            'barang_titipan' => $request->barang_titipan,
+            'keterangan' => $request->keterangan
+        ]);
+
+        return redirect()->back()->with('success', 'Catatan perizinan berhasil diperbarui.');
+    }
+
     public function create(Request $request)
     {
         $user = auth()->user()->load('userLevel');
@@ -180,7 +249,7 @@ class PermissionController extends Controller
         }
 
         $isAdmin = $userRole === 'Administrator';
-        $academicYear = AcademicYear::where('is_active', true)->first();
+        $academicYear = \App\Services\AcademicStateService::currentAcademicYear() ?? \App\Services\AcademicStateService::currentAcademicYear();
 
         $kamarQuery = ActiveKamar::where('academic_year_id', $academicYear->id)
             ->with(['kamar']);
@@ -236,7 +305,7 @@ class PermissionController extends Controller
         DB::beginTransaction();
         try {
             $kamarIds = [];
-            $academicYear = AcademicYear::where('is_active', true)->first();
+            $academicYear = \App\Services\AcademicStateService::currentAcademicYear() ?? \App\Services\AcademicStateService::currentAcademicYear();
             $user = auth()->user()->load('userLevel');
             $isAdmin = $user->userLevel && $user->userLevel->name === 'Administrator';
 
@@ -307,6 +376,36 @@ class PermissionController extends Controller
         }
     }
 
+    public function bulkUpdateTime(Request $request)
+    {
+        $user = auth()->user()->load('userLevel');
+        $userRole = $user->userLevel ? $user->userLevel->name : '';
+        $allowedRoles = ['Administrator', 'Sekertaris Divisi', 'Kepala Sekolah', 'Manager'];
+        
+        if (!in_array($userRole, $allowedRoles)) {
+            return back()->withErrors(['error' => 'Anda tidak memiliki akses untuk mengubah perizinan.']);
+        }
+
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'exists:permission_groups,id',
+            'end_time' => 'required|date',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            PermissionGroup::whereIn('id', $request->ids)->update([
+                'end_time' => $request->end_time
+            ]);
+            $this->syncLateStatuses($request->ids);
+            DB::commit();
+            return back()->with('success', count($request->ids) . ' Jadwal kedatangan berhasil diperbarui.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => 'Gagal mengubah perizinan: ' . $e->getMessage()]);
+        }
+    }
+
     public function bulkDestroy(Request $request)
     {
         $user = auth()->user()->load('userLevel');
@@ -347,9 +446,16 @@ class PermissionController extends Controller
         $request->validate([
             'end_time' => 'required|date'
         ]);
-
-        $permission->update(['end_time' => $request->end_time]);
-        return back()->with('success', 'Batas waktu kedatangan berhasil diperbarui.');
+        DB::beginTransaction();
+        try {
+            $permission->update(['end_time' => $request->end_time]);
+            $this->syncLateStatuses([$permission->id]);
+            DB::commit();
+            return back()->with('success', 'Batas waktu kedatangan berhasil diperbarui.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => 'Gagal mengubah perizinan: ' . $e->getMessage()]);
+        }
     }
 
     public function show(PermissionGroup $permission)
@@ -391,3 +497,4 @@ class PermissionController extends Controller
         ]);
     }
 }
+

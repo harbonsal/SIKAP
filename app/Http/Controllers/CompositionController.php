@@ -14,7 +14,7 @@ class CompositionController extends Controller
 {
     public function index(Request $request)
     {
-        $activeAcademicYear = AcademicYear::where('is_active', true)->first();
+        $activeAcademicYear = \App\Services\AcademicStateService::currentAcademicYear();
 
         if (!$activeAcademicYear) {
             return redirect()->back()->with('error', 'Tahun ajaran aktif tidak ditemukan.');
@@ -125,3 +125,4 @@ class CompositionController extends Controller
         ]);
     }
 }
+

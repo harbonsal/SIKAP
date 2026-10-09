@@ -35,7 +35,7 @@ const JUZ_MAPPING = {
     4: ["Ali 'Imran", "An-Nisa'"], 5: ["An-Nisa'"], 6: ["An-Nisa'", "Al-Ma'idah"],
     7: ["Al-Ma'idah", "Al-An'am"], 8: ["Al-An'am", "Al-A'raf"], 9: ["Al-A'raf", "Al-Anfal"],
     10: ["Al-Anfal", "At-Taubah"], 11: ["At-Taubah", "Yunus", "Hud"], 12: ["Hud", "Yusuf"],
-    13: ["Yusuf", "Ar-Ra'd", "Ibrahim"], 14: ["Ibrahim", "Al-Hijr"], 15: ["Al-Isra'", "Al-Kahf"],
+    13: ["Yusuf", "Ar-Ra'd", "Ibrahim"], 14: ["Al-Hijr", "An-Nahl"], 15: ["Al-Isra'", "Al-Kahf"],
     16: ["Al-Kahf", "Maryam", "Taha"], 17: ["Al-Anbiya'", "Al-Hajj"],
     18: ["Al-Mu'minun", "An-Nur", "Al-Furqan"], 19: ["Al-Furqan", "Ash-Shu'ara'", "An-Naml"],
     20: ["An-Naml", "Al-Qasas", "Al-Ankabut"], 21: ["Al-Ankabut", "Ar-Rum", "Luqman", "As-Sajdah", "Al-Ahzab"],
@@ -57,7 +57,7 @@ const DEFICIENCY_OPTIONS = [
 ];
 
 // ─── Ayah Mistake Modal ───────────────────────────────────────────────────────
-function AyahMistakeModal({ verse, activeQuestion, currentData, onSalah, onMumtaz, onReset, onClose, isLocked }) {
+function AyahMistakeModal({ verse, activeQuestion, currentData, onSalah, onMumtaz, onReset, onClose, onLanjut, isLocked }) {
     if (!verse) return null;
     const [surahNum, ayahNum] = (verse.verse_key || '').split(':');
     const currentScore = Math.max(0, 10 - (currentData?.mistakes || 0)) * 10;
@@ -126,6 +126,21 @@ function AyahMistakeModal({ verse, activeQuestion, currentData, onSalah, onMumta
                     >
                         <RotateCcw className="h-3.5 w-3.5" /> Reset Kesalahan
                     </button>
+
+                    <div className="pt-2 mt-2 border-t flex gap-2">
+                        <button
+                            onClick={onClose}
+                            className="flex-1 h-10 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-xl text-xs transition-colors"
+                        >
+                            Tutup
+                        </button>
+                        <button
+                            onClick={onLanjut}
+                            className="flex-1 h-10 bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold rounded-xl text-xs transition-colors"
+                        >
+                            Lanjut Soal ➔
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -307,7 +322,14 @@ export default function Assessment({ activeSubject, gradeWeight, student, grade,
         const params = new URLSearchParams(window.location.search);
         return params.get('type') === 'remedial';
     });
-    const [isExcused, setIsExcused] = useState(null);
+    const [isExcused, setIsExcused] = useState(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('is_excused')) {
+            return params.get('is_excused') === '1';
+        }
+        return null;
+    });
+    const hasExcusedParam = new URLSearchParams(window.location.search).has('is_excused');
     const [processing, setProcessing] = useState(false);
     const [isFinished, setIsFinished] = useState(false);
 
@@ -475,6 +497,12 @@ export default function Assessment({ activeSubject, gradeWeight, student, grade,
                     onMumtaz={handleModalMumtaz}
                     onReset={handleModalReset}
                     onClose={() => setAyahModal(null)}
+                    onLanjut={() => {
+                        setAyahModal(null);
+                        if (activeQuestion < totalQuestions) {
+                            setActiveQuestion(activeQuestion + 1);
+                        }
+                    }}
                     isLocked={isLocked}
                 />
             )}
@@ -733,7 +761,7 @@ export default function Assessment({ activeSubject, gradeWeight, student, grade,
                                 )}
 
                                 {/* Late Phase Excused */}
-                                {isLatePhase && isNewSubmission && (
+                                {isLatePhase && isNewSubmission && !hasExcusedParam && (
                                     <div className="flex flex-col gap-2 pt-4 border-t border-gray-100">
                                         <h3 className="font-bold text-gray-900">Alasan Keterlambatan</h3>
                                         <div className="flex flex-col sm:flex-row gap-3">

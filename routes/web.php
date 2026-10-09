@@ -23,6 +23,17 @@ Route::get('/run-migrations-tahfidz', function () {
     }
 });
 
+Route::get('/run-migrate-seragam', function () {
+    try {
+        $exitCode = Artisan::call('migrate', ['--force' => true]);
+        $output = Artisan::output();
+        return "<h1>Status Migrasi Seragam: " . ($exitCode === 0 ? "Sukses" : "Selesai dengan peringatan") . "</h1>" .
+            "<pre style='background:#111;color:#0f0;padding:10px;'>" . htmlspecialchars($output) . "</pre>" .
+            "<a href='/'>Kembali ke Aplikasi</a>";
+    } catch (\Exception $e) {
+        return "<h1>Gagal!</h1><pre>" . $e->getMessage() . "</pre>";
+    }
+});
 Route::get('/run-migrate-rfid', function () {
     try {
         $exitCode = Artisan::call('migrate', ['--force' => true]);
@@ -352,10 +363,14 @@ Route::middleware('auth')->group(function () {
     Route::post('active-kamars/copy', [App\Http\Controllers\ActiveKamarController::class, 'copyFromYear'])->name('active-kamars.copy');
     Route::resource('active-kamars', App\Http\Controllers\ActiveKamarController::class);
     Route::post('kamar-members/bulk', [App\Http\Controllers\KamarMemberController::class, 'bulkStore'])->name('kamar-members.bulk-store');
+    Route::post('kamar-members/bulk-destroy', [App\Http\Controllers\KamarMemberController::class, 'bulkDestroy'])->name('kamar-members.bulk-destroy');
     Route::resource('kamar-members', App\Http\Controllers\KamarMemberController::class);
 
-    // Journal & Attendance Routes
+    // Jurnal Mengajar & Absensi
+    Route::get('/journals/missing', [App\Http\Controllers\JournalController::class, 'missing'])->name('journals.missing');
+    Route::get('/journals/last-journal/{active_subject}', [App\Http\Controllers\JournalController::class, 'getLastJournal'])->name('journals.last-journal');
     Route::get('/journals/get-students/{active_subject}', [App\Http\Controllers\JournalController::class, 'getStudents'])->name('journals.get-students');
+    Route::get('/journals/get-silabus/{active_subject}', [App\Http\Controllers\JournalController::class, 'getSilabus'])->name('journals.get-silabus');
 
 
 
@@ -370,6 +385,9 @@ Route::middleware('auth')->group(function () {
     Route::any('attendance/print/generate', [App\Http\Controllers\AttendancePrintController::class, 'print'])->name('attendance.print.generate');
 
     Route::resource('journals', App\Http\Controllers\JournalController::class);
+
+    // Pantauan Jurnal KBM
+    Route::get('/academic/monitoring/journals', [App\Http\Controllers\AcademicJournalMonitoringController::class, 'index'])->name('academic.monitoring.journals');
 
     Route::get('/analysis', [App\Http\Controllers\AnalysisController::class, 'index'])->name('analysis.index');
     // Character Assessment Routes
@@ -395,6 +413,14 @@ Route::middleware('auth')->group(function () {
     Route::post('/assessments/{active_subject}/import', [App\Http\Controllers\AssessmentController::class, 'importSubjectGrades'])->name('assessments.import_subject');
     Route::get('/assessments/{active_subject}', [App\Http\Controllers\AssessmentController::class, 'show'])->name('assessments.show');
     Route::post('/assessments/{active_subject}', [App\Http\Controllers\AssessmentController::class, 'store'])->name('assessments.store');
+
+    // UH Assessment Routes
+    Route::get('/assessments/{active_subject}/uh/{type}', [App\Http\Controllers\UhAssessmentController::class, 'show'])->name('uh.show')->where('type', 'UH1|UH2|uh1|uh2');
+    Route::post('/assessments/{active_subject}/uh/{type}/quiz', [App\Http\Controllers\UhAssessmentController::class, 'storeQuiz'])->name('uh.quiz.store');
+    Route::post('/assessments/{active_subject}/uh/{type}/participation', [App\Http\Controllers\UhAssessmentController::class, 'storeParticipation'])->name('uh.participation.store');
+    Route::post('/assessments/{active_subject}/uh/{type}/add-quiz', [App\Http\Controllers\UhAssessmentController::class, 'addQuiz'])->name('uh.quiz.add');
+    Route::delete('/assessments/{active_subject}/uh/{type}/quiz/{num}', [App\Http\Controllers\UhAssessmentController::class, 'removeQuiz'])->name('uh.quiz.remove');
+
 
     Route::get('/recap/class', [App\Http\Controllers\ClassGradeRecapController::class, 'index'])->name('recap.class.index');
     Route::get('/recap/ijazah', [App\Http\Controllers\IjazahRecapController::class, 'index'])->name('recap.ijazah.index');
@@ -436,6 +462,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/settings/school-info', [App\Http\Controllers\SchoolInfoController::class, 'index'])->name('settings.school-info.index');
     Route::post('/settings/school-info', [App\Http\Controllers\SchoolInfoController::class, 'update'])->name('settings.school-info.update');
+
+    Route::get('/settings/report', [App\Http\Controllers\ReportSettingController::class, 'index'])->name('settings.report.index');
+    Route::post('/settings/report', [App\Http\Controllers\ReportSettingController::class, 'update'])->name('settings.report.update');
 
     // Hidden Menu
     // removed hidden-menu
@@ -544,7 +573,73 @@ Route::middleware('auth')->group(function () {
     Route::get('/quran/tilawah', [App\Http\Controllers\QuranController::class, 'tilawah'])->name('quran.tilawah');
     Route::post('/quran/settings', [App\Http\Controllers\QuranController::class, 'saveSetting'])->name('quran.settings.save');
     Route::post('/quran/progress', [App\Http\Controllers\QuranController::class, 'saveProgress'])->name('quran.progress.save');
+    Route::post('/quran/audio-error', [App\Http\Controllers\QuranController::class, 'reportAudioError'])->name('quran.audio-error');
+    Route::post('/quran/hide-qari', [App\Http\Controllers\QuranController::class, 'hideQari'])->name('quran.hide-qari');
     Route::post('/quran/manual-complete', [App\Http\Controllers\QuranController::class, 'manualCompleteProgress'])->name('quran.progress.manual-complete');
+
+    // Temporary Route for cPanel Migration (No Terminal)
+    Route::get('/run-migration-skrining', function () {
+        try {
+            \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+            return '<h1>MIGRASI BERHASIL!</h1><pre>' . \Illuminate\Support\Facades\Artisan::output() . '</pre><br><a href="/">Kembali ke Home</a>';
+        } catch (\Exception $e) {
+            return '<h1>GAGAL:</h1><pre>' . $e->getMessage() . '</pre>';
+        }
+    });
+
+    // Temporary Routes to Annul Cheaters    // --- API Untuk Cheater Tab ---
+    Route::get('/api/anulir-cheat-preview', function (Illuminate\Http\Request $request) {
+        $query = \App\Models\QuranProgress::where('is_completed', true);
+        if ($request->has('date') && !empty($request->date)) {
+            $query->whereDate('updated_at', $request->date);
+        }
+        $cheaters = $query->get()->filter(function($p) {
+            $count = is_array($p->played_ayahs) ? count($p->played_ayahs) : 0;
+            return $count < 40;
+        })->values();
+
+        $data = [];
+        foreach ($cheaters as $p) {
+            $user = \App\Models\User::find($p->user_id);
+            $nama = $user ? $user->name : "Unknown User";
+            
+            $start = $p->started_at ? \Carbon\Carbon::parse($p->started_at)->format('d M H:i') : '-';
+            $end = $p->updated_at ? \Carbon\Carbon::parse($p->updated_at)->format('H:i') : '-';
+            $durasi = $p->started_at && $p->updated_at ? \Carbon\Carbon::parse($p->started_at)->diffInMinutes($p->updated_at) : 0;
+            $count = is_array($p->played_ayahs) ? count($p->played_ayahs) : 0;
+            
+            $data[] = [
+                'id' => $p->id,
+                'name' => $nama,
+                'juz' => $p->juz_number,
+                'start' => $start,
+                'end' => $end,
+                'durasi' => $durasi,
+                'ayat_count' => $count,
+                'status' => $p->is_completed ? 'Selesai' : 'Belum Selesai',
+            ];
+        }
+        return response()->json($data);
+    });
+
+    Route::post('/api/anulir-cheat-confirm', function (Illuminate\Http\Request $request) {
+        $ids = $request->input('progress_ids', []);
+        if (empty($ids)) return response()->json(['success' => false, 'message' => 'Tidak ada data.']);
+
+        $cheaters = \App\Models\QuranProgress::whereIn('id', $ids)->get();
+        $annulledCount = 0;
+        foreach ($cheaters as $p) {
+            $p->is_completed = false;
+            $p->played_ayahs = [];
+            $p->started_at = null;
+            $p->save();
+            \App\Models\HafalanSkriningReport::where('user_id', $p->user_id)->where('juz_number', $p->juz_number)->delete();
+            $annulledCount++;
+        }
+        return response()->json(['success' => true, 'message' => "$annulledCount progress berhasil dianulir."]);
+    });
+    // ----------------------------
+
 
     // Skrining Hafalan Mandiri
     Route::post('/hafalan-skrining', [App\Http\Controllers\HafalanSkriningController::class, 'store'])->name('hafalan-skrining.store');
@@ -552,8 +647,36 @@ Route::middleware('auth')->group(function () {
     Route::post('/hafalan-skrining/reports', [App\Http\Controllers\HafalanSkriningReportController::class, 'store'])->name('hafalan-skrining.reports.store');
 
 
+    // Musyrif Tarbiyah
+    Route::get('/pengasuhan/musyrif-tarbiyah', [App\Http\Controllers\MusyrifTarbiyahDashboardController::class, 'index'])->name('musyrif-tarbiyah.index');
+    
+    Route::get('/pengasuhan/musyrif-tarbiyah/plotting', [App\Http\Controllers\MusyrifTarbiyahPlottingController::class, 'index'])->name('musyrif-tarbiyah.plotting.index');
+    Route::post('/pengasuhan/musyrif-tarbiyah/plotting/bulk', [App\Http\Controllers\MusyrifTarbiyahPlottingController::class, 'bulkStore'])->name('musyrif-tarbiyah.plotting.bulkStore');
+    Route::delete('/pengasuhan/musyrif-tarbiyah/plotting/{plotting_id}', [App\Http\Controllers\MusyrifTarbiyahPlottingController::class, 'destroy'])->name('musyrif-tarbiyah.plotting.destroy');
+    
+    Route::get('/pengasuhan/musyrif-tarbiyah/individual/{student_id}', [App\Http\Controllers\MusyrifTarbiyahIndividualLogController::class, 'index'])->name('musyrif-tarbiyah.individual.index');
+    Route::post('/pengasuhan/musyrif-tarbiyah/individual', [App\Http\Controllers\MusyrifTarbiyahIndividualLogController::class, 'store'])->name('musyrif-tarbiyah.individual.store');
+    
+    Route::get('/pengasuhan/musyrif-tarbiyah/group', [App\Http\Controllers\MusyrifTarbiyahGroupLogController::class, 'index'])->name('musyrif-tarbiyah.group.index');
+    Route::post('/pengasuhan/musyrif-tarbiyah/group', [App\Http\Controllers\MusyrifTarbiyahGroupLogController::class, 'store'])->name('musyrif-tarbiyah.group.store');
+    Route::put('/pengasuhan/musyrif-tarbiyah/group/{groupLog}', [App\Http\Controllers\MusyrifTarbiyahGroupLogController::class, 'update'])->name('musyrif-tarbiyah.group.update');
+    Route::delete('/pengasuhan/musyrif-tarbiyah/group/{groupLog}', [App\Http\Controllers\MusyrifTarbiyahGroupLogController::class, 'destroy'])->name('musyrif-tarbiyah.group.destroy');
+
+    Route::get('/pengasuhan/musyrif-tarbiyah/profil/{student_id}', [App\Http\Controllers\MusyrifTarbiyahProfileController::class, 'show'])->name('musyrif-tarbiyah.profile.show');
+    Route::post('/pengasuhan/musyrif-tarbiyah/profil/{student_id}/violation', [App\Http\Controllers\MusyrifTarbiyahProfileController::class, 'storeViolation'])->name('musyrif-tarbiyah.profile.violation.store');
+
+    Route::get('/run-migration', function () {
+        try {
+            \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+            return "<h1>Migrasi Berhasil</h1><pre>" . \Illuminate\Support\Facades\Artisan::output() . "</pre>";
+        } catch (\Exception $e) {
+            return "<h1>Migrasi Gagal</h1><pre>" . $e->getMessage() . "</pre>";
+        }
+    });
+
     // Tahfidz Module
     Route::get('/tahfidz/pantau-skrining', [App\Http\Controllers\HafalanSkriningController::class, 'indexAdmin'])->name('tahfidz.pantau-skrining');
+    Route::get('/api/tahfidz/pantau-skrining/analytics', [App\Http\Controllers\HafalanSkriningController::class, 'analytics'])->name('api.tahfidz.skrining.analytics');
     Route::get('/tahfidz/assessments', [App\Http\Controllers\TahfidzAssessmentController::class, 'index'])->name('tahfidz.assessments.index');
     Route::get('/tahfidz/assessments/{active_subject}', [App\Http\Controllers\TahfidzAssessmentController::class, 'show'])->name('tahfidz.assessments.show');
     Route::get('/tahfidz/assessments/{active_subject}/{grade_weight}/students', [App\Http\Controllers\TahfidzAssessmentController::class, 'showStudents'])->name('tahfidz.assessments.students');
@@ -587,6 +710,15 @@ Route::middleware('auth')->group(function () {
     Route::post('/settings/tahfidz/exam-period', [App\Http\Controllers\TahfidzSettingController::class, 'store'])->name('settings.tahfidz.exam-period.store');
     Route::post('/settings/tahfidz/quran-skrining', [App\Http\Controllers\TahfidzSettingController::class, 'storeQuranSkrining'])->name('settings.tahfidz.quran-skrining.store');
     
+    // Tahfidz Standard Targets
+    Route::post('/settings/tahfidz/standard-targets', [App\Http\Controllers\TahfidzSettingController::class, 'storeStandardTarget'])->name('settings.tahfidz.standard-targets.store');
+    Route::delete('/settings/tahfidz/standard-targets/{id}', [App\Http\Controllers\TahfidzSettingController::class, 'destroyStandardTarget'])->name('settings.tahfidz.standard-targets.destroy');    
+
+    // Tahfidz Plotting Juz
+    Route::get('/settings/tahfidz/plotting-juz', [App\Http\Controllers\TahfidzPlottingJuzController::class, 'getData'])->name('settings.tahfidz.plotting-juz.data');
+    Route::post('/settings/tahfidz/plotting-juz/class', [App\Http\Controllers\TahfidzPlottingJuzController::class, 'storeClass'])->name('settings.tahfidz.plotting-juz.class.store');
+    Route::post('/settings/tahfidz/plotting-juz/student', [App\Http\Controllers\TahfidzPlottingJuzController::class, 'storeStudent'])->name('settings.tahfidz.plotting-juz.student.store');
+
     // Helper route untuk clear cache sudah dipindah ke SystemMaintenanceController
     // (lihat Route::post '/system/clear-cache' di bagian System Maintenance)
 
@@ -599,6 +731,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/tahfidz/monitoring/{monitoring}', [App\Http\Controllers\TahfidzMonitoringController::class, 'show'])->name('tahfidz.monitoring.show');
 
     Route::get('/tahfidz/achievements', [App\Http\Controllers\TahfidzAchievementController::class, 'index'])->name('tahfidz.achievements.index'); // New Capaian
+    Route::get('/tahfidz/achievements/mass-input', [App\Http\Controllers\TahfidzAchievementController::class, 'getMassInputData'])->name('tahfidz.achievements.mass-input.data');
+    Route::post('/tahfidz/achievements/mass-input', [App\Http\Controllers\TahfidzAchievementController::class, 'storeMassInput'])->name('tahfidz.achievements.mass-input.store');
     Route::get('/tahfidz/achievements/search-students', [App\Http\Controllers\TahfidzAchievementController::class, 'searchStudents'])->name('tahfidz.achievements.search-students');
     Route::get('/tahfidz/achievements/{student}/data', [App\Http\Controllers\TahfidzAchievementController::class, 'getStudentData'])->name('tahfidz.achievements.data');
     Route::get('/tahfidz/achievements/{student}', [App\Http\Controllers\TahfidzAchievementController::class, 'show'])->name('tahfidz.achievements.show');
@@ -611,6 +745,8 @@ Route::middleware('auth')->group(function () {
 
     // Analisa Tahfidz
     Route::get('/tahfidz/analysis', [App\Http\Controllers\TahfidzAnalysisController::class, 'index'])->name('tahfidz.analysis.index');
+    Route::get('/api/tahfidz/analysis/targets', [App\Http\Controllers\TahfidzAnalysisController::class, 'targetAnalysisApi'])->name('tahfidz.analysis.targets.api');
+    Route::get('/api/tahfidz/analysis/mistakes', [App\Http\Controllers\TahfidzAnalysisController::class, 'mistakesAnalysisApi'])->name('tahfidz.analysis.mistakes.api');
     Route::get('/tahfidz/analysis/trend/api', [App\Http\Controllers\TahfidzTrendController::class, 'apiList'])->name('tahfidz.analysis.trend.api');
     Route::get('/tahfidz/analysis/trend/{student}', [App\Http\Controllers\TahfidzTrendController::class, 'show'])->name('tahfidz.analysis.trend.show');
 
@@ -636,8 +772,11 @@ Route::middleware('auth')->group(function () {
 
     // Permissions (Perizinan)
     Route::get('permissions/monitor', [App\Http\Controllers\PermissionController::class, 'monitor'])->name('permissions.monitor');
+    Route::get('permissions/monitor/export', [App\Http\Controllers\PermissionController::class, 'exportTitipan'])->name('permissions.monitor.export');
     Route::post('/permissions/student/{studentPermission}/manual', [App\Http\Controllers\PermissionController::class, 'manualUpdate'])->name('permissions.student.manual');
+    Route::put('/permissions/student/{studentPermission}/details', [App\Http\Controllers\PermissionController::class, 'updateDetails'])->name('permissions.student.details');
     Route::put('/permissions/{permission}/time', [App\Http\Controllers\PermissionController::class, 'updateTime'])->name('permissions.updateTime');
+    Route::post('/permissions/bulk-update-time', [App\Http\Controllers\PermissionController::class, 'bulkUpdateTime'])->name('permissions.bulk-update-time');
     Route::post('/permissions/bulk-destroy', [App\Http\Controllers\PermissionController::class, 'bulkDestroy'])->name('permissions.bulk-destroy');
     Route::resource('permissions', App\Http\Controllers\PermissionController::class);
     Route::get('permissions/kamar/{activeKamar}/students', [App\Http\Controllers\PermissionController::class, 'getStudents'])->name('permissions.students');
@@ -891,23 +1030,23 @@ Route::get('/fix-health-perms', function () {
 
 Route::get('/populate-ijazah', function () {
     $list = [
-        ['ar' => 'تحفيظ القرآن', 'id' => 'Tahfidz Al-Quran', 'search' => ['Tahfizh', 'Al-Qur\'an', 'Tahfidz']],
-        ['ar' => 'التوحيد', 'id' => 'Tauhid', 'search' => ['Tauhid', 'Aqidah']],
-        ['ar' => 'الحديث', 'id' => 'Hadits', 'search' => ['Hadits', 'Hadis']],
-        ['ar' => 'الفقه', 'id' => 'Fiqh', 'search' => ['Fiqh', 'Fiqih']],
-        ['ar' => 'الأخلاق', 'id' => 'Akhlak', 'search' => ['Akhlak', 'Adab']],
-        ['ar' => 'التفسير', 'id' => 'Tafsir', 'search' => ['Tafsir']],
-        ['ar' => 'الفرائض', 'id' => 'Faraidh', 'search' => ['Faraidh', 'Mawaris']],
-        ['ar' => 'أصول الفقه', 'id' => 'Ushul Fiqh', 'search' => ['Ushul Fiqh']],
-        ['ar' => 'أصول التفسير', 'id' => 'Ushul Tafsir', 'search' => ['Ushul Tafsir']],
-        ['ar' => 'مصطلح الحديث', 'id' => 'Mustholah Hadits', 'search' => ['Musthalah', 'Mustholah']],
-        ['ar' => 'المنهج', 'id' => 'Manhaj', 'search' => ['Manhaj']],
-        ['ar' => 'التاريخ', 'id' => 'Tarikh', 'search' => ['Tarikh', 'Sejarah']],
-        ['ar' => 'القواعد الفقهية', 'id' => 'Qawaid Fiqhiyyah', 'search' => ['Qawaid', 'Qowaid']],
-        ['ar' => 'النحو', 'id' => 'Nahwu', 'search' => ['Nahwu']],
-        ['ar' => 'المطالعة', 'id' => 'Mutholaah', 'search' => ['Mutholaah', 'Muthalaah']],
-        ['ar' => 'البلاغة', 'id' => 'Balaghah', 'search' => ['Balaghah']],
-        ['ar' => 'التعبير', 'id' => 'Ta\'bir', 'search' => ['Ta\'bir', 'Insya', 'Imla']],
+        ['ar' => 'ØªØ­ÙÙŠØ¸ Ø§Ù„Ù‚Ø±Ø¢Ù†', 'id' => 'Tahfidz Al-Quran', 'search' => ['Tahfizh', 'Al-Qur\'an', 'Tahfidz']],
+        ['ar' => 'Ø§Ù„ØªÙˆØ­ÙŠØ¯', 'id' => 'Tauhid', 'search' => ['Tauhid', 'Aqidah']],
+        ['ar' => 'Ø§Ù„Ø­Ø¯ÙŠØ«', 'id' => 'Hadits', 'search' => ['Hadits', 'Hadis']],
+        ['ar' => 'Ø§Ù„ÙÙ‚Ù‡', 'id' => 'Fiqh', 'search' => ['Fiqh', 'Fiqih']],
+        ['ar' => 'Ø§Ù„Ø£Ø®Ù„Ø§Ù‚', 'id' => 'Akhlak', 'search' => ['Akhlak', 'Adab']],
+        ['ar' => 'Ø§Ù„ØªÙØ³ÙŠØ±', 'id' => 'Tafsir', 'search' => ['Tafsir']],
+        ['ar' => 'Ø§Ù„ÙØ±Ø§Ø¦Ø¶', 'id' => 'Faraidh', 'search' => ['Faraidh', 'Mawaris']],
+        ['ar' => 'Ø£ØµÙˆÙ„ Ø§Ù„ÙÙ‚Ù‡', 'id' => 'Ushul Fiqh', 'search' => ['Ushul Fiqh']],
+        ['ar' => 'Ø£ØµÙˆÙ„ Ø§Ù„ØªÙØ³ÙŠØ±', 'id' => 'Ushul Tafsir', 'search' => ['Ushul Tafsir']],
+        ['ar' => 'Ù…ØµØ·Ù„Ø­ Ø§Ù„Ø­Ø¯ÙŠØ«', 'id' => 'Mustholah Hadits', 'search' => ['Musthalah', 'Mustholah']],
+        ['ar' => 'Ø§Ù„Ù…Ù†Ù‡Ø¬', 'id' => 'Manhaj', 'search' => ['Manhaj']],
+        ['ar' => 'Ø§Ù„ØªØ§Ø±ÙŠØ®', 'id' => 'Tarikh', 'search' => ['Tarikh', 'Sejarah']],
+        ['ar' => 'Ø§Ù„Ù‚ÙˆØ§Ø¹Ø¯ Ø§Ù„ÙÙ‚Ù‡ÙŠØ©', 'id' => 'Qawaid Fiqhiyyah', 'search' => ['Qawaid', 'Qowaid']],
+        ['ar' => 'Ø§Ù„Ù†Ø­Ùˆ', 'id' => 'Nahwu', 'search' => ['Nahwu']],
+        ['ar' => 'Ø§Ù„Ù…Ø·Ø§Ù„Ø¹Ø©', 'id' => 'Mutholaah', 'search' => ['Mutholaah', 'Muthalaah']],
+        ['ar' => 'Ø§Ù„Ø¨Ù„Ø§ØºØ©', 'id' => 'Balaghah', 'search' => ['Balaghah']],
+        ['ar' => 'Ø§Ù„ØªØ¹Ø¨ÙŠØ±', 'id' => 'Ta\'bir', 'search' => ['Ta\'bir', 'Insya', 'Imla']],
     ];
 
     $subjects = [];
@@ -953,9 +1092,9 @@ Route::get('/clear-cache', function (\Illuminate\Http\Request $request) {
     foreach ($commands as $cmd) {
         try {
             \Illuminate\Support\Facades\Artisan::call($cmd);
-            $results[] = "✅ {$cmd} berhasil";
+            $results[] = "âœ… {$cmd} berhasil";
         } catch (\Exception $e) {
-            $results[] = "❌ {$cmd} gagal: " . $e->getMessage();
+            $results[] = "âŒ {$cmd} gagal: " . $e->getMessage();
         }
     }
 
@@ -977,26 +1116,26 @@ Route::get('/setup-api-ortu', function (\Illuminate\Http\Request $request) {
     $env     = file_get_contents($envPath);
 
     if (str_contains($env, 'ORTU_API_KEY=')) {
-        $results[] = '✅ ORTU_API_KEY sudah ada di .env';
+        $results[] = 'âœ… ORTU_API_KEY sudah ada di .env';
     } else {
         file_put_contents($envPath, $env . "\nORTU_API_KEY={$apiKey}\n");
-        $results[] = '✅ ORTU_API_KEY berhasil ditambahkan ke .env';
+        $results[] = 'âœ… ORTU_API_KEY berhasil ditambahkan ke .env';
     }
 
     foreach (['config:clear', 'route:clear', 'cache:clear'] as $cmd) {
         try {
             Illuminate\Support\Facades\Artisan::call($cmd);
-            $results[] = "✅ {$cmd} selesai";
+            $results[] = "âœ… {$cmd} selesai";
         } catch (\Exception $e) {
-            $results[] = "⚠ {$cmd}: " . $e->getMessage();
+            $results[] = "âš  {$cmd}: " . $e->getMessage();
         }
     }
 
     try {
         $count = \App\Models\User::whereHas('userLevel', fn($q) => $q->whereIn('name', ['Santri']))->count();
-        $results[] = "✅ Database OK — Total santri/siswa: {$count}";
+        $results[] = "âœ… Database OK â€” Total santri/siswa: {$count}";
     } catch (\Exception $e) {
-        $results[] = "❌ DB error: " . $e->getMessage();
+        $results[] = "âŒ DB error: " . $e->getMessage();
     }
 
     $lines = implode("\n", $results);
@@ -1005,7 +1144,7 @@ Route::get('/setup-api-ortu', function (\Illuminate\Http\Request $request) {
         . "API Key: {$apiKey}\n"
         . "Endpoint: " . config('app.url') . "/api/v1/student/{nomor_induk}/info\n"
         . "Endpoint: " . config('app.url') . "/api/v1/student/{nomor_induk}/grades\n\n"
-        . "⚠ HAPUS ROUTE INI DARI web.php SETELAH SELESAI!</pre>";
+        . "âš  HAPUS ROUTE INI DARI web.php SETELAH SELESAI!</pre>";
 });
 
 // Reset Password Santri (password = nomor_induk)
@@ -1440,6 +1579,61 @@ Route::get('/system/fix-tahfidz-roles', function () {
         return "Script fix_permission_descriptions.php not found in root directory.";
     }
 });
+
+  // Route FIX TAHFIDZ DB (Menambahkan kolom yang kurang)
+  Route::get('/system/fix-tahfidz-db', function () {
+      try {
+          $log = [];
+          
+          // 1. Fix tahfidz_memorization_details
+          if (\Illuminate\Support\Facades\Schema::hasTable('tahfidz_memorization_details')) {
+              \Illuminate\Support\Facades\Schema::table('tahfidz_memorization_details', function (\Illuminate\Database\Schema\Blueprint $table) {
+                  if (!\Illuminate\Support\Facades\Schema::hasColumn('tahfidz_memorization_details', 'academic_year_id')) {
+                      $table->foreignId('academic_year_id')->nullable()->constrained('academic_years')->nullOnDelete();
+                  }
+                  if (!\Illuminate\Support\Facades\Schema::hasColumn('tahfidz_memorization_details', 'officer_id')) {
+                      $table->foreignId('officer_id')->nullable()->constrained('users')->nullOnDelete();
+                  }
+                  if (!\Illuminate\Support\Facades\Schema::hasColumn('tahfidz_memorization_details', 'type')) {
+                      $table->enum('type', ['sabaq', 'sabqi', 'manzil'])->default('sabaq');
+                  }
+                  if (!\Illuminate\Support\Facades\Schema::hasColumn('tahfidz_memorization_details', 'mistakes_history')) {
+                      $table->json('mistakes_history')->nullable();
+                  }
+              });
+              $log[] = "âœ… Kolom pada tahfidz_memorization_details berhasil ditambahkan.";
+          }
+          
+          // 2. Fix tahfidz_memorizations
+          if (\Illuminate\Support\Facades\Schema::hasTable('tahfidz_memorizations')) {
+              \Illuminate\Support\Facades\Schema::table('tahfidz_memorizations', function (\Illuminate\Database\Schema\Blueprint $table) {
+                  if (!\Illuminate\Support\Facades\Schema::hasColumn('tahfidz_memorizations', 'type')) {
+                      $table->string('type')->nullable();
+                  }
+                  if (!\Illuminate\Support\Facades\Schema::hasColumn('tahfidz_memorizations', 'is_validated')) {
+                      $table->boolean('is_validated')->default(false);
+                  }
+              });
+              $log[] = "âœ… Kolom pada tahfidz_memorizations berhasil ditambahkan.";
+          }
+
+          return "<pre>Perbaikan Database Tahfidz Selesai!\n\n" . implode("\n", $log) . "</pre>";
+      } catch (\Exception $e) {
+          return "<pre>Error: " . $e->getMessage() . "</pre>";
+      }
+  });
+
+  // Route VIEW LOGS
+  Route::get('/system/view-logs', function () {
+      $logPath = storage_path('logs/laravel.log');
+      if (file_exists($logPath)) {
+          $lines = file($logPath);
+          $lastLines = array_slice($lines, -150);
+          return "<pre>" . implode("", $lastLines) . "</pre>";
+      }
+      return "Log file not found.";
+  });
+
 // Route MASTER RESET (GABUNGAN)
 Route::get('/system/master-reset', function () {
     try {
@@ -1544,7 +1738,7 @@ Route::get('/system/debug-perms', function () {
     $checks = ['menu_finance', 'menu_care', 'menu_tahfidz'];
     $output .= "<h3>Critical Menus:</h3><ul>";
     foreach ($checks as $c) {
-        $has = in_array($c, $perms) ? "✅ YES" : "❌ NO";
+        $has = in_array($c, $perms) ? "âœ… YES" : "âŒ NO";
         $output .= "<li>$c: $has</li>";
     }
     $output .= "</ul>";
@@ -1790,3 +1984,47 @@ Route::get('/manifest.json', function () {
         ]
     ]);
 })->name('pwa.manifest');
+
+// â”€â”€ Grant akses Pantauan Kesehatan ke semua role pengajar/pengasuh â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Jalankan 1x: /system/grant-health-view
+Route::get('/system/grant-health-view', function () {
+    $permission = \App\Models\Permission::firstOrCreate(
+        ['name' => 'view_health_stats'],
+        ['description' => 'Akses Menu Pantauan Kesehatan']
+    );
+
+    // Role yang mendapat akses
+    $targetRoles = [
+        'Guru',
+        'Musyrif',
+        'Musrif',         // variasi ejaan
+        'Wali Kelas',
+        'Bagian Kesehatan',
+        'Kepala Sekolah',
+        'Manager',
+        'Manager Pengasuhan',
+        'Administrator',
+    ];
+
+    $output = "=== Grant view_health_stats ===\n";
+    $output .= "Permission ID: {$permission->id}\n\n";
+
+    foreach ($targetRoles as $roleName) {
+        $role = \App\Models\UserLevel::where('name', $roleName)->first();
+        if (!$role) {
+            $output .= "[SKIP] Role tidak ditemukan: $roleName\n";
+            continue;
+        }
+        // attach jika belum punya
+        if (!$role->permissions()->where('name', 'view_health_stats')->exists()) {
+            $role->permissions()->attach($permission->id);
+            $output .= "[GRANTED] $roleName â†’ view_health_stats\n";
+        } else {
+            $output .= "[EXISTS]  $roleName sudah punya view_health_stats\n";
+        }
+    }
+
+    $output .= "\nSelesai! Semua musyrif & guru kini bisa mengakses Pantauan Kesehatan.";
+    return "<pre>$output</pre>";
+});
+

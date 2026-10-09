@@ -162,7 +162,7 @@ class SubjectTeacherController extends Controller
         // --- SYNC SCHEDULE START ---
         // Automatically update the teacher in the Schedule table
         // Calculate the effective teacher based on current active semester
-        $activeSemester = \App\Models\Semester::where('is_active', true)->first();
+        $activeSemester = \App\Services\AcademicStateService::currentSemester();
         $effectiveTeacherId = $subjectTeacher->teacher_id; // Default to annual
 
         if ($activeSemester) {
@@ -194,3 +194,4 @@ class SubjectTeacherController extends Controller
         return redirect()->back()->with('success', $msg);
     }
 }
+

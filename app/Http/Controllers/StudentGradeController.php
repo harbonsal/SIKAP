@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Auth;
 
 class StudentGradeController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
 
@@ -25,8 +25,21 @@ class StudentGradeController extends Controller
 
         $student = $user->student;
 
-        // Load Active Class & Members
-        $academicYearId = \App\Models\AcademicYear::where('is_active', true)->value('id');
+        // Fetch all Academic Years and Semesters for dropdowns
+        $academicYears = \App\Models\AcademicYear::orderBy('name', 'desc')->get();
+        $semesters = \App\Models\Semester::all();
+
+        // Default to active year/semester if no filter provided
+        $activeAcademicYear = \App\Services\AcademicStateService::currentAcademicYear();
+        $activeSemesterDefault = \App\Services\AcademicStateService::currentSemester();
+
+        $academicYearId = $request->input('academic_year_id', $activeAcademicYear->id ?? null);
+        $semesterId = $request->input('semester_id', $activeSemesterDefault->id ?? null);
+
+        $academicYear = \App\Models\AcademicYear::find($academicYearId);
+        $activeSemester = \App\Models\Semester::find($semesterId);
+
+        // Load Active Class & Members based on selected academic year
         $member = \App\Models\ClassMember::where('student_id', $student->id)
             ->whereHas('activeClass', function ($q) use ($academicYearId) {
                 $q->where('academic_year_id', $academicYearId);
@@ -37,9 +50,17 @@ class StudentGradeController extends Controller
 
         if (!$member || !$member->activeClass) {
             return Inertia::render('Student/Grades/Index', [
-                'error' => 'Anda belum terdaftar di kelas aktif mana pun.',
+                'error' => 'Anda belum terdaftar di kelas untuk tahun pelajaran yang dipilih.',
                 'safetyTargets' => [],
                 'studentGrades' => [],
+                'student' => $student,
+                'academicYears' => $academicYears,
+                'semesters' => $semesters,
+                'filters' => [
+                    'academic_year_id' => $academicYearId,
+                    'semester_id' => $semesterId,
+                ],
+                'gradeConfig' => \App\Models\SchoolInfo::first()?->grade_config ?? [],
             ]);
         }
 
@@ -47,8 +68,6 @@ class StudentGradeController extends Controller
         $activeClass->load(['activeSubjects.mapel']); // Load subjects
 
         // --- CALCULATION LOGIC (Adapted from AnalysisController) ---
-        $academicYear = \App\Models\AcademicYear::where('is_active', true)->first();
-        $activeSemester = \App\Models\Semester::where('is_active', true)->first();
 
         // 1. Determine Sem 2 Context
         $isSem2 = false;
@@ -70,12 +89,7 @@ class StudentGradeController extends Controller
         });
 
         // 2. Custom Order: UH1, UTS, UH2, UKK/UAS
-        $order = ['UH1', 'UTS', 'UH2', 'UKK', 'UAS'];
-        $knowledgeWeights = $knowledgeWeights->sortBy(function ($w) use ($order) {
-            $name = strtoupper($w->name);
-            $index = array_search($name, $order);
-            return $index === false ? 999 : $index;
-        });
+        $knowledgeWeights = \App\Helpers\GradeHelper::sortGradeWeights($knowledgeWeights);
 
         $knowledgeWeightSum = $knowledgeWeights->sum('weight');
         $weightComponents = $knowledgeWeights->map(fn($w) => $w->name)->values()->all();
@@ -229,11 +243,14 @@ class StudentGradeController extends Controller
             ];
         })->values();
 
-        // 6. Fetch Tahfidz Grades
         $tahfidzGrades = \App\Models\StudentGrade::where('student_id', $student->id)
-            ->whereHas('activeSubject.mapel', function ($q) {
-                $q->where('name', 'like', '%Tahfidz%')
-                    ->orWhere('name', 'like', '%Tahfizh%');
+            ->whereHas('activeSubject', function ($q) use ($academicYear) {
+                $q->whereHas('activeClass', function ($qClass) use ($academicYear) {
+                    $qClass->where('academic_year_id', $academicYear->id);
+                })->whereHas('mapel', function ($qMapel) {
+                    $qMapel->where('name', 'like', '%Tahfidz%')
+                           ->orWhere('name', 'like', '%Tahfizh%');
+                });
             })
             ->with(['activeSubject.mapel', 'gradeWeight', 'tahfidzDetails'])
             ->where('semester_id', $activeSemester->id)
@@ -270,3 +287,4 @@ class StudentGradeController extends Controller
         ]);
     }
 }
+

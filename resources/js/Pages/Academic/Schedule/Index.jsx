@@ -38,7 +38,7 @@ export default function Index({ schedules, activeClasses, days, activeSlots, lea
                         <th className="p-2 border bg-muted font-medium sticky left-0 z-10 w-24">Waktu</th>
                         {activeClasses.map(ac => (
                             <th key={ac.id} className="p-2 border bg-muted font-medium min-w-[120px]">
-                                {ac.kelas?.name}
+                                {ac.kelas?.name} {ac.kelasParalel?.name || ''}
                             </th>
                         ))}
                     </tr>
@@ -98,13 +98,13 @@ export default function Index({ schedules, activeClasses, days, activeSlots, lea
                         onChange={(e) => setSelectedClassId(e.target.value)}
                     >
                         {activeClasses.map(c => (
-                            <option key={c.id} value={c.id}>{c.kelas?.name}</option>
+                            <option key={c.id} value={c.id}>{c.kelas?.name} {c.kelasParalel?.name || ''}</option>
                         ))}
                     </select>
                 </div>
 
                 <div className="rounded-md border p-4 bg-card">
-                    <h3 className="text-lg font-bold mb-4">Jadwal Kelas: {selectedClass?.kelas?.name}</h3>
+                    <h3 className="text-lg font-bold mb-4">Jadwal Kelas: {selectedClass?.kelas?.name} {selectedClass?.kelasParalel?.name || ''}</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
                         {days.map(day => (
                             <div key={day.id} className="border rounded-md overflow-hidden">
@@ -184,7 +184,7 @@ export default function Index({ schedules, activeClasses, days, activeSlots, lea
                                                             <>
                                                                 <div className="font-semibold truncate">{schedule.active_subject?.mapel?.name}</div>
                                                                 <div className="text-secondary-foreground text-[10px] bg-secondary px-1 rounded inline-block">
-                                                                    {schedule.active_class?.kelas?.name}
+                                                                    {schedule.active_class?.kelas?.name} {schedule.active_class?.kelasParalel?.name || ''}
                                                                 </div>
                                                             </>
                                                         ) : <span className="text-muted-foreground/50">-</span>}

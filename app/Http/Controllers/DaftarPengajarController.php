@@ -25,7 +25,7 @@ class DaftarPengajarController extends Controller
 
     public function index(Request $request)
     {
-        $activeYear = AcademicYear::where('is_active', true)->first();
+        $activeYear = \App\Services\AcademicStateService::currentAcademicYear();
 
         if (!$activeYear) {
             return redirect()->back()->with('error', 'Belum ada Tahun Ajaran aktif.');
@@ -143,3 +143,4 @@ class DaftarPengajarController extends Controller
         ]);
     }
 }
+

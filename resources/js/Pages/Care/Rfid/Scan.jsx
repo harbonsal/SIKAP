@@ -4,7 +4,7 @@ import axios from 'axios';
 import { Loader2, Zap, AlertTriangle, CheckCircle, Clock, Settings, X, MapPin } from 'lucide-react';
 import MainLayout from '@/Layouts/MainLayout';
 
-export default function Scan({ autoConfirm, autoConfirmSeconds }) {
+export default function Scan({ autoConfirm, autoConfirmSeconds, autoClose = true, defaultScanMode = 'OUT' }) {
     const [rfid, setRfid] = useState('');
     const [loading, setLoading] = useState(false);
     const [previewData, setPreviewData] = useState(null); // { student: {}, permission: {} }
@@ -16,7 +16,7 @@ export default function Scan({ autoConfirm, autoConfirmSeconds }) {
     
     
     // Scan Mode & Confirmation
-    const [scanMode, setScanMode] = useState('OUT');
+    const [scanMode, setScanMode] = useState(defaultScanMode);
     const [showConfirmDialog, setShowConfirmDialog] = useState(false);
     const [confirmMessage, setConfirmMessage] = useState('');
 
@@ -35,7 +35,8 @@ export default function Scan({ autoConfirm, autoConfirmSeconds }) {
     const [showSettings, setShowSettings] = useState(false);
     const { data: formSettings, setData: setFormSettings, post: postSettings, processing: processingSettings } = useForm({
         auto_confirm: autoConfirm,
-        seconds: autoConfirmSeconds
+        seconds: autoConfirmSeconds,
+        auto_close: autoClose
     });
 
     useEffect(() => {
@@ -108,13 +109,17 @@ export default function Scan({ autoConfirm, autoConfirmSeconds }) {
             
             // Auto close success message after 3 seconds if not showing notes form
             if (response.data.status === 'success' && response.data.type === 'IN') {
-                resultTimerRef.current = setTimeout(() => {
-                    if (!showNotesForm) {
-                        setResult(null);
-                        setShowNotesForm(false);
-                        if (inputRef.current) inputRef.current.focus();
-                    }
-                }, 3000);
+                if (autoClose) {
+                    resultTimerRef.current = setTimeout(() => {
+                        if (!showNotesForm) {
+                            setResult(null);
+                            setShowNotesForm(false);
+                            if (inputRef.current) inputRef.current.focus();
+                        }
+                    }, 3000);
+                } else {
+                    if (inputRef.current) inputRef.current.focus();
+                }
             } else {
                 resultTimerRef.current = setTimeout(() => {
                     setResult(null);
@@ -483,6 +488,22 @@ export default function Scan({ autoConfirm, autoConfirmSeconds }) {
                                     <p className="text-xs text-muted-foreground">Jeda waktu sebelum layar konfirmasi tertutup otomatis dan izin tercatat.</p>
                                 </div>
                             )}
+
+                            <div className="flex items-center justify-between pt-4 border-t">
+                                <div>
+                                    <label className="font-medium">Tutup Otomatis (Scan Masuk)</label>
+                                    <p className="text-sm text-muted-foreground">Tutup pop-up setelah 3 detik</p>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        className="sr-only peer" 
+                                        checked={formSettings.auto_close}
+                                        onChange={e => setFormSettings('auto_close', e.target.checked)}
+                                    />
+                                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                                </label>
+                            </div>
 
                             <div className="pt-4 border-t flex justify-end gap-2">
                                 <button 

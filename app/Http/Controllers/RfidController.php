@@ -16,10 +16,23 @@ class RfidController extends Controller
     {
         $autoConfirm = Setting::where('key', 'rfid_auto_confirm')->value('value') !== 'false';
         $autoConfirmSeconds = (int) (Setting::where('key', 'rfid_auto_confirm_seconds')->value('value') ?: 3);
+        $autoCloseSetting = Setting::where('key', 'rfid_auto_close')->value('value');
+        $autoClose = $autoCloseSetting === null ? true : $autoCloseSetting !== 'false';
+
+        $now = Carbon::now();
+        // Cek jika ada group izin yang batas akhirnya sudah lewat (dalam 24 jam terakhir)
+        $hasPassedDeadline = PermissionGroup::where('start_time', '<=', $now)
+            ->where('end_time', '<=', $now)
+            ->where('end_time', '>=', $now->copy()->subHours(24))
+            ->exists();
+            
+        $defaultScanMode = $hasPassedDeadline ? 'IN' : 'OUT';
 
         return Inertia::render('Care/Rfid/Scan', [
             'autoConfirm' => $autoConfirm,
-            'autoConfirmSeconds' => $autoConfirmSeconds
+            'autoConfirmSeconds' => $autoConfirmSeconds,
+            'autoClose' => $autoClose,
+            'defaultScanMode' => $defaultScanMode
         ]);
     }
 
@@ -205,7 +218,7 @@ class RfidController extends Controller
     {
         $request->validate([
             'permission_id' => 'required|exists:student_permissions,id',
-            'uang_saku' => 'nullable|integer',
+            'uang_saku' => 'nullable|integer|min:0',
             'barang_titipan' => 'nullable|string'
         ]);
 
@@ -220,9 +233,17 @@ class RfidController extends Controller
 
     public function saveSettings(Request $request)
     {
+        $user = auth()->user()->load('userLevel');
+        $allowedRoles = ['Administrator', 'Sekertaris Divisi', 'Kepala Sekolah', 'Manager'];
+        
+        if (!in_array($user->userLevel ? $user->userLevel->name : '', $allowedRoles)) {
+            abort(403, 'Anda tidak memiliki hak akses untuk mengubah pengaturan.');
+        }
+
         $request->validate([
             'auto_confirm' => 'required|boolean',
-            'seconds' => 'required|integer|min:1|max:60'
+            'seconds' => 'required|integer|min:1|max:60',
+            'auto_close' => 'nullable|boolean'
         ]);
 
         Setting::updateOrCreate(
@@ -235,6 +256,13 @@ class RfidController extends Controller
             ['value' => (string) $request->seconds]
         );
 
-        return redirect()->back()->with('success', 'Pengaturan scanner berhasil disimpan.');
+        if ($request->has('auto_close')) {
+            Setting::updateOrCreate(
+                ['key' => 'rfid_auto_close'],
+                ['value' => $request->auto_close ? 'true' : 'false']
+            );
+        }
+
+        return back()->with('success', 'Pengaturan scanner berhasil disimpan.');
     }
 }

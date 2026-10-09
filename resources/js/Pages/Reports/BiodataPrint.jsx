@@ -6,6 +6,17 @@ export default function BiodataPrint({ student, schoolInfo, signer }) {
         window.print();
     }, []);
 
+    const cleanAddress = (address) => {
+        if (!address) return '-';
+        const parts = address.split(',').map(p => p.trim());
+        const uniqueParts = [...new Set(parts)];
+        return uniqueParts.join(', ');
+    };
+
+    const sigSrc = signer?.signature ? `/storage/${signer.signature}` :
+        (schoolInfo?.headmaster_signature ? `/storage/${schoolInfo.headmaster_signature}` :
+            `/images/signature/${signer?.nip || schoolInfo?.headmaster_nip}.png`);
+
     return (
         <>
             <Head title={`Biodata - ${student.user.name}`} />
@@ -67,19 +78,24 @@ export default function BiodataPrint({ student, schoolInfo, signer }) {
                 <table>
                     <tbody>
                         <tr>
-                            <td className="label">1. Nama Lengkap</td>
+                            <td className="label">1. Nama Peserta Didik(Lengkap)</td>
                             <td className="separator">:</td>
                             <td className="value uppercase">{student.user.name}</td>
                         </tr>
                         <tr>
-                            <td className="label">2. Nomor Induk Siswa (NIS)</td>
+                            <td className="label">2. Nomor Induk Siswa</td>
                             <td className="separator">:</td>
                             <td className="value">{student.user.nomor_induk}</td>
                         </tr>
                         <tr>
-                            <td className="label">3. NISN</td>
+                            <td className="label">3. Nomor Induk Siswa Nasional</td>
                             <td className="separator">:</td>
                             <td className="value">{student.nisn || '-'}</td>
+                        </tr>
+                        <tr>
+                            <td className="label pl-4">NIK</td>
+                            <td className="separator">:</td>
+                            <td className="value">{student.nik || '-'}</td>
                         </tr>
                         <tr>
                             <td className="label">4. Tempat, Tanggal Lahir</td>
@@ -89,7 +105,7 @@ export default function BiodataPrint({ student, schoolInfo, signer }) {
                         <tr>
                             <td className="label">5. Jenis Kelamin</td>
                             <td className="separator">:</td>
-                            <td className="value">{student.gender === 'L' ? 'Laki-laki' : 'Perempuan'}</td>
+                            <td className="value">{student.gender === 'L' ? 'Laki-Laki' : 'Perempuan'}</td>
                         </tr>
                         <tr>
                             <td className="label">6. Agama</td>
@@ -97,24 +113,49 @@ export default function BiodataPrint({ student, schoolInfo, signer }) {
                             <td className="value">{student.religion}</td>
                         </tr>
                         <tr>
-                            <td className="label">7. Anak ke</td>
+                            <td className="label">7. Status Dalam Keluarga</td>
                             <td className="separator">:</td>
-                            <td className="value">{student.child_order} dari {student.siblings_count} bersaudara</td>
+                            <td className="value">{student.living_with || 'Anak Kandung'}</td>
                         </tr>
                         <tr>
-                            <td className="label">8. Alamat Peserta Didik</td>
+                            <td className="label">8. Anak Ke</td>
+                            <td className="separator">:</td>
+                            <td className="value">{student.child_order || '-'}</td>
+                        </tr>
+                        <tr>
+                            <td className="label">9. Alamat Peserta Didik</td>
                             <td className="separator">:</td>
                             <td className="value">
-                                {student.address}<br />
-                                {student.village ? `Kel. ${student.village}, ` : ''}
-                                {student.district ? `Kec. ${student.district}` : ''}<br />
-                                {student.city ? `${student.city}, ` : ''}
-                                {student.province ? `${student.province}` : ''}
-                                {student.postal_code ? ` ${student.postal_code}` : ''}
+                                {cleanAddress(student.address)}
                             </td>
                         </tr>
                         <tr>
-                            <td className="label">9. Nama Orang Tua</td>
+                            <td className="label pl-4">Telepon/HP</td>
+                            <td className="separator">:</td>
+                            <td className="value">{student.parent_phone || '-'}</td>
+                        </tr>
+                        <tr>
+                            <td className="label">10. Madrasah/Sekolah Asal</td>
+                            <td className="separator">:</td>
+                            <td className="value">{student.previous_school || '-'}</td>
+                        </tr>
+                        <tr>
+                            <td className="label">11. Diterima di Madrasah</td>
+                            <td className="separator"></td>
+                            <td className="value"></td>
+                        </tr>
+                        <tr>
+                            <td className="label pl-4">Di Kelas</td>
+                            <td className="separator">:</td>
+                            <td className="value">{student.accepted_grade || '-'}</td>
+                        </tr>
+                        <tr>
+                            <td className="label pl-4">Pada Tanggal</td>
+                            <td className="separator">:</td>
+                            <td className="value">{student.accepted_date || '-'}</td>
+                        </tr>
+                        <tr>
+                            <td className="label">12. Nama Orang Tua</td>
                             <td className="separator"></td>
                             <td className="value"></td>
                         </tr>
@@ -129,7 +170,7 @@ export default function BiodataPrint({ student, schoolInfo, signer }) {
                             <td className="value">{student.mother_name || '-'}</td>
                         </tr>
                         <tr>
-                            <td className="label">10. Pekerjaan Orang Tua</td>
+                            <td className="label">13. Pekerjaan Orang Tua</td>
                             <td className="separator"></td>
                             <td className="value"></td>
                         </tr>
@@ -144,26 +185,24 @@ export default function BiodataPrint({ student, schoolInfo, signer }) {
                             <td className="value">{student.mother_occupation || '-'}</td>
                         </tr>
                         <tr>
-                            <td className="label">11. Alamat Orang Tua</td>
-                            <td className="separator">:</td>
-                            <td className="value">
-                                {student.address} {/* Assuming same as student for now, or add parent address field */}
-                            </td>
-                        </tr>
-                        <tr>
-                            <td className="label">12. Nama Wali</td>
+                            <td className="label">14. Nama Wali</td>
                             <td className="separator">:</td>
                             <td className="value">{student.guardian_name || '-'}</td>
                         </tr>
                         <tr>
-                            <td className="label">13. Pekerjaan Wali</td>
-                            <td className="separator">:</td>
-                            <td className="value">{student.guardian_occupation || '-'}</td>
-                        </tr>
-                        <tr>
-                            <td className="label">14. Alamat Wali</td>
+                            <td className="label">15. Alamat Wali</td>
                             <td className="separator">:</td>
                             <td className="value">{student.guardian_address || '-'}</td>
+                        </tr>
+                        <tr>
+                            <td className="label pl-4">Telepon/HP</td>
+                            <td className="separator">:</td>
+                            <td className="value">{student.guardian_phone || '-'}</td>
+                        </tr>
+                        <tr>
+                            <td className="label">16. Pekerjaan Wali</td>
+                            <td className="separator">:</td>
+                            <td className="value">{student.guardian_occupation || '-'}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -175,9 +214,9 @@ export default function BiodataPrint({ student, schoolInfo, signer }) {
 
                         {/* Signature Image */}
                         <div className="h-24 flex items-center justify-center my-2">
-                            {(signer?.nip || schoolInfo?.headmaster_nip) && (
+                            {(signer?.nip || schoolInfo?.headmaster_nip || signer?.signature || schoolInfo?.headmaster_signature) && (
                                 <img
-                                    src={`/images/signatures/${signer?.nip || schoolInfo?.headmaster_nip}.png`}
+                                    src={sigSrc}
                                     alt="Tanda Tangan"
                                     className="h-24 object-contain"
                                     onError={(e) => e.target.style.display = 'none'}

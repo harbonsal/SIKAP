@@ -21,7 +21,7 @@ class KamarController extends Controller
         }
 
         // Get current academic year
-        $currentAcademicYear = \App\Models\AcademicYear::where('is_active', true)->first();
+        $currentAcademicYear = \App\Services\AcademicStateService::currentAcademicYear();
 
         $kamars = $query->latest()->paginate(10)->withQueryString();
 
@@ -142,3 +142,4 @@ class KamarController extends Controller
         return redirect()->route('kamars.index')->with('success', 'Data kamar berhasil dihapus.');
     }
 }
+

@@ -11,6 +11,7 @@ import {
 } from "@/Components/ui/table";
 import { Button } from "@/Components/ui/button";
 import { Input } from "@/Components/ui/input";
+import { Checkbox } from "@/Components/ui/checkbox";
 import {
     Dialog,
     DialogContent,
@@ -30,6 +31,7 @@ export default function Index({ activeKamar, members, availableStudents, filters
     const isAdmin = auth.user?.user_level?.name === 'Administrator';
     const [search, setSearch] = useState(filters.search || '');
     const [isAddOpen, setIsAddOpen] = useState(false);
+    const [selectedIds, setSelectedIds] = useState([]);
 
     const normalizeText = (value) => String(value || '').trim().toLowerCase();
     const cleanLocationValue = (value) => {
@@ -146,6 +148,33 @@ export default function Index({ activeKamar, members, availableStudents, filters
         })
     };
 
+    const handleBulkDelete = () => {
+        if (selectedIds.length === 0) return;
+        Swal.fire({
+            title: 'Apakah anda yakin?',
+            text: `${selectedIds.length} santri akan dikeluarkan dari kamar ini.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Ya, keluarkan!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                router.post(route('kamar-members.bulk-destroy'), { ids: selectedIds }, {
+                    onSuccess: () => {
+                        setSelectedIds([]);
+                        Swal.fire(
+                            'Berhasil!',
+                            'Santri terpilih telah dikeluarkan.',
+                            'success'
+                        )
+                    }
+                });
+            }
+        });
+    };
+
     const studentOptions = availableStudents.map(s => ({
         value: s.id,
         label: `${s.name} (${s.nis})`
@@ -188,9 +217,16 @@ export default function Index({ activeKamar, members, availableStudents, filters
                         </div>
                     </div>
                     {isAdmin && (
-                        <Button onClick={() => setIsAddOpen(true)}>
-                            <Plus className="mr-2 h-4 w-4" /> Tambah Santri
-                        </Button>
+                        <div className="flex gap-2">
+                            {selectedIds.length > 0 && (
+                                <Button variant="destructive" onClick={handleBulkDelete}>
+                                    <Trash2 className="mr-2 h-4 w-4" /> Hapus Terpilih ({selectedIds.length})
+                                </Button>
+                            )}
+                            <Button onClick={() => setIsAddOpen(true)}>
+                                <Plus className="mr-2 h-4 w-4" /> Tambah Santri
+                            </Button>
+                        </div>
                     )}
                 </div>
 
@@ -198,6 +234,20 @@ export default function Index({ activeKamar, members, availableStudents, filters
                     <Table>
                         <TableHeader>
                             <TableRow>
+                                {isAdmin && (
+                                    <TableHead className="w-12">
+                                        <Checkbox 
+                                            checked={members.data.length > 0 && selectedIds.length === members.data.length}
+                                            onCheckedChange={(checked) => {
+                                                if (checked) {
+                                                    setSelectedIds(members.data.map(m => m.id));
+                                                } else {
+                                                    setSelectedIds([]);
+                                                }
+                                            }}
+                                        />
+                                    </TableHead>
+                                )}
                                 <TableHead>NIS</TableHead>
                                 <TableHead>Nama Santri</TableHead>
                                 <TableHead>Kelas</TableHead>
@@ -220,6 +270,20 @@ export default function Index({ activeKamar, members, availableStudents, filters
 
                                     return (
                                         <TableRow key={item.id}>
+                                            {isAdmin && (
+                                                <TableCell>
+                                                    <Checkbox 
+                                                        checked={selectedIds.includes(item.id)}
+                                                        onCheckedChange={(checked) => {
+                                                            if (checked) {
+                                                                setSelectedIds([...selectedIds, item.id]);
+                                                            } else {
+                                                                setSelectedIds(selectedIds.filter(id => id !== item.id));
+                                                            }
+                                                        }}
+                                                    />
+                                                </TableCell>
+                                            )}
                                             <TableCell>{item.student.nomor_induk}</TableCell>
                                             <TableCell className="font-medium">{item.student.name}</TableCell>
                                             <TableCell>{className}</TableCell>
@@ -237,7 +301,7 @@ export default function Index({ activeKamar, members, availableStudents, filters
                                 })
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={isAdmin ? 6 : 5} className="h-24 text-center">
+                                    <TableCell colSpan={isAdmin ? 7 : 5} className="h-24 text-center">
                                         Belum ada santri di kamar ini.
                                     </TableCell>
                                 </TableRow>

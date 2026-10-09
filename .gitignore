@@ -25,3 +25,5 @@ Homestead.yaml
 Thumbs.db
 __EXCLUDE_FROM_UPLOAD/
 *.zip
+scratch_*.php
+weights.json

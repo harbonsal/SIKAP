@@ -126,7 +126,8 @@ class QuranController extends Controller
             'last_verse_key' => 'nullable|string',
             'last_page_number' => 'nullable|integer',
             'played_ayahs' => 'nullable|array',
-            'is_completed' => 'nullable|boolean'
+            'is_completed' => 'nullable|boolean',
+            'last_qari_id' => 'nullable|string',
         ]);
 
         $user = auth()->user();
@@ -147,16 +148,34 @@ class QuranController extends Controller
             $progress->last_page_number = $validated['last_page_number'];
         }
 
-        if (array_key_exists('played_ayahs', $validated)) {
-            // Merge new played ayahs with existing
-            $existing = $progress->played_ayahs ?? [];
-            $new = $validated['played_ayahs'] ?? [];
-            $merged = array_unique(array_merge($existing, $new));
-            $progress->played_ayahs = array_values($merged);
+        if (array_key_exists('last_qari_id', $validated)) {
+            $progress->last_qari_id = $validated['last_qari_id'];
         }
 
-        if (array_key_exists('is_completed', $validated) && $validated['is_completed'] !== null) {
-            $progress->is_completed = $validated['is_completed'];
+        if (array_key_exists('played_ayahs', $validated)) {
+            $now = now();
+            $new = $validated['played_ayahs'] ?? [];
+            
+            // Deteksi jika ini adalah aksi "Mulai Ulang" (array kosong & last_verse_key null)
+            $isMulaiUlang = empty($new) && array_key_exists('last_verse_key', $validated) && $validated['last_verse_key'] === null;
+            
+            if (!$progress->exists || !$progress->started_at || $isMulaiUlang) {
+                $progress->started_at = $now;
+            }
+            
+            $existing = $progress->played_ayahs ?? [];
+            if (!is_array($existing)) $existing = [];
+            if (!is_array($new)) $new = [];
+            
+            if ($isMulaiUlang) {
+                $merged = [];
+            } else {
+                // Gunakan array_merge agar data lama TIDAK PERNAH HILANG meski frontend mengirim data parsial (cache lama)
+                $merged = array_values(array_unique(array_merge($existing, $new)));
+            }
+            
+            $progress->played_ayahs = $merged;
+            $progress->last_activity_at = $now;
         }
 
         $progress->save();
@@ -164,6 +183,55 @@ class QuranController extends Controller
         return response()->json([
             'success' => true,
             'data' => $progress
+        ]);
+    }
+
+    public function reportAudioError(Request $request)
+    {
+        $validated = $request->validate([
+            'qari_id' => 'required|string',
+            'surah_number' => 'nullable|integer',
+            'ayat_number' => 'nullable|integer',
+            'verse_key' => 'nullable|string',
+        ]);
+
+        \App\Models\QuranAudioError::create(array_merge($validated, [
+            'user_id' => auth()->id(),
+        ]));
+
+        return response()->json([
+            'success' => true,
+        ]);
+    }
+
+    public function hideQari(Request $request)
+    {
+        $validated = $request->validate([
+            'qari_id' => 'required|string',
+            'action' => 'required|in:hide,show',
+        ]);
+
+        $setting = \App\Models\Setting::firstOrCreate(
+            ['key' => 'quran_hidden_qoris'],
+            ['value' => json_encode([])]
+        );
+
+        $hiddenIds = json_decode($setting->value, true) ?: [];
+
+        if ($validated['action'] === 'hide') {
+            if (!in_array($validated['qari_id'], $hiddenIds)) {
+                $hiddenIds[] = $validated['qari_id'];
+            }
+        } else {
+            $hiddenIds = array_values(array_filter($hiddenIds, fn($id) => $id !== $validated['qari_id']));
+        }
+
+        $setting->value = json_encode($hiddenIds);
+        $setting->save();
+
+        return response()->json([
+            'success' => true,
+            'hidden_qori_ids' => $hiddenIds
         ]);
     }
 

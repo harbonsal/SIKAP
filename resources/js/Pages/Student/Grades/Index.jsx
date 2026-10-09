@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
 import { AlertCircle, CheckCircle, XCircle, TrendingUp, AlertTriangle, BookOpen, Info } from 'lucide-react';
 
-export default function Index({ auth, safetyTargets, student, className, semesterName, weightComponents, isSem2, error, tahfidzGrades, memorizationCount, academicYears = [], semesters = [], filters = {} }) {
+export default function Index({ auth, safetyTargets, student, className, semesterName, weightComponents, isSem2, error, tahfidzGrades, memorizationCount, academicYears = [], semesters = [], filters = {}, gradeConfig = {} }) {
     
     const handleFilterChange = (key, value) => {
         router.get(
@@ -308,11 +308,13 @@ export default function Index({ auth, safetyTargets, student, className, semeste
                                                 <td className="px-3 py-3 whitespace-nowrap text-center text-sm text-gray-500">
                                                     {subject.kkm}
                                                 </td>
-                                                <td className="px-3 py-3 whitespace-nowrap text-center">
-                                                    <span className={`text-sm font-semibold ${getScoreColor(subject.sem1_score, subject.kkm)}`}>
-                                                        {formatScore(subject.sem1_score)}
-                                                    </span>
-                                                </td>
+                                                {isSem2 && (
+                                                    <td className="px-3 py-3 whitespace-nowrap text-center">
+                                                        <span className={`text-sm font-semibold ${getScoreColor(subject.sem1_score, subject.kkm)}`}>
+                                                            {formatScore(subject.sem1_score)}
+                                                        </span>
+                                                    </td>
+                                                )}
                                                 {weightComponents.map((comp, cIdx) => (
                                                     <td key={cIdx} className="px-2 py-3 whitespace-nowrap text-center">
                                                         {subject.components[comp]?.is_predicted ? (

@@ -14,6 +14,7 @@ import AsyncSelect from 'react-select/async';
 import JuzInputGrid from './JuzInputGrid';
 import TahfidzTabs from '@/Components/TahfidzTabs';
 import axios from 'axios';
+import MassInputTab from './MassInputTab';
 
 const BatteryProgress = ({ value, max, label, colorClass, emptyClass = "bg-slate-100", height = "h-4", showLabel = true, subLabel = "" }) => {
     // Ensure value is between 0 and max
@@ -100,7 +101,7 @@ export default function Index({ auth, title, students, filters, classes, kamars,
         try {
             const res = await axios.get(route('tahfidz.achievements.data', studentId));
             setInputStudent(res.data.student);
-            setInputJuzData(res.data.juz_data);
+            setInputJuzData(res.data); // Passing the whole object because it contains sabaq_juz_data, etc.
         } catch (error) {
             console.error(error);
         } finally {
@@ -339,7 +340,7 @@ export default function Index({ auth, title, students, filters, classes, kamars,
                         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-6">
                             <Card className="bg-white border shadow-sm">
                                 <CardHeader>
-                                    <CardTitle>Input Capaian Hafalan</CardTitle>
+                                    <CardTitle>Input Hafalan</CardTitle>
                                     <CardDescription>Cari santri untuk mulai menginput hafalan</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
@@ -388,6 +389,12 @@ export default function Index({ auth, title, students, filters, classes, kamars,
                                     onUpdate={() => loadStudentData(inputStudent.id)}
                                 />
                             )}
+                        </div>
+                    )}
+
+                    {activeTab === 'mass-input' && (
+                        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <MassInputTab musyrifs={musyrifs} />
                         </div>
                     )}
                 </div>

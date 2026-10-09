@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Head, Link, useForm, router, usePage } from '@inertiajs/react';
+import ReactSelect from 'react-select';
 import MainLayout from '@/Layouts/MainLayout';
 import {
     Table,
@@ -47,6 +48,11 @@ export default function Index({ activeKamars, availableKamars, musrifs, academic
         musrif_id: '',
         name: '',
     });
+
+    const musrifOptions = musrifs.map(user => ({
+        value: user.id.toString(),
+        label: user.name
+    }));
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -314,18 +320,15 @@ export default function Index({ activeKamars, availableKamars, musrifs, academic
 
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Musrif (Opsional)</label>
-                                <Select onValueChange={(val) => setData('musrif_id', val)} value={data.musrif_id}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Pilih Musrif" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {musrifs.map((user) => (
-                                            <SelectItem key={user.id} value={user.id.toString()}>
-                                                {user.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <ReactSelect
+                                    options={musrifOptions}
+                                    value={musrifOptions.find(option => option.value === data.musrif_id) || null}
+                                    onChange={(selectedOption) => setData('musrif_id', selectedOption ? selectedOption.value : '')}
+                                    placeholder="Cari atau Pilih Musrif..."
+                                    isClearable
+                                    className="react-select-container"
+                                    classNamePrefix="react-select"
+                                />
                                 {errors.musrif_id && <p className="text-sm text-destructive">{errors.musrif_id}</p>}
                             </div>
 
@@ -355,18 +358,15 @@ export default function Index({ activeKamars, availableKamars, musrifs, academic
                         <form onSubmit={handleSubmitEdit} className="space-y-4">
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Musrif</label>
-                                <Select onValueChange={(val) => setData('musrif_id', val)} value={data.musrif_id}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Pilih Musrif" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {musrifs.map((user) => (
-                                            <SelectItem key={user.id} value={user.id.toString()}>
-                                                {user.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <ReactSelect
+                                    options={musrifOptions}
+                                    value={musrifOptions.find(option => option.value === data.musrif_id) || null}
+                                    onChange={(selectedOption) => setData('musrif_id', selectedOption ? selectedOption.value : '')}
+                                    placeholder="Cari atau Pilih Musrif..."
+                                    isClearable
+                                    className="react-select-container"
+                                    classNamePrefix="react-select"
+                                />
                                 {errors.musrif_id && <p className="text-sm text-destructive">{errors.musrif_id}</p>}
                             </div>
 

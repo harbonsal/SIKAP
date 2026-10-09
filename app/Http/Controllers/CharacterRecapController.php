@@ -13,7 +13,7 @@ class CharacterRecapController extends Controller
 {
     public function index(Request $request)
     {
-        $academicYear = AcademicYear::where('is_active', true)->first();
+        $academicYear = \App\Services\AcademicStateService::currentAcademicYear();
 
         if (!$academicYear) {
             return redirect()->back()->with('error', 'Tahun ajaran aktif belum diatur.');
@@ -198,7 +198,7 @@ class CharacterRecapController extends Controller
             ];
         });
 
-        $academicYear = \App\Models\AcademicYear::where('is_active', true)->first();
+        $academicYear = \App\Services\AcademicStateService::currentAcademicYear();
 
         return Inertia::render('Care/Recap/Show', [
             'activeKamar' => $activeKamar,
@@ -216,7 +216,7 @@ class CharacterRecapController extends Controller
 
     public function studentIndex(Request $request)
     {
-        $activeYear = AcademicYear::where('is_active', true)->first();
+        $activeYear = \App\Services\AcademicStateService::currentAcademicYear();
 
         $query = \App\Models\Student::with(['user', 'activeKamar.kamar'])
             ->whereHas('user', function ($q) {
@@ -279,7 +279,7 @@ class CharacterRecapController extends Controller
         $student = \App\Models\Student::with(['user', 'activeClass.class', 'activeKamar.kamar', 'activeKamar.musrif'])
             ->findOrFail($id);
 
-        $academicYear = AcademicYear::where('is_active', true)->first();
+        $academicYear = \App\Services\AcademicStateService::currentAcademicYear();
         if (!$academicYear) return redirect()->back();
 
         $year = $request->input('year', date('Y'));
@@ -329,3 +329,4 @@ class CharacterRecapController extends Controller
         ]);
     }
 }
+

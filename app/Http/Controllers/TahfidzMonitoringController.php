@@ -9,6 +9,7 @@ use App\Models\TahfidzHalaqohOfficer;
 use App\Models\TahfidzMusyrif;
 use App\Models\TahfidzMonitoring;
 use App\Models\TahfidzMonitoringAttendance;
+use App\Models\TahfidzMonitoringMemberAttendance;
 use App\Models\TahfidzMonitoringViolation;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -36,8 +37,13 @@ class TahfidzMonitoringController extends Controller
     public function create()
     {
         $sessions = TahfidzHalaqohSession::all();
-        // Active Musyrifs
-        $musyrifs = TahfidzMusyrif::with(['student.user', 'user'])->where('is_active', true)->get();
+        // Active Musyrifs with their members (Santri)
+        $musyrifs = TahfidzMusyrif::with([
+            'student.user', 
+            'user', 
+            'members.student.user', 
+            'members.student.latestClassMember.activeClass.kelas'
+        ])->where('is_active', true)->get();
 
         // Officers Schedule (For "pancingan" / suggestions)
         // We get officers for TODAY (Date)
@@ -67,6 +73,7 @@ class TahfidzMonitoringController extends Controller
             'officer_name' => 'nullable|string',
             'general_note' => 'nullable|string',
             'attendances' => 'required|array',
+            'member_attendances' => 'nullable|array',
             'violations' => 'nullable|array',
         ]);
 
@@ -87,6 +94,18 @@ class TahfidzMonitoringController extends Controller
                 ]);
             }
 
+            if ($request->member_attendances) {
+                foreach ($request->member_attendances as $matt) {
+                    TahfidzMonitoringMemberAttendance::create([
+                        'monitoring_id' => $monitoring->id,
+                        'student_id' => $matt['student_id'],
+                        'musyrif_id' => $matt['musyrif_id'] ?? null,
+                        'status' => $matt['status'],
+                        'note' => $matt['note'] ?? null,
+                    ]);
+                }
+            }
+
             if ($request->violations) {
                 foreach ($request->violations as $vio) {
                     TahfidzMonitoringViolation::create([
@@ -104,7 +123,17 @@ class TahfidzMonitoringController extends Controller
 
     public function show(TahfidzMonitoring $monitoring)
     {
-        $monitoring->load(['user', 'session', 'attendances.musyrif.student', 'attendances.musyrif.user', 'violations.musyrif.student', 'violations.musyrif.user']);
+        $monitoring->load([
+            'user', 
+            'session', 
+            'attendances.musyrif.student', 
+            'attendances.musyrif.user', 
+            'violations.musyrif.student', 
+            'violations.musyrif.user',
+            'memberAttendances.student.user',
+            'memberAttendances.musyrif.student',
+            'memberAttendances.musyrif.user'
+        ]);
 
         return Inertia::render('Tahfidz/Monitoring/Show', [
             'monitoring' => $monitoring

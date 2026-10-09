@@ -6,6 +6,8 @@ use App\Models\Setting;
 use App\Models\ActiveSubject;
 use App\Models\TahfidzTester;
 use App\Models\User;
+use App\Models\TahfidzStandardTarget;
+use App\Models\Jenjang;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +20,8 @@ class TahfidzSettingController extends Controller
         $startDate = Setting::where('key', 'tahfidz_exam_start_date')->value('value');
         $endDate = Setting::where('key', 'tahfidz_exam_end_date')->value('value');
         $quranSkriningEnabled = Setting::where('key', 'quran_skrining_enabled')->value('value') !== '0';
+        $defaultSabqi = Setting::where('key', 'default_target_sabqi_pages')->value('value') ?? 1;
+        $defaultManzil = Setting::where('key', 'default_target_manzil_pages')->value('value') ?? 1;
 
         // --- 2. Tester Plotting Data (From TahfidzTesterController) ---
         $activeYear = \App\Services\AcademicStateService::currentAcademicYear();
@@ -68,11 +72,19 @@ class TahfidzSettingController extends Controller
                 ->whereHas('activeClass', function ($q) use ($activeYear) {
                     $q->where('academic_year_id', $activeYear->id);
                 })
-                ->orderBy('active_class_id')
                 ->get()
+                ->sortBy(function ($subject) {
+                    $jenjangId = $subject->activeClass->kelas->jenjang_id ?? 999;
+                    $className = $subject->activeClass->kelas->name ?? '';
+                    $parallelName = $subject->activeClass->kelasParalel->name ?? '';
+                    // Zero-pad jenjangId to ensure numeric sorting as string
+                    return sprintf('%04d-%s-%s', $jenjangId, $className, $parallelName);
+                })
+                ->values()
                 ->map(function ($subject) {
                     return [
                         'id' => $subject->id,
+                        'active_class_id' => $subject->active_class_id,
                         'class_name' => $subject->activeClass->kelas->name . ($subject->activeClass->kelasParalel ? ' ' . $subject->activeClass->kelasParalel->name : ''),
                         'testers' => $subject->tahfidzTesters->map(function ($tester) {
                             return [
@@ -86,11 +98,22 @@ class TahfidzSettingController extends Controller
                 });
         }
 
+        $standardTargets = TahfidzStandardTarget::with('jenjang')
+            ->orderBy('jenjang_id')
+            ->orderBy('semester_number')
+            ->get();
+            
+        $jenjangs = Jenjang::orderBy('id')->get(['id', 'name']);
+
         return Inertia::render('Settings/Tahfidz/Index', [
             'startDate' => $startDate,
             'endDate' => $endDate,
             'subjects' => $subjectsWithTesters,
             'quranSkriningEnabled' => $quranSkriningEnabled,
+            'defaultSabqi' => $defaultSabqi,
+            'defaultManzil' => $defaultManzil,
+            'standardTargets' => $standardTargets,
+            'jenjangs' => $jenjangs,
         ]);
     }
 
@@ -99,6 +122,8 @@ class TahfidzSettingController extends Controller
         $request->validate([
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
+            'default_sabqi' => 'nullable|numeric',
+            'default_manzil' => 'nullable|numeric',
         ]);
 
         Setting::updateOrCreate(
@@ -111,7 +136,21 @@ class TahfidzSettingController extends Controller
             ['value' => $request->end_date]
         );
 
-        return redirect()->back()->with('success', 'Pengaturan masa ujian berhasil disimpan.');
+        if ($request->has('default_sabqi')) {
+            Setting::updateOrCreate(
+                ['key' => 'default_target_sabqi_pages'],
+                ['value' => $request->default_sabqi]
+            );
+        }
+        
+        if ($request->has('default_manzil')) {
+            Setting::updateOrCreate(
+                ['key' => 'default_target_manzil_pages'],
+                ['value' => $request->default_manzil]
+            );
+        }
+
+        return redirect()->back()->with('success', 'Pengaturan masa ujian dan target berhasil disimpan.');
     }
 
     public function storeQuranSkrining(Request $request)
@@ -194,5 +233,38 @@ class TahfidzSettingController extends Controller
             ->get(['id', 'name', 'nomor_induk']);
 
         return response()->json($teachers);
+    }
+
+    // --- Standard Target Logic ---
+    
+    public function storeStandardTarget(Request $request)
+    {
+        $validated = $request->validate([
+            'jenjang_id' => 'required|exists:jenjangs,id',
+            'semester_number' => 'required|integer|min:1|max:20',
+            'target_juz_count' => 'required|numeric|min:0',
+            'juz_details' => 'nullable|string|max:255',
+        ]);
+
+        TahfidzStandardTarget::updateOrCreate(
+            [
+                'jenjang_id' => $validated['jenjang_id'],
+                'semester_number' => $validated['semester_number'],
+            ],
+            [
+                'target_juz_count' => $validated['target_juz_count'],
+                'juz_details' => $validated['juz_details'],
+            ]
+        );
+
+        return back()->with('success', 'Standar target berhasil disimpan.');
+    }
+
+    public function destroyStandardTarget($id)
+    {
+        $target = TahfidzStandardTarget::findOrFail($id);
+        $target->delete();
+        
+        return back()->with('success', 'Standar target berhasil dihapus.');
     }
 }

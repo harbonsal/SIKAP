@@ -10,6 +10,7 @@ class StudentAttendance extends Model
         'class_journal_id',
         'student_id',
         'status',
+        'is_uniform_complete',
         'note',
     ];
 

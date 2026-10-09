@@ -18,7 +18,13 @@ class IjazahRecapController extends Controller
 {
     public function index(Request $request)
     {
-        $activeYear = AcademicYear::where('is_active', true)->first();
+        $academicYearId = $request->academic_year_id;
+        if ($academicYearId) {
+            $activeYear = AcademicYear::find($academicYearId);
+        } else {
+            $activeYear = \App\Services\AcademicStateService::currentAcademicYear() ?? \App\Services\AcademicStateService::currentAcademicYear();
+        }
+
         if (!$activeYear) {
             return redirect()->back()->with('error', 'Tahun ajaran aktif belum diatur.');
         }
@@ -155,6 +161,32 @@ class IjazahRecapController extends Controller
             return $item;
         });
 
+        // Calculate Summary Statistics
+        $summary = [
+            'subjects' => [],
+            'total_score' => [
+                'average' => $studentIjazahs->avg('total_score') ?? 0,
+                'max' => $studentIjazahs->max('total_score') ?? 0,
+                'min' => $studentIjazahs->min('total_score') ?? 0,
+            ],
+            'average_score' => [
+                'average' => $studentIjazahs->avg('average_score') ?? 0,
+                'max' => $studentIjazahs->max('average_score') ?? 0,
+                'min' => $studentIjazahs->min('average_score') ?? 0,
+            ],
+        ];
+
+        foreach ($ijazahSubjects as $idx => $subj) {
+            $subjectScores = $studentIjazahs->map(function($student) use ($idx) {
+                return $student['subjects'][$idx]['final_score'] ?? 0;
+            });
+            $summary['subjects'][$idx] = [
+                'average' => $subjectScores->avg() ?? 0,
+                'max' => $subjectScores->max() ?? 0,
+                'min' => $subjectScores->min() ?? 0,
+            ];
+        }
+
         // Manual Pagination
         $perPage = 50;
         $page = $request->input('page', 1);
@@ -171,14 +203,19 @@ class IjazahRecapController extends Controller
         return Inertia::render('Teacher/Assessment/Recap/Ijazah/Index', [
             'ijazahSubjects' => $ijazahSubjects,
             'students' => $paginatedItems,
+            'summary' => $summary,
             'filters' => [
                 'kelas_id' => $kelasId,
                 'paralel_id' => $paralelId,
                 'search' => $search,
+                'academic_year_id' => $activeYear->id,
             ],
             'kelasList' => Kelas::all(),
             'paralelList' => KelasParalel::all(),
             'academicYear' => $activeYear,
+            'academicYears' => AcademicYear::orderBy('name', 'desc')->get(),
         ]);
     }
 }
+
+

@@ -10,8 +10,10 @@ import { Calendar, Save, AlertCircle, Trash2, UserPlus, Search, ShieldCheck, Use
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/Components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/Components/ui/dialog';
+import StandardTargetsTab from './StandardTargetsTab';
+import PlottingJuzTab from './PlottingJuzTab';
 
-export default function TahfidzSettingsIndex({ startDate, endDate, subjects = [], quranSkriningEnabled = true }) {
+export default function TahfidzSettingsIndex({ startDate, endDate, subjects = [], quranSkriningEnabled = true, ...props }) {
 
     // --- Exam Period Logic ---
     // Ensure datetime-local compatibility by replacing space with T
@@ -20,6 +22,8 @@ export default function TahfidzSettingsIndex({ startDate, endDate, subjects = []
     const { data: periodData, setData: setPeriodData, post: postPeriod, processing: periodProcessing, errors: periodErrors, recentlySuccessful: periodSuccess } = useForm({
         start_date: formatDatetimeLocal(startDate),
         end_date: formatDatetimeLocal(endDate),
+        default_sabqi: props.defaultSabqi || 1,
+        default_manzil: props.defaultManzil || 1,
     });
 
     const submitPeriod = (e) => {
@@ -40,44 +44,25 @@ export default function TahfidzSettingsIndex({ startDate, endDate, subjects = []
         setSkriningSuccess(false);
         setSkriningError(null);
         try {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-            if (!csrfToken) {
-                setSkriningError('CSRF token tidak ditemukan. Refresh halaman dan coba lagi.');
-                setSkriningProcessing(false);
-                return;
-            }
-
-            const response = await fetch('/settings/tahfidz/quran-skrining', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                body: JSON.stringify({ enabled: skriningData.enabled }),
+            const response = await axios.post('/settings/tahfidz/quran-skrining', {
+                enabled: skriningData.enabled
             });
 
-            if (response.ok) {
-                const result = await response.json();
+            if (response.status === 200 || response.status === 201) {
+                const result = response.data;
                 setSkriningData('enabled', result.enabled);
                 setSkriningSuccess(true);
                 setTimeout(() => setSkriningSuccess(false), 3000);
                 // Reload Inertia props to refresh quran_settings for sidebar without full page reload
                 router.reload({ only: ['quran_settings'] });
-            } else {
-                let errorMessage = 'Gagal menyimpan pengaturan.';
-                try {
-                    const err = await response.json();
-                    errorMessage = err.message || errorMessage;
-                } catch (e) {
-                    // Response bukan JSON, gunakan error default
-                }
-                setSkriningError(errorMessage);
             }
         } catch (err) {
             console.error('Skrining setting error:', err);
-            setSkriningError('Terjadi kesalahan jaringan. Pastikan koneksi stabil.');
+            if (err.response && err.response.status === 419) {
+                setSkriningError('Sesi Anda telah berakhir. Silakan muat ulang (Refresh) halaman ini.');
+            } else {
+                setSkriningError(err.response?.data?.message || 'Terjadi kesalahan sistem.');
+            }
         } finally {
             setSkriningProcessing(false);
         }
@@ -143,7 +128,7 @@ export default function TahfidzSettingsIndex({ startDate, endDate, subjects = []
                 </div>
 
                 <Tabs defaultValue="exam-period" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 mb-8 max-w-md bg-white border shadow-sm p-1 h-auto rounded-xl">
+                    <TabsList className="grid w-full grid-cols-4 mb-8 max-w-4xl bg-white border shadow-sm p-1 h-auto rounded-xl">
                         <TabsTrigger
                             value="exam-period"
                             className="rounded-lg py-2.5 text-sm font-medium transition-all data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md text-gray-600 hover:text-indigo-600"
@@ -156,7 +141,32 @@ export default function TahfidzSettingsIndex({ startDate, endDate, subjects = []
                         >
                             Plotting Penguji
                         </TabsTrigger>
+                        <TabsTrigger
+                            value="standard-targets"
+                            className="rounded-lg py-2.5 text-sm font-medium transition-all data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md text-gray-600 hover:text-indigo-600"
+                        >
+                            Standar Target (Jenjang)
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="plotting-juz"
+                            className="rounded-lg py-2.5 text-sm font-medium transition-all data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md text-gray-600 hover:text-indigo-600"
+                        >
+                            Plotting Target Juz
+                        </TabsTrigger>
                     </TabsList>
+
+                    {/* --- TAB: PLOTTING JUZ --- */}
+                    <TabsContent value="plotting-juz">
+                        <PlottingJuzTab subjects={subjects} />
+                    </TabsContent>
+
+                    {/* --- TAB 3: STANDAR TARGET --- */}
+                    <TabsContent value="standard-targets">
+                        <StandardTargetsTab 
+                            standardTargets={props.standardTargets || []} 
+                            jenjangs={props.jenjangs || []} 
+                        />
+                    </TabsContent>
 
                     {/* --- TAB 1: MASA UJIAN --- */}
                     <TabsContent value="exam-period">
@@ -173,28 +183,60 @@ export default function TahfidzSettingsIndex({ startDate, endDate, subjects = []
                                         </CardDescription>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="start_date">Waktu Mulai</Label>
-                                                <Input
-                                                    id="start_date"
-                                                    type="datetime-local"
-                                                    value={periodData.start_date}
-                                                    onChange={(e) => setPeriodData('start_date', e.target.value)}
-                                                    className={periodErrors.start_date ? 'border-red-500' : ''}
-                                                />
-                                                {periodErrors.start_date && <p className="text-sm text-red-500">{periodErrors.start_date}</p>}
+                                        <div className="space-y-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="start_date">Mulai Ujian</Label>
+                                                    <Input
+                                                        id="start_date"
+                                                        type="datetime-local"
+                                                        value={periodData.start_date}
+                                                        onChange={e => setPeriodData('start_date', e.target.value)}
+                                                    />
+                                                    {periodErrors.start_date && <p className="text-sm text-red-500">{periodErrors.start_date}</p>}
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="end_date">Selesai Ujian</Label>
+                                                    <Input
+                                                        id="end_date"
+                                                        type="datetime-local"
+                                                        value={periodData.end_date}
+                                                        onChange={e => setPeriodData('end_date', e.target.value)}
+                                                    />
+                                                    {periodErrors.end_date && <p className="text-sm text-red-500">{periodErrors.end_date}</p>}
+                                                </div>
                                             </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="end_date">Waktu Selesai</Label>
-                                                <Input
-                                                    id="end_date"
-                                                    type="datetime-local"
-                                                    value={periodData.end_date}
-                                                    onChange={(e) => setPeriodData('end_date', e.target.value)}
-                                                    className={periodErrors.end_date ? 'border-red-500' : ''}
-                                                />
-                                                {periodErrors.end_date && <p className="text-sm text-red-500">{periodErrors.end_date}</p>}
+                                            <div className="pt-4 border-t border-gray-100">
+                                                <h3 className="text-sm font-medium text-gray-900 mb-3">Target Harian Default (Akumulasi KBM)</h3>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="default_sabqi">Target Sabqi (Halaman/Hari)</Label>
+                                                        <Input
+                                                            id="default_sabqi"
+                                                            type="number"
+                                                            min="0.5"
+                                                            step="0.5"
+                                                            value={periodData.default_sabqi}
+                                                            onChange={e => setPeriodData('default_sabqi', e.target.value)}
+                                                        />
+                                                        {periodErrors.default_sabqi && <p className="text-sm text-red-500">{periodErrors.default_sabqi}</p>}
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="default_manzil">Target Manzil (Halaman/Hari)</Label>
+                                                        <Input
+                                                            id="default_manzil"
+                                                            type="number"
+                                                            min="0.5"
+                                                            step="0.5"
+                                                            value={periodData.default_manzil}
+                                                            onChange={e => setPeriodData('default_manzil', e.target.value)}
+                                                        />
+                                                        {periodErrors.default_manzil && <p className="text-sm text-red-500">{periodErrors.default_manzil}</p>}
+                                                    </div>
+                                                </div>
+                                                <p className="text-xs text-gray-500 mt-2">
+                                                    *Target ini digunakan sebagai dasar (fallback) jika santri tidak memiliki target spesifik di profilnya.
+                                                </p>
                                             </div>
                                         </div>
 

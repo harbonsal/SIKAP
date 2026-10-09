@@ -15,6 +15,7 @@ class QuranProgress extends Model
         'last_page_number',
         'is_completed',
         'played_ayahs',
+        'last_qari_id',
     ];
 
     protected $casts = [
@@ -23,4 +24,9 @@ class QuranProgress extends Model
         'last_page_number' => 'integer',
         'juz_number' => 'integer',
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

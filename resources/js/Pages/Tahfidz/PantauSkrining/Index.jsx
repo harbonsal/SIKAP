@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import MainLayout from '@/Layouts/MainLayout';
 import { Head, router, Link } from '@inertiajs/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
-import { Search, Filter, Book, User, MapPin, GraduationCap, Calendar, RefreshCcw, ArrowLeft, ClipboardCheck, X, Loader2, CheckCircle2, AlertCircle, BarChart3 } from 'lucide-react';
+import { Search, Filter, Book, User, MapPin, GraduationCap, Calendar, RefreshCcw, ArrowLeft, ClipboardCheck, X, Loader2, CheckCircle2, AlertCircle, BarChart3, PieChart } from 'lucide-react';
 import Pagination from '@/Components/Pagination';
 import axios from 'axios';
+import AnalyticsTab from './AnalyticsTab';
+import CheaterTab from './CheaterTab';
 
 export default function Index({ skrinings, reports, rekapData = [], filters, options, is_santri }) {
     const { userLevels, kelasList, kamarList } = options;
@@ -89,6 +91,29 @@ export default function Index({ skrinings, reports, rekapData = [], filters, opt
         router.get(route('tahfidz.pantau-skrining'), params, { preserveState: true, preserveScroll: true });
     };
 
+    const handleQuickStatusFilter = (status) => {
+        setRekapFilter(p => ({ ...p, status }));
+        const params = {
+            ...Object.fromEntries(Object.entries(filterState).filter(([_, v]) => v !== '')),
+            ...(rekapFilter.kelas_id && { rekap_kelas_id: rekapFilter.kelas_id }),
+            ...(rekapFilter.kamar_id && { rekap_kamar_id: rekapFilter.kamar_id }),
+            ...(rekapFilter.search && { rekap_search: rekapFilter.search }),
+            ...(status && { rekap_status: status }),
+        };
+        router.get(route('tahfidz.pantau-skrining'), params, { preserveState: true, preserveScroll: true });
+    };
+
+    const handleSantriClick = (nomorInduk) => {
+        setActiveTab('reports');
+        setFilterState(prev => ({ ...prev, search: nomorInduk }));
+        
+        const params = {
+            ...Object.fromEntries(Object.entries(filterState).filter(([_, v]) => v !== '')),
+            search: nomorInduk
+        };
+        router.get(route('tahfidz.pantau-skrining'), params, { preserveState: true, preserveScroll: true });
+    };
+
     const resetRekapFilters = () => {
         setRekapFilter({ kelas_id: '', kamar_id: '', search: '', status: '' });
         router.get(route('tahfidz.pantau-skrining'));
@@ -97,9 +122,11 @@ export default function Index({ skrinings, reports, rekapData = [], filters, opt
     // Summary stats for rekap
     const rekapStats = React.useMemo(() => {
         const total = rekapData.length;
+        const belumAdaTarget = rekapData.filter(r => r.total_target === 0).length;
         const selesai = rekapData.filter(r => r.is_completed).length;
-        const belum = total - selesai;
-        return { total, selesai, belum };
+        const belumMulai = rekapData.filter(r => r.total_target > 0 && r.total_done === 0).length;
+        const belum = rekapData.filter(r => r.total_target > 0 && !r.is_completed && r.total_done > 0).length;
+        return { total, selesai, belum, belumMulai, belumAdaTarget };
     }, [rekapData]);
 
     return (
@@ -310,8 +337,10 @@ export default function Index({ skrinings, reports, rekapData = [], filters, opt
                                     <label className="text-xs font-medium text-gray-700">Status Skrining</label>
                                     <select className="w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-violet-500 focus:ring-violet-500" value={rekapFilter.status} onChange={(e) => setRekapFilter(p => ({ ...p, status: e.target.value }))}>
                                         <option value="">Semua Status</option>
-                                        <option value="selesai">✅ Sudah Selesai (30 Juz)</option>
-                                        <option value="belum">⚠️ Belum Selesai</option>
+                                        <option value="selesai">✅ Sudah Selesai Sesuai Target</option>
+                                        <option value="belum">⚠️ Belum Selesai (Proses)</option>
+                                        <option value="belum_mulai">❌ Belum Memulai (0 Juz)</option>
+                                        <option value="belum_ada_target">⚪ Belum Ada Target Hafalan</option>
                                     </select>
                                 </div>
                                 <div className="space-y-1.5">
@@ -348,14 +377,29 @@ export default function Index({ skrinings, reports, rekapData = [], filters, opt
                             Rekap Status Skrining
                         </button>
                     )}
+                    {!is_santri && (
+                        <button onClick={() => setActiveTab('analytics')} className={`px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5 ${activeTab === 'analytics' ? 'bg-violet-100 text-violet-700' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
+                            <PieChart className="h-4 w-4" />
+                            Analisis & Statistik
+                        </button>
+                    )}
+                    {!is_santri && (
+                        <button onClick={() => setActiveTab('cheater')} className={`px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5 ${activeTab === 'cheater' ? 'bg-red-100 text-red-700' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
+                            <AlertCircle className="h-4 w-4" />
+                            Analisa Kecurangan
+                        </button>
+                    )}
                 </div>
 
                 {/* ── REKAP STATUS TAB ──────────────────────────────────── */}
                 {activeTab === 'rekap' && !is_santri && (
                     <div className="space-y-4">
                         {/* Summary Cards */}
-                        <div className="grid grid-cols-3 gap-4">
-                            <div className="bg-white rounded-xl border shadow-sm p-4 flex items-center gap-3">
+                        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                            <div 
+                                onClick={() => handleQuickStatusFilter('')}
+                                className={`rounded-xl border shadow-sm p-4 flex items-center gap-3 cursor-pointer transition-colors ${!rekapFilter.status ? 'bg-violet-50 border-violet-200' : 'bg-white hover:bg-gray-50'}`}
+                            >
                                 <div className="h-10 w-10 bg-violet-100 rounded-full flex items-center justify-center shrink-0">
                                     <User className="h-5 w-5 text-violet-600" />
                                 </div>
@@ -364,22 +408,52 @@ export default function Index({ skrinings, reports, rekapData = [], filters, opt
                                     <div className="text-xs text-gray-500">Total Santri</div>
                                 </div>
                             </div>
-                            <div className="bg-white rounded-xl border shadow-sm p-4 flex items-center gap-3">
+                            <div 
+                                onClick={() => handleQuickStatusFilter('selesai')}
+                                className={`rounded-xl border shadow-sm p-4 flex items-center gap-3 cursor-pointer transition-colors ${rekapFilter.status === 'selesai' ? 'bg-emerald-50 border-emerald-200' : 'bg-white hover:bg-gray-50'}`}
+                            >
                                 <div className="h-10 w-10 bg-emerald-100 rounded-full flex items-center justify-center shrink-0">
                                     <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                                 </div>
                                 <div>
                                     <div className="text-2xl font-bold text-emerald-700">{rekapStats.selesai}</div>
-                                    <div className="text-xs text-gray-500">Selesai Sesuai Target Hafalan</div>
+                                    <div className="text-xs text-gray-500">Selesai (Sesuai Target)</div>
                                 </div>
                             </div>
-                            <div className="bg-white rounded-xl border shadow-sm p-4 flex items-center gap-3">
+                            <div 
+                                onClick={() => handleQuickStatusFilter('belum')}
+                                className={`rounded-xl border shadow-sm p-4 flex items-center gap-3 cursor-pointer transition-colors ${rekapFilter.status === 'belum' ? 'bg-amber-50 border-amber-200' : 'bg-white hover:bg-gray-50'}`}
+                            >
                                 <div className="h-10 w-10 bg-amber-100 rounded-full flex items-center justify-center shrink-0">
                                     <AlertCircle className="h-5 w-5 text-amber-600" />
                                 </div>
                                 <div>
                                     <div className="text-2xl font-bold text-amber-700">{rekapStats.belum}</div>
-                                    <div className="text-xs text-gray-500">Belum Selesai</div>
+                                    <div className="text-xs text-gray-500">Belum Selesai (Proses)</div>
+                                </div>
+                            </div>
+                            <div 
+                                onClick={() => handleQuickStatusFilter('belum_mulai')}
+                                className={`rounded-xl border shadow-sm p-4 flex items-center gap-3 cursor-pointer transition-colors ${rekapFilter.status === 'belum_mulai' ? 'bg-red-50 border-red-200' : 'bg-white hover:bg-gray-50'}`}
+                            >
+                                <div className="h-10 w-10 bg-red-100 rounded-full flex items-center justify-center shrink-0">
+                                    <X className="h-5 w-5 text-red-600" />
+                                </div>
+                                <div>
+                                    <div className="text-2xl font-bold text-red-700">{rekapStats.belumMulai}</div>
+                                    <div className="text-xs text-gray-500">Belum Memulai</div>
+                                </div>
+                            </div>
+                            <div 
+                                onClick={() => handleQuickStatusFilter('belum_ada_target')}
+                                className={`rounded-xl border shadow-sm p-4 flex items-center gap-3 cursor-pointer transition-colors ${rekapFilter.status === 'belum_ada_target' ? 'bg-slate-100 border-slate-300' : 'bg-white hover:bg-gray-50'}`}
+                            >
+                                <div className="h-10 w-10 bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center shrink-0">
+                                    <Book className="h-5 w-5 text-slate-500" />
+                                </div>
+                                <div>
+                                    <div className="text-2xl font-bold text-slate-700">{rekapStats.belumAdaTarget}</div>
+                                    <div className="text-xs text-gray-500">Belum Ada Target</div>
                                 </div>
                             </div>
                         </div>
@@ -403,12 +477,15 @@ export default function Index({ skrinings, reports, rekapData = [], filters, opt
                                                 <tr key={row.student_id} className="hover:bg-violet-50/40 transition-colors">
                                                     <td className="px-6 py-3 text-sm text-gray-400">{idx + 1}</td>
                                                     <td className="px-6 py-4">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="h-8 w-8 bg-violet-100 rounded-full flex items-center justify-center shrink-0">
+                                                        <div 
+                                                            className="flex items-center gap-3 cursor-pointer group"
+                                                            onClick={() => handleSantriClick(row.nomor_induk)}
+                                                        >
+                                                            <div className="h-8 w-8 bg-violet-100 rounded-full flex items-center justify-center shrink-0 group-hover:bg-violet-200 transition-colors">
                                                                 <User className="h-4 w-4 text-violet-600" />
                                                             </div>
                                                             <div>
-                                                                <div className="text-sm font-semibold text-gray-900">{row.name}</div>
+                                                                <div className="text-sm font-semibold text-gray-900 group-hover:text-violet-700 transition-colors">{row.name}</div>
                                                                 <div className="text-xs text-gray-500 flex flex-wrap gap-2 mt-0.5">
                                                                     <span className="font-mono">{row.nomor_induk}</span>
                                                                     {row.kelas && (
@@ -484,23 +561,23 @@ export default function Index({ skrinings, reports, rekapData = [], filters, opt
                 )}
 
                 {/* ── LAPORAN / INDIVIDU TABS ───────────────────────────── */}
-                {activeTab !== 'rekap' && (
+                {(activeTab === 'reports' || activeTab === 'individual') && (
                     <Card className="border shadow-sm overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
+                        <div className="overflow-x-auto w-full">
+                            <table className="min-w-full divide-y divide-gray-200 table-fixed">
                                 <thead className="bg-gray-50">
                                     <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Identitas User</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">Tanggal</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-64">Identitas User</th>
                                         {activeTab === 'individual' ? (
                                             <>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ayat Skrining</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Detail Kesalahan</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[40%]">Ayat Skrining</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[25%]">Detail Kesalahan</th>
                                             </>
                                         ) : (
                                             <>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Juz</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider text-center">Total Kesalahan</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider text-center w-40">Total Kesalahan</th>
                                             </>
                                         )}
                                     </tr>
@@ -538,23 +615,23 @@ export default function Index({ skrinings, reports, rekapData = [], filters, opt
                                                             </div>
                                                         </div>
                                                     </td>
-                                                    <td className="px-6 py-4 align-top">
+                                                    <td className="px-6 py-4 align-top w-[40%] max-w-0">
                                                         <div className="text-sm text-gray-900 font-medium flex items-center gap-1.5">
-                                                            <Book className="h-4 w-4 text-emerald-500" />
+                                                            <Book className="h-4 w-4 text-emerald-500 shrink-0" />
                                                             Surah {item.surah_number} Ayat {item.ayat_number}
                                                         </div>
                                                         {item.juz_number && (<div className="text-xs text-gray-500 mt-1 pl-5.5">Juz {item.juz_number}</div>)}
-                                                        <p className="mt-2 text-sm text-right leading-loose font-arabic text-gray-800 dir-rtl" style={{ direction: 'rtl', fontFamily: "'Amiri Quran', serif" }}>
+                                                        <p className="mt-2 text-sm text-right leading-loose font-arabic text-gray-800 dir-rtl whitespace-normal" style={{ direction: 'rtl', fontFamily: "'Amiri Quran', serif", wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                                                             {item.full_ayat_text.split(' ').map((word, idx) => {
                                                                 const isHighlighted = item.kata_benar.includes(word);
-                                                                return (<span key={idx} className={`${isHighlighted ? 'bg-red-100 text-red-700 font-bold px-1 rounded' : ''} mr-1`}>{word}</span>);
+                                                                return (<span key={idx} className={`${isHighlighted ? 'bg-red-100 text-red-700 font-bold px-1 rounded' : ''} mr-1 inline-block`}>{word}</span>);
                                                             })}
                                                         </p>
                                                     </td>
-                                                    <td className="px-6 py-4 align-top">
-                                                        <div className="bg-red-50 border border-red-100 rounded-lg p-3">
+                                                    <td className="px-6 py-4 align-top w-[25%] max-w-0">
+                                                        <div className="bg-red-50 border border-red-100 rounded-lg p-3 w-full">
                                                             <p className="text-xs font-semibold text-red-800 mb-1 border-b border-red-200 pb-1">Hafalan Keliru:</p>
-                                                            <p className="text-sm text-red-900 whitespace-pre-wrap">{item.hafalan_salah}</p>
+                                                            <p className="text-sm text-red-900 whitespace-pre-wrap" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{item.hafalan_salah}</p>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -567,12 +644,48 @@ export default function Index({ skrinings, reports, rekapData = [], filters, opt
                                             reports.data.map((report) => (
                                                 <tr key={report.id} className="hover:bg-violet-50/50 transition-colors">
                                                     <td className="px-6 py-4 whitespace-nowrap align-top">
-                                                        <div className="flex items-center text-sm text-gray-900">
-                                                            <Calendar className="h-4 w-4 text-gray-400 mr-2" />
-                                                            {new Date(report.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
-                                                        </div>
-                                                        <div className="text-xs text-gray-500 mt-1 pl-6">
-                                                            {new Date(report.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+                                                        <div className="flex flex-col gap-2">
+                                                            <div>
+                                                                <div className="text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-0.5">Pencatatan Terakhir:</div>
+                                                                {report.updated_at ? (
+                                                                    <>
+                                                                        <div className="flex items-center text-xs text-gray-900 font-medium">
+                                                                            <Calendar className="h-3 w-3 text-indigo-500 mr-1" />
+                                                                            {new Date(report.updated_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                                        </div>
+                                                                        <div className="text-[11px] text-gray-500 pl-4 mt-0.5">
+                                                                            {new Date(report.updated_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+                                                                        </div>
+                                                                    </>
+                                                                ) : (
+                                                                    <div className="text-xs text-gray-400 italic">Tidak tercatat</div>
+                                                                )}
+                                                            </div>
+                                                            <div className="mt-1">
+                                                                {report.is_completed ? (
+                                                                    <>
+                                                                        <div className="flex items-center text-xs text-emerald-700 font-medium bg-emerald-50 border border-emerald-100 rounded px-1.5 py-1 w-max">
+                                                                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Selesai
+                                                                        </div>
+                                                                        {report.started_at && (
+                                                                            <div className="text-[10px] text-gray-400 mt-1 pl-1">
+                                                                                Mulai: {new Date(report.started_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                                            </div>
+                                                                        )}
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <div className="flex items-center text-xs text-amber-700 font-medium bg-amber-100 border border-amber-200 rounded px-1.5 py-1 w-max">
+                                                                            <AlertCircle className="h-3.5 w-3.5 mr-1" /> Sedang Proses
+                                                                        </div>
+                                                                        {report.started_at && (
+                                                                            <div className="text-[10px] text-gray-400 mt-1 pl-1">
+                                                                                Mulai: {new Date(report.started_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                                            </div>
+                                                                        )}
+                                                                    </>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4 align-top">
@@ -598,9 +711,15 @@ export default function Index({ skrinings, reports, rekapData = [], filters, opt
                                                         <div className="text-sm text-gray-900 font-medium">Juz {report.juz_number}</div>
                                                     </td>
                                                     <td className="px-6 py-4 align-top text-center">
-                                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${report.total_mistakes === 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
-                                                            {report.total_mistakes} Kesalahan
-                                                        </span>
+                                                        {report.is_completed ? (
+                                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${report.total_mistakes === 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
+                                                                {report.total_mistakes} Kesalahan
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                                                {Array.isArray(report.played_ayahs) ? report.played_ayahs.length : 0} Ayat Terputar
+                                                            </span>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             ))
@@ -618,14 +737,24 @@ export default function Index({ skrinings, reports, rekapData = [], filters, opt
                                     <Pagination links={skrinings.links} />
                                 </div>
                             )
-                        ) : (
+                        ) : activeTab === 'reports' ? (
                             reports.links && reports.data.length > 0 && (
                                 <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
                                     <Pagination links={reports.links} />
                                 </div>
                             )
-                        )}
+                        ) : null}
                     </Card>
+                )}
+
+                {/* ── ANALYTICS TAB ───────────────────────────────────────── */}
+                {activeTab === 'analytics' && !is_santri && (
+                    <AnalyticsTab />
+                )}
+
+                {/* ── CHEATER TAB ───────────────────────────────────────── */}
+                {activeTab === 'cheater' && !is_santri && (
+                    <CheaterTab />
                 )}
             </div>
         </MainLayout>

@@ -1,5 +1,5 @@
 import MainLayout from '@/Layouts/MainLayout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, router } from '@inertiajs/react';
 import { ArrowLeft, Save, AlertCircle, Info, Download } from 'lucide-react';
 import { Label } from '@/Components/ui/label';
 import { useState, useEffect } from 'react';
@@ -11,11 +11,8 @@ import { Input } from '@/Components/ui/input';
 export default function Show({ activeSubject, gradeWeights, semester, previousParams, kkmValue }) {
     const [grades, setGrades] = useState({});
     const [activeColumns, setActiveColumns] = useState({}); // Stores which columns are active for editing
-    const { data, setData, post, processing, errors, wasSuccessful } = useForm({
-        grades: [],
-    });
+    const [isSaving, setIsSaving] = useState(false);
 
-    // Initialize grades from existing data
     // Initialize grades from existing data
     useEffect(() => {
         const initialGrades = {};
@@ -57,40 +54,38 @@ export default function Show({ activeSubject, gradeWeights, semester, previousPa
     };
 
     const handleSubmit = (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
 
-        // Transform grades object to array for submission
         const gradesArray = [];
         Object.keys(grades).forEach(studentId => {
             Object.keys(grades[studentId]).forEach(weightId => {
-                const score = grades[studentId][weightId];
-                // Only include if score is not empty string (allow 0)
-                if (score !== '') {
+                if (activeColumns[weightId]) {
+                    const score = grades[studentId][weightId];
                     gradesArray.push({
                         student_id: parseInt(studentId),
                         grade_weight_id: parseInt(weightId),
-                        score: parseFloat(score)
+                        score: score === '' ? null : parseFloat(score)
                     });
                 }
             });
         });
 
-        setData('grades', gradesArray);
-    };
-
-    // Trigger post when data.grades is updated
-    useEffect(() => {
-        if (data.grades.length > 0) {
-            post(route('assessments.store', activeSubject.id), {
-                preserveScroll: true,
-                onSuccess: () => {
-                    // Reset active columns on success for security/safety
-                    setActiveColumns({});
-                    setData('grades', []); // Reset form data
-                }
-            });
+        if (gradesArray.length === 0) {
+            alert('Belum ada nilai yang diinput atau diubah. Silakan isi setidaknya satu nilai.');
+            return;
         }
-    }, [data.grades]);
+
+        setIsSaving(true);
+        router.post(route('assessments.store', activeSubject.id), { grades: gradesArray }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setActiveColumns({});
+            },
+            onFinish: () => {
+                setIsSaving(false);
+            }
+        });
+    };
 
     // Paste Logic
     const handlePaste = (e, startStudentId, startWeightId) => {
@@ -250,7 +245,7 @@ export default function Show({ activeSubject, gradeWeights, semester, previousPa
                                 <span className="text-primary text-xl hidden sm:inline">{activeSubject.mapel.name}</span>
                             </h2>
                             <p className="text-muted-foreground text-sm">
-                                {activeSubject.active_class.kelas.name} {activeSubject.active_class.kelas_paralel?.name} • Semester {semester?.name}
+                                {activeSubject.active_class.kelas.name} {activeSubject.active_class.kelas_paralel?.name} â€¢ Semester {semester?.name}
                             </p>
                         </div>
                     </div>
@@ -269,9 +264,9 @@ export default function Show({ activeSubject, gradeWeights, semester, previousPa
                         </a>
                     </Button>
 
-                    <Button onClick={(e) => document.getElementById('grades-form').requestSubmit()} disabled={processing} className="min-w-[120px] shadow-sm">
+                    <Button onClick={handleSubmit} disabled={isSaving} className="min-w-[120px] shadow-sm">
                         <Save className="mr-2 h-4 w-4" />
-                        {processing ? 'Menyimpan...' : 'Simpan Perubahan'}
+                        {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
                     </Button>
                 </div>
 
@@ -314,15 +309,16 @@ export default function Show({ activeSubject, gradeWeights, semester, previousPa
                                                     {gradeWeights.map(weight => (
                                                         <th key={weight.id} className="px-2 py-3 font-bold text-center min-w-[100px] border-b border-r border-gray-300 bg-gray-50">
                                                             <div className="flex flex-col items-center gap-1">
-                                                                <div className="flex items-center gap-1.5 mb-1 bg-white border border-gray-200 px-2 py-1 rounded shadow-sm">
+                                                                <div className={`flex items-center gap-1.5 mb-1 bg-white border border-gray-200 px-2 py-1 rounded shadow-sm ${getDisplayName(weight.name).toUpperCase().includes('UH') ? 'opacity-50' : ''}`}>
                                                                     <input
                                                                         type="checkbox"
-                                                                        className="rounded border-gray-400 text-primary focus:ring-primary h-3.5 w-3.5"
+                                                                        className="rounded border-gray-400 text-primary focus:ring-primary h-3.5 w-3.5 disabled:opacity-50"
                                                                         checked={!!activeColumns[weight.id]}
                                                                         onChange={() => toggleColumn(weight.id)}
                                                                         id={`toggle-${weight.id}`}
+                                                                        disabled={getDisplayName(weight.name).toUpperCase().includes('UH')}
                                                                     />
-                                                                    <label htmlFor={`toggle-${weight.id}`} className="text-[10px] cursor-pointer font-bold uppercase tracking-wider select-none text-gray-700">
+                                                                    <label htmlFor={`toggle-${weight.id}`} className="text-[10px] cursor-pointer font-bold uppercase tracking-wider select-none text-gray-700" title={getDisplayName(weight.name).toUpperCase().includes('UH') ? "Gunakan tombol Input di bawah" : ""}>
                                                                         Input
                                                                     </label>
                                                                 </div>
@@ -330,6 +326,16 @@ export default function Show({ activeSubject, gradeWeights, semester, previousPa
                                                                 <Badge variant="secondary" className="text-[10px] h-4 px-1 leading-none font-normal border-gray-300">
                                                                     {weight.weight}%
                                                                 </Badge>
+                                                                {(getDisplayName(weight.name).toUpperCase().includes('UH1') || getDisplayName(weight.name).toUpperCase().includes('UH 1') || getDisplayName(weight.name).toUpperCase() === 'UH1') && (
+                                                                    <Link href={route('uh.show', [activeSubject.id, 'UH1'])} className="mt-1 text-[10px] text-blue-600 hover:text-blue-800 hover:underline flex items-center justify-center gap-1 font-semibold w-full bg-blue-50 py-0.5 rounded border border-blue-100">
+                                                                        <span>Input UH1</span>
+                                                                    </Link>
+                                                                )}
+                                                                {(getDisplayName(weight.name).toUpperCase().includes('UH2') || getDisplayName(weight.name).toUpperCase().includes('UH 2') || getDisplayName(weight.name).toUpperCase() === 'UH2') && (
+                                                                    <Link href={route('uh.show', [activeSubject.id, 'UH2'])} className="mt-1 text-[10px] text-blue-600 hover:text-blue-800 hover:underline flex items-center justify-center gap-1 font-semibold w-full bg-blue-50 py-0.5 rounded border border-blue-100">
+                                                                        <span>Input UH2</span>
+                                                                    </Link>
+                                                                )}
                                                             </div>
                                                         </th>
                                                     ))}
@@ -387,3 +393,4 @@ export default function Show({ activeSubject, gradeWeights, semester, previousPa
         </MainLayout >
     );
 }
+

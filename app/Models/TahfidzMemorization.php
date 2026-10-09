@@ -12,6 +12,7 @@ class TahfidzMemorization extends Model
         'juz',
         'completed_pages',
         'is_completed',
+        'type',
         'is_validated',
     ];
 

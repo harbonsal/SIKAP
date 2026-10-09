@@ -65,15 +65,16 @@ export default function AdminDashboard({ stats, allowedWidgets = {}, activities 
                                     </Link>
                                 )}
 
-                                {/* 2. Kalender (Hide for Bagian Kesehatan) */}
+                                {/* 2. Jadwal Pelajaran (Hide for Bagian Kesehatan) */}
                                 {(!allowedWidgets.health_stats_widget) && (
                                     <Link href={route('academic.schedules.index')}>
                                         <div className="group flex flex-col items-center justify-center p-6 bg-white rounded-2xl border border-slate-100 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-cyan-200 h-full relative overflow-hidden">
-                                            <div className="bg-gradient-to-br from-cyan-400 to-cyan-600 text-white p-4 rounded-xl mb-4 shadow-lg shadow-cyan-500/30 ring-4 ring-cyan-50 group-hover:scale-110 transition-transform duration-300 relative z-10">
+                                            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-cyan-100/40 to-transparent rounded-bl-full -z-10 group-hover:scale-110 transition-transform duration-500"></div>
+                                            <div className="p-4 bg-gradient-to-br from-cyan-400 to-cyan-600 rounded-xl mb-4 text-white shadow-lg shadow-cyan-200 group-hover:shadow-cyan-300 group-hover:-translate-y-1 transition-all duration-300 relative z-10">
                                                 <Calendar className="h-7 w-7 drop-shadow-sm" />
                                             </div>
-                                            <h4 className="font-bold text-slate-800 group-hover:text-cyan-700 transition-colors relative z-10">Kalender</h4>
-                                            <p className="text-xs text-center text-slate-500 mt-1 relative z-10">Kegiatan Akademik</p>
+                                            <h4 className="font-bold text-slate-800 group-hover:text-cyan-700 transition-colors relative z-10">Jadwal Pelajaran</h4>
+                                            <p className="text-xs text-center text-slate-500 mt-1 relative z-10">Jadwal KBM & Guru</p>
                                         </div>
                                     </Link>
                                 )}
@@ -152,6 +153,19 @@ export default function AdminDashboard({ stats, allowedWidgets = {}, activities 
                                             </div>
                                             <h4 className="font-bold text-slate-800 group-hover:text-orange-700 transition-colors relative z-10">Plotting Penguji</h4>
                                             <p className="text-xs text-center text-slate-500 mt-1 relative z-10">Atur Penguji</p>
+                                        </div>
+                                    </Link>
+                                )}
+
+                                {/* [Manager Tahfidz] 7b. Pantauan Halaqoh */}
+                                {(allowedWidgets.shortcut_tahfidz_monitoring ?? true) && (
+                                    <Link href={route('tahfidz.monitoring.index')}>
+                                        <div className="group flex flex-col items-center justify-center p-6 bg-white rounded-2xl border border-slate-100 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-pink-200 h-full relative overflow-hidden">
+                                            <div className="bg-gradient-to-br from-pink-400 to-pink-600 text-white p-4 rounded-xl mb-4 shadow-lg shadow-pink-500/30 ring-4 ring-pink-50 group-hover:scale-110 transition-transform duration-300 relative z-10">
+                                                <ClipboardCheck className="h-7 w-7 drop-shadow-sm" />
+                                            </div>
+                                            <h4 className="font-bold text-slate-800 group-hover:text-pink-700 transition-colors relative z-10">Pantauan halaqoh</h4>
+                                            <p className="text-xs text-center text-slate-500 mt-1 relative z-10">Lembar Pantauan</p>
                                         </div>
                                     </Link>
                                 )}

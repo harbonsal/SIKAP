@@ -34,4 +34,9 @@ class TahfidzMonitoring extends Model
     {
         return $this->hasMany(TahfidzMonitoringViolation::class, 'monitoring_id');
     }
+
+    public function memberAttendances()
+    {
+        return $this->hasMany(TahfidzMonitoringMemberAttendance::class, 'monitoring_id');
+    }
 }

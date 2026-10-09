@@ -26,14 +26,17 @@ const navItems = [
         title: "Pendidikan",
         icon: BookOpen,
         permission: 'menu_academic',
+        allowCategory: 'Askar/Pegawai',
+        allowRoles: ['Wali Kelas', 'Manager Tahfidz', 'Sekertaris Divisi', 'Sekretaris Divisi', 'Manager'],
         children: [
-            { title: "Kalender Pendidikan", href: "academic-calendar.index" },
+            { title: "Kalender Pendidikan", href: "academic-calendar.index", allowCategory: 'Askar/Pegawai' },
             {
                 title: "Penilaian & Rapor",
                 children: [
                     { title: "Input Nilai", href: "assessments.index", permission: 'view_assessments', requiresTeachingLoad: true },
                     { title: "Rekap Nilai", href: "recap.class.index", permission: 'view_grade_recap', roles: ['Administrator', 'Wali Kelas'] },
                     { title: "Rekap Per Santri", href: "recap.student.index", permission: 'view_grade_recap', roles: ['Administrator', 'Wali Kelas'] },
+                    { title: "Rekap Ijazah", href: "recap.ijazah.index", permission: 'view_grade_recap', roles: ['Administrator', 'Wali Kelas', 'Manager'] },
                     { title: "Cetak Rapor SM1", href: "reports.index", params: { semester: 'Ganjil' }, permission: 'view_reports' },
                     { title: "Cetak Rapor SM2", href: "reports.index", params: { semester: 'Genap' }, permission: 'view_reports' },
                     { title: "Cetak Ijazah", href: "reports.index", params: { type: 'ijazah' }, permission: 'view_reports' },
@@ -46,13 +49,14 @@ const navItems = [
                     { title: "Daftar Pengajar", href: "daftar-pengajar.index" },
                     { title: "Silabus & Materi", href: "silabus.index", permission: 'view_silabus', requiresTeachingLoad: true },
                     { title: "Absensi & Jurnal", href: "journals.index", permission: 'view_journals', requiresTeachingLoad: true },
+                    { title: "Pantauan Jurnal KBM", href: "academic.monitoring.journals", roles: ['Administrator', 'Kepala Sekolah', 'Manager', 'Sekretaris Divisi'] },
                     { title: "Input Absensi Manual", href: "journals.manual.index", permission: 'input_manual_attendance' }, // Strict: Wali Kelas+
                     { title: "RPP / Modul Ajar", href: "supervision-rpps.index", permission: 'view_supervision_rpps' },
                     { title: "Ikhtabir Nafsi (Tes AI)", href: "ikhtabir-nafsi.index", icon: Bot, roles: ['Guru', 'Administrator', 'Wali Kelas'] }, // NEW MENu
                     { title: "Cetak Absensi Manual", href: "attendance.print.index", permission: 'print_manual_attendance' }, // Strict: Admin
                 ]
             },
-            { title: "Cari & Biodata Santri", href: "students.index", permission: 'view_students' },
+            { title: "Cari & Biodata Santri", href: "students.index", permission: 'view_students', allowRoles: ['Wali Kelas', 'Manager Tahfidz', 'Sekertaris Divisi', 'Sekretaris Divisi', 'Manager'] },
             { title: "Manajemen Ijazah", href: "academic.ijazah.index", permission: 'manage_ijazah' }, 
             {
                 title: "Supervisi Guru",
@@ -80,6 +84,7 @@ const navItems = [
             { title: "Penilaian Tahfidz", href: "tahfidz.assessments.index", permission: 'menu_tahfidz_assessment' }, // Controlled Permission
             { title: "Rekap Nilai", href: "tahfidz.recap.index", permission: 'menu_tahfidz_recap' }, // Controlled Permission
             { title: "Analisa Tahfidz", href: "tahfidz.analysis.index", permission: 'view_tahfidz_analysis' },
+            { title: "Pantauan halaqoh", href: "tahfidz.monitoring.index", roles: ['Administrator', 'Manager Tahfidz', 'Wali Kelas'] }, // Adjust roles if needed
             { title: "Pantauan Skrining", href: "tahfidz.pantau-skrining", roles: ['Administrator', 'Manager Tahfidz'] },
             {
                 title: "Pengaturan Tahfidz",
@@ -96,7 +101,15 @@ const navItems = [
         title: "Pengasuhan",
         icon: Heart,
         permission: 'menu_care', // NEW LOCK
+        allowRoles: ['Sekertaris Divisi', 'Sekretaris Divisi'],
         children: [
+            {
+                title: "Musyrif Tarbiyah",
+                children: [
+                    { title: "Dashboard Musyrif", href: "musyrif-tarbiyah.index" },
+                    { title: "Plotting Anak Asuh", href: "musyrif-tarbiyah.plotting.index", roles: ['Administrator', 'Manager Pengasuhan'] },
+                ]
+            },
             {
                 title: "Penilaian Akhlak",
                 children: [
@@ -113,7 +126,7 @@ const navItems = [
                     { title: "Plotting Anggota Kamar", href: "kamar-members.index", permission: 'view_kamar_members' },
                 ]
             },
-            { title: "Perizinan Santri", href: "rfid.scan", activeRoutes: ['rfid.scan', 'permissions.index', 'permissions.monitor'], permission: 'view_permissions' },
+            { title: "Perizinan Santri", href: "rfid.scan", activeRoutes: ['rfid.scan', 'permissions.index', 'permissions.monitor'], permission: 'view_permissions', allowRoles: ['Sekertaris Divisi', 'Sekretaris Divisi'] },
             {
                 title: "Kesehatan",
                 children: [
@@ -209,6 +222,7 @@ export default function Sidebar({ className }) {
     const checkAccess = (item) => {
         const permissions = auth.user?.permissions || [];
         const userRoles = auth.user?.roles || [auth.user?.user_level?.name || 'Guest'];
+        const userCategory = auth.user?.user_level?.category;
         const hasTeachingLoad = auth.user?.has_teaching_load; 
 
         if (item.hideIfPermission) {
@@ -224,6 +238,16 @@ export default function Sidebar({ className }) {
         }
 
         if ((userRoles.includes('Administrator') || userRoles.includes('Manager')) && !item.strictRoles) return true;
+
+        if (item.allowCategory && item.allowCategory === userCategory) {
+            return true;
+        }
+
+        if (item.allowRoles && Array.isArray(item.allowRoles)) {
+            if (item.allowRoles.some(role => userRoles.includes(role))) {
+                return true;
+            }
+        }
 
         if (item.roles && Array.isArray(item.roles)) {
             const hasRole = item.roles.some(role => userRoles.includes(role));
@@ -348,23 +372,55 @@ export default function Sidebar({ className }) {
     }
 
     const filteredNavItems = filterItemsBetter(navItems);
-    const [deferredPrompt, setDeferredPrompt] = useState(null);
+    const [deferredPrompt, setDeferredPrompt] = useState(typeof window !== 'undefined' ? window.deferredPWAInstallPrompt : null);
+    const [isMobileDevice, setIsMobileDevice] = useState(false);
 
     useEffect(() => {
+        // Detect Mobile
+        const checkMobile = () => {
+            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+            const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+            setIsMobileDevice(isMobileUA || window.innerWidth < 768);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+
+        if (window.deferredPWAInstallPrompt) {
+            setDeferredPrompt(window.deferredPWAInstallPrompt);
+        }
+
         const handler = (e) => {
             e.preventDefault();
+            window.deferredPWAInstallPrompt = e;
             setDeferredPrompt(e);
         };
+        
+        const customHandler = () => {
+            setDeferredPrompt(window.deferredPWAInstallPrompt);
+        };
+
         window.addEventListener('beforeinstallprompt', handler);
-        return () => window.removeEventListener('beforeinstallprompt', handler);
+        window.addEventListener('pwa-prompt-ready', customHandler);
+        
+        return () => {
+            window.removeEventListener('resize', checkMobile);
+            window.removeEventListener('beforeinstallprompt', handler);
+            window.removeEventListener('pwa-prompt-ready', customHandler);
+        };
     }, []);
 
     const handleInstallClick = async () => {
         if (!deferredPrompt) return;
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') setDeferredPrompt(null);
+        if (outcome === 'accepted') {
+            setDeferredPrompt(null);
+            window.deferredPWAInstallPrompt = null;
+        }
     };
+
+    // PWA Logic: Only show for mobile devices, and not for Administrators/Managers
+    const showInstallButton = deferredPrompt && isMobileDevice && (userRole !== 'Administrator' && userRole !== 'Manager');
 
     return (
         <div className={cn("flex flex-col h-screen w-64 bg-background/95 backdrop-blur-sm border-r border-border", className)}>
@@ -485,7 +541,7 @@ export default function Sidebar({ className }) {
                         <Trash2 className="h-4 w-4" /> Clear Cache
                     </button>
                 )}
-                {deferredPrompt && (
+                {showInstallButton && (
                     <button onClick={handleInstallClick} className="w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 transition-all">
                         <Download className="h-4 w-4" /> Install Aplikasi
                     </button>

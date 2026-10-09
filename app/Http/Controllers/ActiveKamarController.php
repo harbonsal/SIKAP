@@ -50,12 +50,24 @@ class ActiveKamarController extends Controller
 
         $availableKamars = Kamar::whereNotIn('id', $existingActiveKamarIds)->get();
 
-        // Get available musrifs - Optimize: Select minimal fields and disable appends
-        $musrifs = User::select('id', 'name')->whereHas('userLevel', function ($q) {
-            $q->where('name', 'Musrif Asrama')->orWhere('name', 'Administrator')->orWhere('name', 'Guru');
-        })->get()->each(function ($user) {
-            $user->setAppends([]);
-        });
+        // Get available musrifs - Optimize: Select minimal fields and disable appends,
+        // and ONLY include ACTIVE users who have 'Musrif Asrama' role (either primary or additional)
+        $musrifs = User::select('id', 'name')
+            ->where(function ($q) {
+                $q->where('status', 'Aktif')
+                  ->orWhereNull('status');
+            })
+            ->where(function ($query) {
+                $query->whereHas('userLevel', function ($q) {
+                    $q->where('name', 'like', '%Musrif%')->orWhere('name', 'like', '%Musyrif%');
+                })->orWhereHas('additionalLevels', function ($q) {
+                    $q->where('name', 'like', '%Musrif%')->orWhere('name', 'like', '%Musyrif%');
+                });
+            })
+            ->get()
+            ->each(function ($user) {
+                $user->setAppends([]);
+            });
 
         return Inertia::render('Settings/ActiveKamar/Index', [
             'activeKamars' => $activeKamars,

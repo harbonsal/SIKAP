@@ -9,6 +9,8 @@ class TahfidzMemorizationDetail extends Model
 {
     protected $fillable = [
         'student_id',
+        'academic_year_id',
+        'officer_id',
         'juz',
         'page_number',
         'surah_name',
@@ -16,6 +18,7 @@ class TahfidzMemorizationDetail extends Model
         'mistake_count',
         'mistakes_history',
         'status',
+        'type',
     ];
 
     protected $casts = [

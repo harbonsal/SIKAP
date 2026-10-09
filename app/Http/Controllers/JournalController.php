@@ -17,7 +17,7 @@ class JournalController extends Controller
 {
     public function index()
     {
-        $user = auth()->user();
+        $user = Auth::user();
         $query = ClassJournal::with(['activeSubject.mapel', 'activeSubject.activeClass.kelas', 'activeSubject.activeClass.kelasParalel']);
 
         if (!$user->hasRole('Administrator') && !$user->hasRole('Kepala Sekolah') && !$user->hasRole('Manager')) {
@@ -81,7 +81,7 @@ class JournalController extends Controller
 
     public function create(Request $request)
     {
-        $user = auth()->user();
+        $user = Auth::user();
         $today = now();
         $time = now()->format('H:i:s');
 
@@ -174,7 +174,7 @@ class JournalController extends Controller
             // Create Journal
             $journal = ClassJournal::create([
                 'active_subject_id' => $request->active_subject_id,
-                'teacher_id' => auth()->id(),
+                'teacher_id' => Auth::id(),
                 'academic_year_id' => $activeSubject->activeClass->academic_year_id,
                 'pekan_id' => $request->pekan_id, // Sent from form (auto-detected or manual)
                 'jam_ke' => $request->jam_ke,
@@ -207,7 +207,7 @@ class JournalController extends Controller
 
     public function edit(ClassJournal $journal)
     {
-        $user = auth()->user();
+        $user = Auth::user();
 
         // Authorization: Only Creator or Admin/Manager/KS
         if ($journal->teacher_id !== $user->id && !$user->hasRole('Administrator') && !$user->hasRole('Kepala Sekolah') && !$user->hasRole('Manager')) {
@@ -282,7 +282,7 @@ class JournalController extends Controller
 
     public function update(Request $request, ClassJournal $journal)
     {
-        $user = auth()->user();
+        $user = Auth::user();
         if ($journal->teacher_id !== $user->id && !$user->hasRole('Administrator') && !$user->hasRole('Kepala Sekolah') && !$user->hasRole('Manager')) {
             abort(403);
         }

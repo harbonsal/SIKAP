@@ -19,20 +19,20 @@ class SilabusController extends Controller
         $this->middleware('permission:create_silabus')->only(['downloadTemplate', 'processImport']);
     }
 
-    private function getAccessibleMapelIds()
+    private function getAccessibleSubjects()
     {
         $user = auth()->user();
 
         // If Admin or Manager, return null (meaning all access)
-        if ($user->userLevel->name === 'Administrator' || $user->userLevel->name === 'Manager') {
+        if ($user->hasRole('Administrator') || $user->hasRole('Manager')) {
             return null;
         }
 
-        // Get mapel IDs from ActiveSubject where user is teacher AND in Active Academic Year
+        // Get active subjects where user is teacher AND in Active Academic Year
         $activeYear = \App\Services\AcademicStateService::currentAcademicYear();
         $activeYearId = $activeYear ? $activeYear->id : null;
 
-        $query = \App\Models\ActiveSubject::where(function ($q) use ($user) {
+        $query = \App\Models\ActiveSubject::with('activeClass')->where(function ($q) use ($user) {
             $q->where('teacher_id', $user->id)
                 ->orWhereHas('semesterSubjectTeachers', function ($subQ) use ($user) {
                     $subQ->where('teacher_id', $user->id);
@@ -45,21 +45,63 @@ class SilabusController extends Controller
             });
         }
 
-        return $query->pluck('mapel_id')
-            ->unique()
-            ->toArray();
+        $activeSubjects = $query->get();
+        
+        return [
+            'mapel_ids' => $activeSubjects->pluck('mapel_id')->filter()->unique()->toArray(),
+            'kelas_ids' => $activeSubjects->pluck('activeClass.kelas_id')->filter()->unique()->toArray(),
+            'pairs' => $activeSubjects->map(function($subject) {
+                return [
+                    'mapel_id' => $subject->mapel_id,
+                    'kelas_id' => $subject->activeClass ? $subject->activeClass->kelas_id : null,
+                ];
+            })->filter(function($pair) {
+                return $pair['mapel_id'] !== null && $pair['kelas_id'] !== null;
+            })->toArray()
+        ];
     }
 
-    // ... previous methods
+    private function getFilteredDropdowns($accessible)
+    {
+        $mapels = Mapel::query();
+        $jenjangs = Jenjang::query();
+        $kelas = \App\Models\Kelas::query();
+
+        if ($accessible !== null) {
+            $mapels->whereIn('id', $accessible['mapel_ids']);
+            $kelas->whereIn('id', $accessible['kelas_ids']);
+            $accessibleKelas = \App\Models\Kelas::whereIn('id', $accessible['kelas_ids'])->get();
+            $jenjangIds = $accessibleKelas->pluck('jenjang_id')->filter()->unique()->toArray();
+            $jenjangs->whereIn('id', $jenjangIds);
+        }
+
+        return [
+            'mapels' => $mapels->get(),
+            'jenjangs' => $jenjangs->get(),
+            'kelas' => $kelas->get(),
+        ];
+    }
 
     public function index(Request $request)
     {
         $query = Silabus::with(['mapel', 'jenjang', 'kelas']);
 
         // RESTRICTION LOGIC
-        $accessibleMapelIds = $this->getAccessibleMapelIds();
-        if ($accessibleMapelIds !== null) {
-            $query->whereIn('mapel_id', $accessibleMapelIds);
+        $accessible = $this->getAccessibleSubjects();
+        if ($accessible !== null) {
+            if (empty($accessible['pairs'])) {
+                // If they don't teach any subjects, they shouldn't see anything
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->where(function($q) use ($accessible) {
+                    foreach ($accessible['pairs'] as $pair) {
+                        $q->orWhere(function($subQ) use ($pair) {
+                            $subQ->where('mapel_id', $pair['mapel_id'])
+                                 ->where('kelas_id', $pair['kelas_id']);
+                        });
+                    }
+                });
+            }
         }
 
         if ($request->filled('search')) {
@@ -81,8 +123,12 @@ class SilabusController extends Controller
             $query->where('kelas_id', $request->kelas_id);
         }
 
-        if ($request->filled('semester')) {
-            $sem = trim($request->semester);
+        $defaultSemester = \App\Services\AcademicStateService::currentSemester()->name ?? 'Ganjil';
+        $activeSemesterVal = (strtolower($defaultSemester) === 'ganjil') ? '1' : '2';
+        $semesterFilter = $request->has('semester') ? $request->semester : $activeSemesterVal;
+
+        if ($semesterFilter !== null && $semesterFilter !== '') {
+            $sem = trim($semesterFilter);
             $semesterValues = [$sem];
             
             if (strtolower($sem) === 'ganjil' || $sem == '1') {
@@ -100,41 +146,38 @@ class SilabusController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        // Filter Mapel dropdown for View
-        $mapels = Mapel::query();
-        if ($accessibleMapelIds !== null) {
-            $mapels->whereIn('id', $accessibleMapelIds);
+        $dropdowns = $this->getFilteredDropdowns($accessible);
+        
+        $filters = $request->only(['search', 'mapel_id', 'jenjang_id', 'kelas_id', 'semester']);
+        if (!$request->has('semester')) {
+            $filters['semester'] = $activeSemesterVal;
         }
 
         return Inertia::render('Settings/Education/Silabus/Index', [
             'silabuses' => $silabuses,
-            'mapels' => $mapels->get(),
-            'jenjangs' => Jenjang::all(),
-            'kelas' => \App\Models\Kelas::all(),
-            'filters' => $request->only(['search', 'mapel_id', 'jenjang_id', 'kelas_id', 'semester']),
+            'mapels' => $dropdowns['mapels'],
+            'jenjangs' => $dropdowns['jenjangs'],
+            'kelas' => $dropdowns['kelas'],
+            'filters' => $filters,
         ]);
     }
 
 
     public function create()
     {
-        // Filter Mapels
-        $mapels = Mapel::query();
-        $accessibleMapelIds = $this->getAccessibleMapelIds();
-        if ($accessibleMapelIds !== null) {
-            $mapels->whereIn('id', $accessibleMapelIds);
-        }
+        $accessible = $this->getAccessibleSubjects();
+        $dropdowns = $this->getFilteredDropdowns($accessible);
 
         return Inertia::render('Settings/Education/Silabus/Create', [
-            'mapels' => $mapels->get(),
-            'jenjangs' => Jenjang::all(),
-            'kelas' => \App\Models\Kelas::all(),
+            'mapels' => $dropdowns['mapels'],
+            'jenjangs' => $dropdowns['jenjangs'],
+            'kelas' => $dropdowns['kelas'],
         ]);
     }
 
     public function store(Request $request)
     {
-        $accessibleMapelIds = $this->getAccessibleMapelIds();
+        $accessible = $this->getAccessibleSubjects();
 
         $rules = [
             'mapel_id' => 'required|exists:mapels,id',
@@ -151,8 +194,9 @@ class SilabusController extends Controller
         ];
 
         // Add extra validation if restricted
-        if ($accessibleMapelIds !== null) {
-            $rules['mapel_id'] .= '|in:' . implode(',', $accessibleMapelIds);
+        if ($accessible !== null) {
+            $allowedMapels = empty($accessible['mapel_ids']) ? [-1] : $accessible['mapel_ids'];
+            $rules['mapel_id'] .= '|in:' . implode(',', $allowedMapels);
         }
 
         $validated = $request->validate($rules);
@@ -165,30 +209,26 @@ class SilabusController extends Controller
     public function edit(Silabus $silabus)
     {
         // Check access
-        $accessibleMapelIds = $this->getAccessibleMapelIds();
-        if ($accessibleMapelIds !== null && !in_array($silabus->mapel_id, $accessibleMapelIds)) {
+        $accessible = $this->getAccessibleSubjects();
+        if ($accessible !== null && !in_array($silabus->mapel_id, $accessible['mapel_ids'])) {
             abort(403, 'Anda tidak memiliki akses ke mapel ini.');
         }
 
-        // Filter Mapels
-        $mapels = Mapel::query();
-        if ($accessibleMapelIds !== null) {
-            $mapels->whereIn('id', $accessibleMapelIds);
-        }
+        $dropdowns = $this->getFilteredDropdowns($accessible);
 
         return Inertia::render('Settings/Education/Silabus/Edit', [
             'silabus' => $silabus,
-            'mapels' => $mapels->get(),
-            'jenjangs' => Jenjang::all(),
-            'kelas' => \App\Models\Kelas::all(),
+            'mapels' => $dropdowns['mapels'],
+            'jenjangs' => $dropdowns['jenjangs'],
+            'kelas' => $dropdowns['kelas'],
         ]);
     }
 
     public function update(Request $request, Silabus $silabus)
     {
         // Check initial access
-        $accessibleMapelIds = $this->getAccessibleMapelIds();
-        if ($accessibleMapelIds !== null && !in_array($silabus->mapel_id, $accessibleMapelIds)) {
+        $accessible = $this->getAccessibleSubjects();
+        if ($accessible !== null && !in_array($silabus->mapel_id, $accessible['mapel_ids'])) {
             abort(403, 'Anda tidak memiliki akses ke mapel ini.');
         }
 
@@ -203,8 +243,9 @@ class SilabusController extends Controller
             'pekan' => 'nullable|integer',
         ];
 
-        if ($accessibleMapelIds !== null) {
-            $rules['mapel_id'] .= '|in:' . implode(',', $accessibleMapelIds);
+        if ($accessible !== null) {
+            $allowedMapels = empty($accessible['mapel_ids']) ? [-1] : $accessible['mapel_ids'];
+            $rules['mapel_id'] .= '|in:' . implode(',', $allowedMapels);
         }
 
         $request->validate($rules);
@@ -217,8 +258,8 @@ class SilabusController extends Controller
     public function destroy(Silabus $silabus)
     {
         // Check access
-        $accessibleMapelIds = $this->getAccessibleMapelIds();
-        if ($accessibleMapelIds !== null && !in_array($silabus->mapel_id, $accessibleMapelIds)) {
+        $accessible = $this->getAccessibleSubjects();
+        if ($accessible !== null && !in_array($silabus->mapel_id, $accessible['mapel_ids'])) {
             abort(403, 'Anda tidak memiliki akses ke mapel ini.');
         }
 
@@ -282,7 +323,7 @@ class SilabusController extends Controller
         $errors = [];
         $rowNumber = 1;
 
-        $accessibleMapelIds = $this->getAccessibleMapelIds();
+        $accessible = $this->getAccessibleSubjects();
 
         while (($data = fgetcsv($handle, 1000, ',')) !== false) {
             \Log::info("Row Data:", $data);
@@ -349,7 +390,7 @@ class SilabusController extends Controller
             }
 
             // Check Permission
-            if ($accessibleMapelIds !== null && !in_array($mapel->id, $accessibleMapelIds)) {
+            if ($accessible !== null && !in_array($mapel->id, $accessible['mapel_ids'])) {
                 $failCount++;
                 $errors[] = "Baris $rowNumber: Anda tidak memiliki akses ke mapel '$mapelName'.";
                 continue;

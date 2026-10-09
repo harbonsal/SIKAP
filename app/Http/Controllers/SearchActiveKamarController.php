@@ -14,7 +14,7 @@ class SearchActiveKamarController extends Controller
      */
     public function index(Request $request)
     {
-        $activeAcademicYear = AcademicYear::where('is_active', true)->first();
+        $activeAcademicYear = \App\Services\AcademicStateService::currentAcademicYear();
 
         if (!$activeAcademicYear) {
             return redirect()->route('dashboard')->with('error', 'Belum ada Tahun Ajaran aktif.');
@@ -47,3 +47,4 @@ class SearchActiveKamarController extends Controller
         ]);
     }
 }
+

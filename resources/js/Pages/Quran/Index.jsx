@@ -437,6 +437,11 @@ export default function QuranIndex({ allowed_juz = null, quran_progress = {}, is
     const lastPlayedKeyRef = useRef(null); // track last playing ayah for resume
     const playedAyahKeysRef = useRef(new Set()); // ayah yang sudah pernah diputar pada mode Juz aktif
     const playbackProgressRef = useRef({});
+    
+    // ── Throttle & Unload Refs
+    const selectedReciterRef = useRef(selectedReciter);
+    const lastSaveTimeRef = useRef(0);
+    const pendingSaveRef = useRef(null);
 
     // ── Block/select state
     const [blockedAyah, setBlockedAyah] = useState(null);  // verse_key
@@ -473,12 +478,77 @@ export default function QuranIndex({ allowed_juz = null, quran_progress = {}, is
         }
     }, [availableReciters, selectedReciter]);
 
-    // ── Initialize progress state from props ────────────────────────────────────
     useEffect(() => {
         if (quran_progress && Object.keys(quran_progress).length > 0) {
             playbackProgressRef.current = quran_progress;
         }
     }, [quran_progress]);
+
+    useEffect(() => {
+        selectedReciterRef.current = selectedReciter;
+    }, [selectedReciter]);
+
+    const flushProgressSave = useCallback(() => {
+        if (pendingSaveRef.current) {
+            clearTimeout(pendingSaveRef.current);
+            pendingSaveRef.current = null;
+        }
+        const juzNum = selectedJuzRef.current;
+        if (!juzNum) return;
+        const progress = playbackProgressRef.current[String(juzNum)];
+        if (!progress) return;
+
+        axios.post('/quran/progress', {
+            juz_number: parseInt(juzNum, 10),
+            last_verse_key: progress.last_verse_key,
+            last_page_number: progress.last_page_number,
+            played_ayahs: progress.played_ayahs || [],
+            last_qari_id: selectedReciterRef.current
+        }).catch(() => {});
+        lastSaveTimeRef.current = Date.now();
+    }, []);
+
+    useEffect(() => {
+        const handleUnload = () => {
+            const juzNum = selectedJuzRef.current;
+            if (!juzNum) return;
+            const progress = playbackProgressRef.current[String(juzNum)];
+            if (!progress || progress.is_completed) return;
+
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            if (!token) return;
+
+            const payload = JSON.stringify({
+                juz_number: parseInt(juzNum, 10),
+                last_verse_key: progress.last_verse_key,
+                last_page_number: progress.last_page_number,
+                played_ayahs: progress.played_ayahs || [],
+                last_qari_id: selectedReciterRef.current
+            });
+
+            if (navigator.sendBeacon) {
+                const blob = new Blob([payload], { type: 'application/json' });
+                navigator.sendBeacon('/quran/progress', blob);
+            } else {
+                fetch('/quran/progress', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
+                    body: payload,
+                    keepalive: true
+                }).catch(() => {});
+            }
+        };
+
+        window.addEventListener('beforeunload', handleUnload);
+        window.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') handleUnload();
+        });
+
+        return () => {
+            window.removeEventListener('beforeunload', handleUnload);
+            window.removeEventListener('visibilitychange', handleUnload);
+        };
+    }, []);
 
     // ── Audio engine ──────────────────────────────────────────────────────────
     const persistPlayedProgress = useCallback((verseKey, surahNum, juzNum, pageNum = null) => {
@@ -504,16 +574,29 @@ export default function QuranIndex({ allowed_juz = null, quran_progress = {}, is
         };
         playbackProgressRef.current = nextProgress;
 
-        // Send to API
-        axios.post('/quran/progress', {
+        const now = Date.now();
+        const payload = {
             juz_number: juzNum,
             last_verse_key: verseKey,
             last_page_number: pageNum,
-            played_ayahs: [verseKey] // backend will array_merge
-        }).catch(() => {
-            // Silently fail for progress saving to not interrupt playback
-        });
-    }, []);
+            played_ayahs: newPlayedAyahs,
+            last_qari_id: selectedReciter
+        };
+
+        if (now - lastSaveTimeRef.current > 5000) {
+            lastSaveTimeRef.current = now;
+            axios.post('/quran/progress', payload).catch(() => {});
+            if (pendingSaveRef.current) clearTimeout(pendingSaveRef.current);
+            pendingSaveRef.current = null;
+        } else {
+            if (pendingSaveRef.current) clearTimeout(pendingSaveRef.current);
+            pendingSaveRef.current = setTimeout(() => {
+                lastSaveTimeRef.current = Date.now();
+                axios.post('/quran/progress', payload).catch(() => {});
+                pendingSaveRef.current = null;
+            }, 5000);
+        }
+    }, [selectedReciter]);
 
     const stopAudio = useCallback(() => {
         shouldPlayRef.current = false;
@@ -524,7 +607,8 @@ export default function QuranIndex({ allowed_juz = null, quran_progress = {}, is
         setIsPlaying(false);
         setPlayingKey(null);
         setAudioProgress(0);
-    }, []);
+        flushProgressSave();
+    }, [flushProgressSave]);
 
     // Core play-by-index function (uses refs — no stale closure issue)
     const playIdx = useCallback((idx) => {
@@ -540,7 +624,9 @@ export default function QuranIndex({ allowed_juz = null, quran_progress = {}, is
                     setPageNumber(prev => parseInt(prev, 10) + 1);
                     return; // Retain playing state for next page
                 } else {
-                    setJuzPlaybackCompleted(true);
+                    if (playedAyahKeysRef.current.size >= 40) {
+                        setJuzPlaybackCompleted(true);
+                    }
                 }
             }
 
@@ -575,6 +661,14 @@ export default function QuranIndex({ allowed_juz = null, quran_progress = {}, is
         };
 
         audio.onerror = () => {
+            // Send error telemetry to server
+            axios.post('/quran/audio-error', {
+                qari_id: selectedReciter,
+                surah_number: surah,
+                ayat_number: ayah,
+                verse_key: `${surah}:${ayah}`
+            }).catch(() => {});
+
             // Skip bad audio files, continue queue
             if (shouldPlayRef.current) {
                 setTimeout(() => playIdxRef.current?.(queueIdxRef.current + 1), 300);
@@ -668,6 +762,7 @@ export default function QuranIndex({ allowed_juz = null, quran_progress = {}, is
             shouldPlayRef.current = false;
             audioRef.current?.pause();
             setIsPlaying(false);
+            flushProgressSave();
         } else if (playingKey && audioRef.current?.src && audioRef.current?.paused) {
             // Resume current ayat
             shouldPlayRef.current = true;
@@ -850,7 +945,27 @@ export default function QuranIndex({ allowed_juz = null, quran_progress = {}, is
     }, [selectedJuz]);
 
     // ── Navigation
-    const goToPage = (n) => setPageNumber(Math.max(1, Math.min(604, n)));
+    const goToPage = (n) => {
+        let targetPage = Math.max(1, Math.min(604, n));
+        
+        // Anti-Cheat: Cegah loncat halaman (nembak) saat mode Skrining
+        if (selectedJuz) {
+            const currentJuzNum = parseInt(selectedJuz, 10);
+            const progress = playbackProgressRef.current[String(currentJuzNum)] || {};
+            const startPage = JUZ_TO_PAGE[currentJuzNum] || 1;
+            
+            const maxAllowedPage = progress.last_page_number 
+                ? Math.max(progress.last_page_number, pageNumberRef.current) 
+                : startPage;
+                
+            if (targetPage > maxAllowedPage) {
+                targetPage = maxAllowedPage;
+                alert(`Anda tidak bisa melompati halaman. Silakan dengarkan secara berurutan.`);
+            }
+        }
+        
+        setPageNumber(targetPage);
+    };
 
     // ── Finish Juz Handler
     const handleFinishJuz = async () => {
@@ -876,7 +991,6 @@ export default function QuranIndex({ allowed_juz = null, quran_progress = {}, is
                 // Also tell the backend explicitly (though the controller already does this, it's good to ensure sync)
                 axios.post('/quran/progress', {
                     juz_number: parseInt(selectedJuz),
-                    is_completed: true
                 }).catch(() => { });
 
                 setTimeout(() => setFinishJuzMessage(null), 5000);
@@ -887,6 +1001,8 @@ export default function QuranIndex({ allowed_juz = null, quran_progress = {}, is
         } catch (err) {
             if (err.response && err.response.status === 419) {
                 setFinishJuzMessage({ type: 'error', text: 'Sesi login habis. Muat ulang halaman lalu coba lagi.' });
+            } else if (err.response && err.response.data && err.response.data.message) {
+                setFinishJuzMessage({ type: 'error', text: err.response.data.message });
             } else {
                 setFinishJuzMessage({ type: 'error', text: 'Terjadi kesalahan koneksi.' });
             }

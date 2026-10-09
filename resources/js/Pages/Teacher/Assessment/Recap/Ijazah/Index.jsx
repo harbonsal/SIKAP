@@ -8,17 +8,19 @@ import { Button } from '@/Components/ui/button';
 import Pagination from '@/Components/Pagination';
 import { useState } from 'react';
 
-export default function Index({ ijazahSubjects = [], students = { data: [] }, filters = {}, kelasList = [], paralelList = [], academicYear }) {
+export default function Index({ ijazahSubjects = [], students = { data: [] }, filters = {}, kelasList = [], paralelList = [], academicYear, academicYears = [], summary = null }) {
     const [search, setSearch] = useState(filters.search || '');
     const [kelasId, setKelasId] = useState(filters.kelas_id || '');
     const [paralelId, setParalelId] = useState(filters.paralel_id || '');
+    const [academicYearId, setAcademicYearId] = useState(filters.academic_year_id || '');
 
     const handleFilter = (e) => {
         if (e && e.preventDefault) e.preventDefault();
         router.get(route('recap.ijazah.index'), {
             search,
             kelas_id: kelasId,
-            paralel_id: paralelId
+            paralel_id: paralelId,
+            academic_year_id: academicYearId
         }, { preserveState: true });
     };
 
@@ -26,12 +28,13 @@ export default function Index({ ijazahSubjects = [], students = { data: [] }, fi
         setSearch('');
         setKelasId('');
         setParalelId('');
+        setAcademicYearId(academicYear?.id || '');
         router.get(route('recap.ijazah.index'));
     };
 
     const formatScore = (score) => {
-        if (score === null || score === undefined || score === 0) return '-';
-        return score;
+        if (score === null || score === undefined || score === 0 || score === '-') return '-';
+        return Number(score).toFixed(2);
     };
 
     return (
@@ -67,6 +70,18 @@ export default function Index({ ijazahSubjects = [], students = { data: [] }, fi
                                         onChange={(e) => setSearch(e.target.value)}
                                     />
                                 </div>
+                            </div>
+                            <div className="space-y-1 w-full sm:w-48">
+                                <label className="text-sm font-medium">Tahun Ajaran</label>
+                                <select 
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    value={academicYearId}
+                                    onChange={(e) => setAcademicYearId(e.target.value)}
+                                >
+                                    {academicYears.map(ay => (
+                                        <option key={ay.id} value={ay.id}>{ay.name}</option>
+                                    ))}
+                                </select>
                             </div>
                             <div className="space-y-1 w-full sm:w-48">
                                 <label className="text-sm font-medium">Kelas</label>
@@ -120,8 +135,8 @@ export default function Index({ ijazahSubjects = [], students = { data: [] }, fi
                                         <TableHead className="min-w-[200px] border-r">Nama Siswa</TableHead>
                                         <TableHead className="min-w-[100px] border-r">Kelas</TableHead>
                                         {ijazahSubjects.map((subject, idx) => (
-                                            <TableHead key={idx} className="text-center min-w-[80px] border-r px-2" title={subject.name || subject.mapel_name}>
-                                                <div className="font-bold text-xs rotate-0 md:-rotate-45 max-w-[80px] origin-bottom-left truncate md:overflow-visible">
+                                            <TableHead key={idx} className="text-center min-w-[50px] border-r px-1 h-32 align-bottom" title={subject.name || subject.mapel_name}>
+                                                <div className="font-bold text-xs -rotate-90 origin-bottom whitespace-nowrap overflow-visible pl-4 pb-2">
                                                     {subject.name || subject.mapel_name}
                                                 </div>
                                             </TableHead>
@@ -153,8 +168,7 @@ export default function Index({ ijazahSubjects = [], students = { data: [] }, fi
                                                     {formatScore(student.total_score)}
                                                 </TableCell>
                                                 <TableCell className="text-center font-bold bg-amber-50 border-r">
-                                                    {/* Ensure average score uses 2 decimal places as requested */}
-                                                    {Number(student.average_score).toFixed(2)}
+                                                    {formatScore(student.average_score)}
                                                 </TableCell>
                                             </TableRow>
                                         ))
@@ -166,6 +180,42 @@ export default function Index({ ijazahSubjects = [], students = { data: [] }, fi
                                         </TableRow>
                                     )}
                                 </TableBody>
+                                {summary && students.data && students.data.length > 0 && (
+                                    <tfoot className="bg-muted font-bold text-sm">
+                                        <TableRow>
+                                            <TableCell colSpan={4} className="text-right border-r px-4 py-2">
+                                                Rata-rata Kelas
+                                            </TableCell>
+                                            {ijazahSubjects.map((subject, idx) => (
+                                                <TableCell key={idx} className="text-center border-r px-1 text-amber-900 bg-amber-50/80">
+                                                    {formatScore(summary.subjects[idx]?.average)}
+                                                </TableCell>
+                                            ))}
+                                            <TableCell className="text-center border-r text-amber-900 bg-amber-100/80">
+                                                {formatScore(summary.total_score?.average)}
+                                            </TableCell>
+                                            <TableCell className="text-center border-r text-amber-900 bg-amber-100/80">
+                                                {formatScore(summary.average_score?.average)}
+                                            </TableCell>
+                                        </TableRow>
+                                        <TableRow>
+                                            <TableCell colSpan={4} className="text-right border-r px-4 py-2">
+                                                Nilai Tertinggi
+                                            </TableCell>
+                                            {ijazahSubjects.map((subject, idx) => (
+                                                <TableCell key={idx} className="text-center border-r px-1 text-green-700 bg-green-50/80">
+                                                    {formatScore(summary.subjects[idx]?.max)}
+                                                </TableCell>
+                                            ))}
+                                            <TableCell className="text-center border-r text-green-700 bg-green-100/80">
+                                                {formatScore(summary.total_score?.max)}
+                                            </TableCell>
+                                            <TableCell className="text-center border-r text-green-700 bg-green-100/80">
+                                                {formatScore(summary.average_score?.max)}
+                                            </TableCell>
+                                        </TableRow>
+                                    </tfoot>
+                                )}
                             </Table>
                         </div>
                     </CardContent>

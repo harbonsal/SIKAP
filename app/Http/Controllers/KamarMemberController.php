@@ -35,7 +35,7 @@ class KamarMemberController extends Controller
         if ($request->has('search')) {
             $query->whereHas('student', function ($q) use ($request) {
                 $q->where('name', 'like', '%' . $request->search . '%')
-                    ->orWhere('nis', 'like', '%' . $request->search . '%');
+                    ->orWhere('nomor_induk', 'like', '%' . $request->search . '%');
             });
         }
 
@@ -169,5 +169,24 @@ class KamarMemberController extends Controller
         $kamarMember->delete();
 
         return redirect()->back()->with('success', 'Santri dikeluarkan dari kamar.');
+    }
+
+    /**
+     * Remove multiple resources from storage.
+     */
+    public function bulkDestroy(Request $request)
+    {
+        if (!$request->user()?->hasRole('Administrator')) {
+            abort(403, 'Anda tidak memiliki hak untuk menghapus anggota kamar.');
+        }
+
+        $validated = $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'exists:kamar_members,id',
+        ]);
+
+        KamarMember::whereIn('id', $validated['ids'])->delete();
+
+        return redirect()->back()->with('success', count($validated['ids']) . ' santri berhasil dikeluarkan dari kamar.');
     }
 }

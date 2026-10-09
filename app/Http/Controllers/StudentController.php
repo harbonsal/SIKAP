@@ -21,7 +21,19 @@ class StudentController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:view_students')->only(['index', 'show']);
+        $this->middleware(function ($request, $next) {
+            $user = auth()->user();
+            if (!$user) abort(403);
+            
+            $allowedRoles = ['Wali Kelas', 'Manager Tahfidz', 'Sekertaris Divisi', 'Sekretaris Divisi', 'Manager', 'Administrator'];
+            $userLevelName = $user->userLevel->name ?? '';
+            
+            if ($user->can('view_students') || in_array($userLevelName, $allowedRoles)) {
+                return $next($request);
+            }
+            
+            abort(403, 'Akses ditolak. Anda tidak memiliki izin melihat data santri.');
+        })->only(['index', 'show', 'export', 'exportUpdateTemplate', 'exportTemplateMissingBiodata']);
         $this->middleware('permission:create_students')->only(['create', 'store']);
         $this->middleware('permission:edit_students')->only(['edit', 'update']);
         $this->middleware('permission:delete_students')->only(['destroy']);
@@ -318,6 +330,12 @@ class StudentController extends Controller
             'guardian_occupation' => 'nullable|string',
             'guardian_income' => 'nullable|string',
             'guardian_address' => 'nullable|string',
+            'guardian_phone' => 'nullable|string',
+
+            // Admission
+            'previous_school' => 'nullable|string',
+            'accepted_grade' => 'nullable|string',
+            'accepted_date' => 'nullable|date',
         ];
 
         if (!$request->has('user_id')) {
@@ -407,6 +425,11 @@ class StudentController extends Controller
                 'guardian_occupation' => $request->guardian_occupation,
                 'guardian_income' => $request->guardian_income,
                 'guardian_address' => $request->guardian_address,
+                'guardian_phone' => $request->guardian_phone,
+                
+                'previous_school' => $request->previous_school,
+                'accepted_grade' => $request->accepted_grade,
+                'accepted_date' => $request->accepted_date,
             ]);
 
             DB::commit();
@@ -509,6 +532,12 @@ class StudentController extends Controller
             'guardian_occupation' => 'nullable|string',
             'guardian_income' => 'nullable|string',
             'guardian_address' => 'nullable|string',
+            'guardian_phone' => 'nullable|string',
+
+            // Admission
+            'previous_school' => 'nullable|string',
+            'accepted_grade' => 'nullable|string',
+            'accepted_date' => 'nullable|date',
         ]);
 
         // Update User
@@ -576,6 +605,11 @@ class StudentController extends Controller
             'guardian_occupation' => $request->guardian_occupation,
             'guardian_income' => $request->guardian_income,
             'guardian_address' => $request->guardian_address,
+            'guardian_phone' => $request->guardian_phone,
+            
+            'previous_school' => $request->previous_school,
+            'accepted_grade' => $request->accepted_grade,
+            'accepted_date' => $request->accepted_date,
         ]);
 
         return redirect()->route('students.show', $student->id)->with('success', 'Data Siswa berhasil diperbarui.');
@@ -669,7 +703,23 @@ class StudentController extends Controller
     {
         $activeYear = \App\Services\AcademicStateService::currentAcademicYear();
 
-        $query = Student::with('user');
+        $query = Student::with([
+            'user',
+            'classMembers' => function ($q) use ($activeYear) {
+                if ($activeYear) {
+                    $q->whereHas('activeClass', function ($sq) use ($activeYear) {
+                        $sq->where('academic_year_id', $activeYear->id);
+                    })->with(['activeClass.kelas', 'activeClass.kelasParalel']);
+                }
+            },
+            'kamarMembers' => function ($q) use ($activeYear) {
+                if ($activeYear) {
+                    $q->whereHas('activeKamar', function ($sq) use ($activeYear) {
+                        $sq->where('academic_year_id', $activeYear->id);
+                    })->with(['activeKamar.kamar']);
+                }
+            }
+        ]);
 
         // Filter by Status (Default to 'Aktif')
         $status = $request->input('status', 'Aktif');
@@ -743,7 +793,25 @@ class StudentController extends Controller
             });
         }
 
-        $students = $query->join('users', 'students.user_id', '=', 'users.id')
+        $activeYear = \App\Services\AcademicStateService::currentAcademicYear();
+        $students = $query->with([
+                              'user',
+                              'classMembers' => function ($q) use ($activeYear) {
+                                  if ($activeYear) {
+                                      $q->whereHas('activeClass', function ($sq) use ($activeYear) {
+                                          $sq->where('academic_year_id', $activeYear->id);
+                                      })->with(['activeClass.kelas', 'activeClass.kelasParalel']);
+                                  }
+                              },
+                              'kamarMembers' => function ($q) use ($activeYear) {
+                                  if ($activeYear) {
+                                      $q->whereHas('activeKamar', function ($sq) use ($activeYear) {
+                                          $sq->where('academic_year_id', $activeYear->id);
+                                      })->with(['activeKamar.kamar']);
+                                  }
+                              }
+                          ])
+                          ->join('users', 'students.user_id', '=', 'users.id')
                           ->orderBy('users.nomor_induk', 'asc')
                           ->select('students.*')
                           ->get();

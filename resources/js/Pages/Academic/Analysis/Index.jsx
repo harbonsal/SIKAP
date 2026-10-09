@@ -12,6 +12,32 @@ import { Checkbox } from '@/Components/ui/checkbox';
 import { Label } from '@/Components/ui/label';
 import { Button } from '@/Components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/Components/ui/dialog';
+import { Download } from 'lucide-react';
+
+const exportToCSV = (data, filename) => {
+    if (!data || data.length === 0) return;
+    const headers = ['Rank', 'Nama', 'Kelas', 'Rata-rata'];
+    const csvRows = [headers.join(',')];
+
+    data.forEach((student, idx) => {
+        const row = [
+            idx + 1,
+            `"${(student.student_name || '').replace(/"/g, '""')}"`,
+            `"${(student.class_name || '').replace(/"/g, '""')}"`,
+            formatScore(student.avg_score)
+        ];
+        csvRows.push(row.join(','));
+    });
+
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${filename}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
 
 // Helper Functions
 const formatScore = (val) => {
@@ -368,22 +394,32 @@ export default function Index({
                                 <CardTitle className="text-green-700 flex items-center gap-2 text-lg">
                                     <span>🏆</span> Peringkat Teratas
                                 </CardTitle>
-                                <select 
-                                    className="h-8 text-sm rounded-md border border-green-200 bg-white px-2 text-green-700 focus:ring-green-500"
-                                    value={filters.top_limit || '10'}
-                                    onChange={(e) => {
-                                        router.get(route('analysis.index'), {
-                                            ...filters,
-                                            top_limit: e.target.value
-                                        }, { preserveState: true, preserveScroll: true });
-                                    }}
-                                >
-                                    <option value="10">Top 10</option>
-                                    <option value="20">Top 20</option>
-                                    <option value="50">Top 50</option>
-                                    <option value="100">Top 100</option>
-                                    <option value="Semua">Semua Siswa</option>
-                                </select>
+                                <div className="flex items-center gap-2">
+                                    <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={() => exportToCSV(top10, 'Peringkat_Teratas')}
+                                        className="h-8 text-green-700 border-green-200 hover:bg-green-100"
+                                    >
+                                        <Download className="w-4 h-4 mr-1" /> Export
+                                    </Button>
+                                    <select 
+                                        className="h-8 text-sm rounded-md border border-green-200 bg-white px-2 text-green-700 focus:ring-green-500"
+                                        value={filters.top_limit || '10'}
+                                        onChange={(e) => {
+                                            router.get(route('analysis.index'), {
+                                                ...filters,
+                                                top_limit: e.target.value
+                                            }, { preserveState: true, preserveScroll: true });
+                                        }}
+                                    >
+                                        <option value="10">Top 10</option>
+                                        <option value="20">Top 20</option>
+                                        <option value="50">Top 50</option>
+                                        <option value="100">Top 100</option>
+                                        <option value="Semua">Semua Siswa</option>
+                                    </select>
+                                </div>
                             </CardHeader>
                             <CardContent className="p-0">
                                 <Table>
@@ -423,22 +459,32 @@ export default function Index({
                                 <CardTitle className="text-red-700 flex items-center gap-2 text-lg">
                                     <span>📉</span> Peringkat Terbawah
                                 </CardTitle>
-                                <select 
-                                    className="h-8 text-sm rounded-md border border-red-200 bg-white px-2 text-red-700 focus:ring-red-500"
-                                    value={filters.bottom_limit || '20'}
-                                    onChange={(e) => {
-                                        router.get(route('analysis.index'), {
-                                            ...filters,
-                                            bottom_limit: e.target.value
-                                        }, { preserveState: true, preserveScroll: true });
-                                    }}
-                                >
-                                    <option value="10">Bottom 10</option>
-                                    <option value="20">Bottom 20</option>
-                                    <option value="50">Bottom 50</option>
-                                    <option value="100">Bottom 100</option>
-                                    <option value="Semua">Semua Siswa</option>
-                                </select>
+                                <div className="flex items-center gap-2">
+                                    <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={() => exportToCSV(bottom20, 'Peringkat_Terbawah')}
+                                        className="h-8 text-red-700 border-red-200 hover:bg-red-100"
+                                    >
+                                        <Download className="w-4 h-4 mr-1" /> Export
+                                    </Button>
+                                    <select 
+                                        className="h-8 text-sm rounded-md border border-red-200 bg-white px-2 text-red-700 focus:ring-red-500"
+                                        value={filters.bottom_limit || '20'}
+                                        onChange={(e) => {
+                                            router.get(route('analysis.index'), {
+                                                ...filters,
+                                                bottom_limit: e.target.value
+                                            }, { preserveState: true, preserveScroll: true });
+                                        }}
+                                    >
+                                        <option value="10">Bottom 10</option>
+                                        <option value="20">Bottom 20</option>
+                                        <option value="50">Bottom 50</option>
+                                        <option value="100">Bottom 100</option>
+                                        <option value="Semua">Semua Siswa</option>
+                                    </select>
+                                </div>
                             </CardHeader>
                             <CardContent className="p-0">
                                 <Table>

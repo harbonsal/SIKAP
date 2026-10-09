@@ -16,8 +16,8 @@ class ClassGradeRecapController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        $activeYear = AcademicYear::where('is_active', true)->first();
-        $activeSemester = Semester::where('is_active', true)->first();
+        $activeYear = \App\Services\AcademicStateService::currentAcademicYear();
+        $activeSemester = \App\Services\AcademicStateService::currentSemester();
 
         if (!$activeYear || !$activeSemester) {
             return redirect()->back()->with('error', 'Tahun ajaran atau semester aktif belum diatur.');
@@ -55,8 +55,8 @@ class ClassGradeRecapController extends Controller
         $activeClass = ActiveClass::with(['kelas', 'kelasParalel', 'teacher', 'classMembers.student.user'])
             ->findOrFail($id);
 
-        $activeYear = AcademicYear::where('is_active', true)->first();
-        $activeSemester = Semester::where('is_active', true)->first();
+        $activeYear = \App\Services\AcademicStateService::currentAcademicYear();
+        $activeSemester = \App\Services\AcademicStateService::currentSemester();
 
         $targetSemesterName = $request->semester ?: ($activeSemester ? $activeSemester->name : 'Ganjil');
         $targetSemester = Semester::where('name', $targetSemesterName)->first();
@@ -166,8 +166,23 @@ class ClassGradeRecapController extends Controller
             ->where('category', 'pengetahuan')
             ->where('name', '!=', 'Validasi')
             ->whereIn('semester', ['all', 'semua', 'All', $targetSemester->name, strtolower($targetSemester->name)])
-            ->orderBy('id')
-            ->get();
+            ->get()
+            ->sortBy(function ($weight) {
+                $orderMap = [
+                    'uh1' => 1, 'uh 1' => 1,
+                    'uts' => 2, 'pts' => 2,
+                    'uh2' => 3, 'uh 2' => 3,
+                    'uas' => 4, 'ukk' => 4, 'pas' => 4, 'pat' => 4
+                ];
+                
+                $nameLower = strtolower($weight->name);
+                foreach ($orderMap as $key => $val) {
+                    if (str_contains($nameLower, $key)) {
+                        return $val;
+                    }
+                }
+                return 99;
+            })->values();
 
         // Calculate detailed ledger data (individual weight scores breakdown)
         $studentLedgers = $activeClass->classMembers->map(function ($member) use ($activeSubjects, $gradeWeights, $targetSemester, $isSem2View, $sem1, $gradeWeightsSem1) {
@@ -427,3 +442,4 @@ class ClassGradeRecapController extends Controller
         ]);
     }
 }
+

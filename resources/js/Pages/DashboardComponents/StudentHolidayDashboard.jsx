@@ -60,6 +60,18 @@ export default function StudentHolidayDashboard({ stats }) {
                         <p className="text-orange-50 text-lg md:text-xl font-medium max-w-2xl drop-shadow-sm">
                             Sampaikan salam rindu dari pesantren untuk keluarga di rumah.
                         </p>
+                        <div className="flex flex-wrap justify-center md:justify-start gap-3 mt-2">
+                            {stats?.class_name && (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 hover:bg-white/30 transition-colors rounded-full text-white text-sm font-medium border border-white/20 backdrop-blur-sm shadow-sm">
+                                    <BookOpen className="w-4 h-4" /> {stats.class_name}
+                                </span>
+                            )}
+                            {stats?.kamar_name && (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 hover:bg-white/30 transition-colors rounded-full text-white text-sm font-medium border border-white/20 backdrop-blur-sm shadow-sm">
+                                    <MapPin className="w-4 h-4" /> Asrama {stats.kamar_name}
+                                </span>
+                            )}
+                        </div>
                     </div>
                     
                     <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-lg text-center min-w-[250px]">

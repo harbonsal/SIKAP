@@ -104,6 +104,7 @@ export default function Index({ students, filters, total_count, mode = 'manageme
 
     const userRole = auth.user?.user_level?.name;
     const isAdmin = userRole === 'Administrator';
+    const canExport = ['Administrator', 'Guru', 'Wali Kelas', 'Manager Tahfidz', 'Sekertaris Divisi', 'Sekretaris Divisi', 'Manager'].includes(userRole);
 
     const renderStudentTable = () => (
         <>
@@ -266,7 +267,7 @@ export default function Index({ students, filters, total_count, mode = 'manageme
                 <Link href={route('students.index')} className={`px-4 py-3 border-b-2 whitespace-nowrap ${route().current('students.*') ? 'border-primary text-primary font-medium' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
                     Cari & Biodata Santri
                 </Link>
-                {auth.user?.permissions?.includes('view_class_members') && (
+                {(auth.user?.permissions?.includes('*') || auth.user?.permissions?.includes('view_class_members')) && (
                     <Link href={route('class-members.index')} className={`px-4 py-3 border-b-2 whitespace-nowrap ${route().current('class-members.*') ? 'border-primary text-primary font-medium' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
                         Anggota Kelas
                     </Link>
@@ -279,15 +280,19 @@ export default function Index({ students, filters, total_count, mode = 'manageme
                         <h2 className="text-3xl font-bold tracking-tight text-foreground">{mode === 'search' ? 'Pusat Informasi & Pencarian' : 'Data Siswa'}</h2>
                         <p className="text-muted-foreground">{mode === 'search' ? 'Cari santri, cek kapasitas asrama, dan info kelas.' : 'Kelola data induk siswa (Biodata).'}</p>
                     </div>
-                    {mode !== 'search' && isAdmin && (
+                    {mode !== 'search' && (
                         <div className="flex flex-wrap gap-2">
+                            {canExport && (
                             <a
                                 href={route('students.export', { status, search, origin_region: originRegion, class_id: classId, kamar_id: kamarId })}
                                 className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium shadow-sm hover:bg-accent transition-colors"
                             >
                                 <Download className="h-4 w-4" />
-                                Export CSV
+                                Export Excel
                             </a>
+                            )}
+                            {isAdmin && (
+                            <>
                             <Link
                                 href={route('students.import')}
                                 className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium shadow-sm hover:bg-accent transition-colors"
@@ -309,6 +314,8 @@ export default function Index({ students, filters, total_count, mode = 'manageme
                                 <Plus className="h-4 w-4" />
                                 Tambah Santri
                             </Link>
+                            </>
+                            )}
                         </div>
                     )}
                 </div>

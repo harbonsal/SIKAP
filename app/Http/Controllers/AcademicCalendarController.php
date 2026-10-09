@@ -32,8 +32,15 @@ class AcademicCalendarController extends Controller
         $activeYear = AcademicStateService::currentAcademicYear();
         $currentSemester = AcademicStateService::currentSemester();
 
-        // 1. Fetch Events
-        $events = AcademicCalendarEvent::orderBy('start_date', 'asc')->get();
+        // 1. Fetch Events filtered by active year and semester
+        $eventQuery = AcademicCalendarEvent::orderBy('start_date', 'asc');
+        if ($activeYear) {
+            $eventQuery->where('academic_year_id', $activeYear->id);
+        }
+        if ($currentSemester) {
+            $eventQuery->where('semester_id', $currentSemester->id);
+        }
+        $events = $eventQuery->get();
 
         // 2. Fetch Weeks (Pekans)
         $pekans = Pekan::orderBy('start_date', 'asc')->get();
@@ -109,6 +116,12 @@ class AcademicCalendarController extends Controller
             'description' => 'nullable|string',
             'is_kbm_active' => 'required|boolean',
         ]);
+
+        $activeYear = AcademicStateService::currentAcademicYear();
+        $currentSemester = AcademicStateService::currentSemester();
+
+        if ($activeYear) $validated['academic_year_id'] = $activeYear->id;
+        if ($currentSemester) $validated['semester_id'] = $currentSemester->id;
 
         AcademicCalendarEvent::create($validated);
 

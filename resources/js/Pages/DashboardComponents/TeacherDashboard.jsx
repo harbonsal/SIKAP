@@ -107,7 +107,10 @@ export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} 
                                                     {/* Actions */}
                                                     <div className="flex items-center gap-2">
                                                         <Link
-                                                            href={route('journals.create', { active_subject_id: item.active_subject_id || item.active_subject?.id })}
+                                                            href={route('journals.create', { 
+                                                                active_subject_id: item.active_subject_id || item.active_subject?.id,
+                                                                jam_ke: item.learning_hour?.hour_number 
+                                                            })}
                                                             className="p-2.5 text-blue-600 bg-blue-50 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-colors group-hover:bg-blue-100"
                                                             title="Isi Jurnal"
                                                         >
@@ -210,15 +213,16 @@ export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} 
                                     </Link>
                                 )}
 
-                                {/* 5. Kalender Akademik */}
+                                {/* 5. Jadwal Pelajaran */}
                                 {(allowedWidgets.shortcut_calendar && can('view_academic_schedules') && canViewAcademic) && (
                                     <Link href={route('academic.schedules.index')}>
-                                        <div className="group flex flex-col items-center justify-center p-6 bg-gradient-to-b from-teal-50 to-white hover:from-teal-100 hover:to-teal-50 rounded-2xl border border-teal-100 transition-all cursor-pointer shadow-sm hover:shadow-md hover:-translate-y-1 h-full">
-                                            <div className="bg-gradient-to-br from-teal-400 to-teal-600 text-white p-4 rounded-xl mb-3 shadow-lg shadow-teal-500/30 ring-4 ring-teal-50 group-hover:scale-110 transition-transform">
+                                        <div className="group bg-white rounded-2xl border border-gray-100 p-6 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-teal-200 h-full relative overflow-hidden">
+                                            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-teal-100/40 to-transparent rounded-bl-full -z-10 group-hover:scale-110 transition-transform duration-500"></div>
+                                            <div className="bg-gradient-to-br from-teal-400 to-teal-500 text-white p-4 rounded-xl mb-4 shadow-lg shadow-teal-500/30 ring-4 ring-teal-50 group-hover:scale-110 transition-transform duration-300 relative z-10">
                                                 <Calendar className="h-7 w-7 drop-shadow-sm" />
                                             </div>
-                                            <h4 className="font-bold text-gray-800 group-hover:text-teal-700">Kalender</h4>
-                                            <p className="text-xs text-center text-gray-500 mt-1">Kegiatan Akademik</p>
+                                            <h4 className="font-bold text-gray-800 group-hover:text-teal-700">Jadwal Pelajaran</h4>
+                                            <p className="text-xs text-center text-gray-500 mt-1">Jadwal KBM & Guru</p>
                                         </div>
                                     </Link>
                                 )}

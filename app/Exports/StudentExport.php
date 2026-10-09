@@ -24,7 +24,7 @@ class StudentExport implements FromCollection, WithHeadings, WithMapping
     public function headings(): array
     {
         return [
-            'Nama', 'NIS', 'NISN', 'NIK', 'Jenis Kelamin', 'Tempat Lahir', 'Tanggal Lahir',
+            'Nama', 'NIS', 'NISN', 'NIK', 'Kelas', 'Kamar', 'Jenis Kelamin', 'Tempat Lahir', 'Tanggal Lahir',
             'Alamat', 'Provinsi', 'Kota/Kab', 'Kecamatan', 'Kelurahan', 'Kode Pos', 'Detail Alamat',
             'Agama', 'Asal Daerah', 'Kewarganegaraan', 'Anak Ke', 'Jml Saudara', 'Tinggal Bersama',
             'Penanggung Biaya', 'Tinggi (cm)', 'Berat (kg)', 'Gol. Darah',
@@ -41,6 +41,12 @@ class StudentExport implements FromCollection, WithHeadings, WithMapping
             $student->user->nomor_induk,
             $student->nisn,
             $student->nik,
+            $student->classMembers->first() && $student->classMembers->first()->activeClass 
+                ? trim(optional($student->classMembers->first()->activeClass->kelas)->name . ' ' . optional($student->classMembers->first()->activeClass->kelasParalel)->name) 
+                : (optional(optional($student->latestClassMember)->activeClass)->name ?? (is_array($student->kelas) ? ($student->kelas['name'] ?? '-') : (optional($student->kelas)->name ?? '-'))),
+            $student->kamarMembers->first() && $student->kamarMembers->first()->activeKamar 
+                ? optional($student->kamarMembers->first()->activeKamar->kamar)->name 
+                : (optional(optional($student->latestKamarMember)->activeKamar)->name ?? (is_array($student->kamar) ? ($student->kamar['name'] ?? '-') : (optional($student->kamar)->name ?? '-'))),
             $student->gender,
             $student->birth_place,
             $student->birth_date,

@@ -44,15 +44,40 @@ class PublicScheduleController extends Controller
         }
 
         // Fetch data (similar to ScheduleController but read-only optimization possible)
-        // For now, reuse same queries
         $schedules = Schedule::where('academic_year_id', $activeYear->id)
-            ->with(['activeClass.kelas', 'activeSubject.mapel', 'teacher', 'day', 'learningHour'])
+            ->with([
+                'activeClass.kelas',
+                'activeClass.kelasParalel',
+                'activeSubject.mapel',
+                'activeSubject.activeClass.kelas',
+                'activeSubject.activeClass.kelasParalel',
+                'teacher',
+                'day',
+                'learningHour'
+            ])
             ->get();
 
         $activeClasses = ActiveClass::where('academic_year_id', $activeYear->id)
-            ->with(['kelas'])
+            ->withCount('classMembers')
+            ->with([
+                'kelas.jenjang', 
+                'kelasParalel', 
+                'teacher',
+                'activeSubjects.mapel',
+                'activeSubjects.teacher',
+                'activeSubjects.semesterSubjectTeachers.teacher',
+                'activeSubjects.semesterSubjectTeachers.semester'
+            ])
             ->get()
-            ->sortBy('kelas.name')
+            ->sort(function ($a, $b) {
+                $jenjangCmp = strnatcmp($a->kelas->jenjang->name ?? '', $b->kelas->jenjang->name ?? '');
+                if ($jenjangCmp !== 0) return $jenjangCmp;
+                
+                $nameCmp = strnatcmp($a->kelas->name ?? '', $b->kelas->name ?? '');
+                if ($nameCmp !== 0) return $nameCmp;
+
+                return strnatcmp($a->kelasParalel->name ?? '', $b->kelasParalel->name ?? '');
+            })
             ->values();
 
         $days = Day::where('is_active', true)->orderBy('order')->get();

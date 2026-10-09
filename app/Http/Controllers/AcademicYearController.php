@@ -147,7 +147,7 @@ class AcademicYearController extends Controller
 
         // Get schedule data for preparation tab
         $activeYear = \App\Services\AcademicStateService::currentAcademicYear()
-            ?? AcademicYear::where('is_active', true)->first();
+            ?? \App\Services\AcademicStateService::currentAcademicYear();
         $systemYear = \App\Services\AcademicStateService::activeAcademicYear();
 
         $scheduleData = [
@@ -167,3 +167,4 @@ class AcademicYearController extends Controller
         ]);
     }
 }
+

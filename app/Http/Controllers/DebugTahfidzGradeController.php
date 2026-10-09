@@ -31,7 +31,7 @@ class DebugTahfidzGradeController extends Controller
             }
         }
 
-        $activeSemester = \App\Models\Semester::where('is_active', true)->first();
+        $activeSemester = \App\Services\AcademicStateService::currentSemester();
 
         if (!$activeSemester) {
             return response()->json([
@@ -72,3 +72,4 @@ class DebugTahfidzGradeController extends Controller
         return response()->json($data);
     }
 }
+

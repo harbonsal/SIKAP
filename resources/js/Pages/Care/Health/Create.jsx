@@ -9,12 +9,13 @@ import { Checkbox } from '@/Components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { Search, Save, ArrowLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 
 export default function Create({ complaints, descriptionTemplates = [], activeKamars = [] }) {
     // Form
     const { data, setData, post, processing, errors, reset } = useForm({
         student_id: '',
-        date: new Date().toISOString().split('T')[0],
+        date: format(new Date(), 'yyyy-MM-dd'),
         complaint_ids: [],
         therapy: '',
         description: '',

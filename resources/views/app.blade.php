@@ -7,13 +7,13 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title inertia>SIKAP {{ \App\Models\SchoolInfo::first()?->name ?? 'Lembaga Anda' }}</title>
-    <link rel="icon" type="image/png" href="{{ \App\Models\Setting::where('key', 'app_logo')->value('value') ? asset('storage/' . \App\Models\Setting::where('key', 'app_logo')->value('value')) : '/images/logo.png' }}">
+    <link rel="icon" type="image/x-icon" href="{{ \App\Models\Setting::where('key', 'app_favicon')->value('value') ? asset('storage/' . \App\Models\Setting::where('key', 'app_favicon')->value('value')) : (\App\Models\Setting::where('key', 'app_logo')->value('value') ? asset('storage/' . \App\Models\Setting::where('key', 'app_logo')->value('value')) : '/images/logo.png') }}">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
-    <!-- Cyber Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@800&display=swap" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@700;900&family=Inter:wght@400;500;600&family=Montserrat:wght@500;600;700;800;900&family=Orbitron:wght@800&display=swap" rel="stylesheet">
 
     <!-- PWA Settings -->
     <link rel="manifest" href="{{ route('pwa.manifest') }}">
@@ -91,6 +91,14 @@
                 }, 500);
             }, 800);
         });
+        // PWA Global Event Capture
+        window.deferredPWAInstallPrompt = null;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            window.deferredPWAInstallPrompt = e;
+            window.dispatchEvent(new Event('pwa-prompt-ready'));
+        });
+
         // Service Worker Registration
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {

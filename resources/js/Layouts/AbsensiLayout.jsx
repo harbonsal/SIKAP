@@ -5,6 +5,7 @@ import { BookOpen, CalendarClock, ShieldCheck } from 'lucide-react';
 
 const tabs = [
     { title: 'Jurnal & Absensi Kelas', route: 'journals.index', icon: BookOpen },
+    { title: 'Rekap Belum Absen', route: 'journals.missing', icon: CalendarClock },
     { title: 'Absensi Manual', route: 'journals.manual.index', icon: ShieldCheck },
     { title: 'Jadwal Piket', route: 'pickets.index', icon: CalendarClock },
 ];

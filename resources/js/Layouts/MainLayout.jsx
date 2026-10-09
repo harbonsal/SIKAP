@@ -220,20 +220,22 @@ export default function MainLayout({ children, breadcrumbItems = null, showBread
 
                 {/* Page Content */}
                 <main className="flex-1 p-3 sm:p-4 lg:p-6">
-                    {['success', 'error', 'warning', 'info'].map((type) =>
-                        flash?.[type] && !dismissedTypes[type] ? (
-                            <FlashMessage
-                                key={type}
-                                type={type}
-                                message={flash[type]}
-                                errors={type === 'warning' || type === 'error' ? flash?.errors_import : null}
-                                onDismiss={() => dismissFlash(type)}
-                            />
-                        ) : null,
-                    )}
-                    
-                    {/* Breadcrumb */}
-                    {showBreadcrumb && <Breadcrumb items={breadcrumbItems} />}
+                    <div className="print:hidden">
+                        {['success', 'error', 'warning', 'info'].map((type) =>
+                            flash?.[type] && !dismissedTypes[type] ? (
+                                <FlashMessage
+                                    key={type}
+                                    type={type}
+                                    message={flash[type]}
+                                    errors={type === 'warning' || type === 'error' ? flash?.errors_import : null}
+                                    onDismiss={() => dismissFlash(type)}
+                                />
+                            ) : null,
+                        )}
+                        
+                        {/* Breadcrumb */}
+                        {showBreadcrumb && <Breadcrumb items={breadcrumbItems} />}
+                    </div>
                     
                     <div className="w-full max-w-full overflow-x-auto">
                         {children}

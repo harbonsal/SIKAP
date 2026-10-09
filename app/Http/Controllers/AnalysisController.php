@@ -22,8 +22,8 @@ class AnalysisController extends Controller
         // Initialize performance service
         $performanceService = app(AnalysisPerformanceService::class);
         
-        $academicYear = \App\Models\AcademicYear::where('is_active', true)->first();
-        $activeSemester = \App\Models\Semester::where('is_active', true)->first();
+        $academicYear = \App\Services\AcademicStateService::currentAcademicYear();
+        $activeSemester = \App\Services\AcademicStateService::currentSemester();
 
         // --- SEMESTER FILTER ---
         // Allow user to pick which semester to analyze (default: active semester)
@@ -53,11 +53,7 @@ class AnalysisController extends Controller
         $weightCategories = $gradeWeights->pluck('name')->unique()->values(); // e.g. ['UH1', 'UTS', 'UAS']
 
         // Sort weightCategories in specific order: UH1, UTS, UH2, UAS/UKK
-        $customOrder = ['UH1', 'UTS', 'UH2', 'UAS/UKK'];
-        $weightCategories = $weightCategories->sortBy(function ($item) use ($customOrder) {
-            $index = array_search($item, $customOrder);
-            return $index === false ? 999 : $index;
-        })->values();
+        $weightCategories = \App\Helpers\GradeHelper::sortGradeWeights($weightCategories);
         $totalWeightSum = $gradeWeights->sum('weight');
 
         // Check if we are in Semester 2 (for Safety Target Logic)
@@ -557,12 +553,7 @@ class AnalysisController extends Controller
             'weightComponents' => $weightCategories,
             'isSem2' => $isSem2,
             'paginatedStudents' => $paginatedStudents,
-            'allWeightComponents' => $allGradeWeights
-                ->pluck('name')->unique()
-                ->sortBy(function ($item) use ($customOrder) {
-                    $index = array_search($item, $customOrder);
-                    return $index === false ? 999 : $index;
-                })->values(),
+            'allWeightComponents' => \App\Helpers\GradeHelper::sortGradeWeights($allGradeWeights->pluck('name')->unique()),
             'filters' => array_merge($request->only(['jenjang_id', 'kelas_id', 'kelas_filter_type', 'search', 'safety_status', 'status_santri', 'top_limit', 'bottom_limit', 'exam_types', 'exam_filter_type']), ['include_sem1' => $includeSem1, 'semester_id' => $activeSemester?->id]),
             'jenjangs' => $allJenjangs,
             'kelases' => $allKelas,
@@ -576,3 +567,4 @@ class AnalysisController extends Controller
         }
     }
 }
+

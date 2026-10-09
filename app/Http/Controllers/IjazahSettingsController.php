@@ -272,7 +272,7 @@ class IjazahSettingsController extends Controller
         $student->load(['user', 'studentGrades.activeSubject', 'studentGrades.activeSubject.mapel']);
 
         $settings = \App\Models\Setting::where('key', 'like', 'ijazah_%')->pluck('value', 'key');
-        $academicYear = \App\Models\AcademicYear::where('is_active', true)->first();
+        $academicYear = \App\Services\AcademicStateService::currentAcademicYear();
 
         // Get Semester 1 (Ganjil) and Semester 2 (Genap) for rapor calculation
         $semester1 = \App\Models\Semester::where('name', 'like', '%Ganjil%')->orWhere('name', 'Semester 1')->first();
@@ -509,7 +509,7 @@ class IjazahSettingsController extends Controller
 
     private function getIjazahCandidates()
     {
-        $activeYear = \App\Models\AcademicYear::where('is_active', true)->first();
+        $activeYear = \App\Services\AcademicStateService::currentAcademicYear();
 
         return \App\Models\Student::join('users', 'students.user_id', '=', 'users.id')
             ->with(['user', 'classMembers' => function ($q) use ($activeYear) {
@@ -536,3 +536,4 @@ class IjazahSettingsController extends Controller
             ->get();
     }
 }
+

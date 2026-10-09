@@ -11,6 +11,11 @@ export default function JuzInputGrid({ student, juzData, onUpdate, auth }) {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [processing, setProcessing] = useState(false);
 
+    const [activeSession, setActiveSession] = useState('sabaq');
+
+    // Select the correct juzData array based on active session
+    const currentJuzData = juzData[`${activeSession}_juz_data`] || [];
+
     // Local form state
     const [formData, setFormData] = useState({
         student_id: student.id,
@@ -29,7 +34,8 @@ export default function JuzInputGrid({ student, juzData, onUpdate, auth }) {
             student_id: student.id,
             juz: juz.juz,
             completed_pages: juz.completed_pages || [],
-            mark_full_juz: juz.is_completed
+            mark_full_juz: juz.is_completed,
+            type: activeSession
         });
         setIsDialogOpen(true);
     };
@@ -91,14 +97,35 @@ export default function JuzInputGrid({ student, juzData, onUpdate, auth }) {
                     <div className="text-right">
                         <div className="text-sm text-gray-500">Total Hafalan</div>
                         <div className="text-3xl font-bold text-green-600">
-                            {juzData.filter(j => j.is_completed).length} <span className="text-base text-gray-400 font-normal">/ 30 Juz</span>
+                            {currentJuzData.filter(j => j.is_completed).length} <span className="text-base text-gray-400 font-normal">/ 30 Juz</span>
                         </div>
                     </div>
                 </CardContent>
             </Card>
 
+            <div className="flex space-x-2 border-b border-gray-200">
+                <button
+                    onClick={() => setActiveSession('sabaq')}
+                    className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${activeSession === 'sabaq' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                >
+                    Sabaq
+                </button>
+                <button
+                    onClick={() => setActiveSession('sabqi')}
+                    className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${activeSession === 'sabqi' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                >
+                    Sabqi {student.target_sabqi_pages ? `(${student.target_sabqi_pages} Hal)` : ''}
+                </button>
+                <button
+                    onClick={() => setActiveSession('manzil')}
+                    className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${activeSession === 'manzil' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                >
+                    Manzil {student.target_manzil_pages ? `(${student.target_manzil_pages} Hal)` : ''}
+                </button>
+            </div>
+
             <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-6 gap-4">
-                {juzData.map((juz) => (
+                {currentJuzData.map((juz) => (
                     <div
                         key={juz.juz}
                         onClick={() => openJuzDetail(juz)}
@@ -233,6 +260,7 @@ export default function JuzInputGrid({ student, juzData, onUpdate, auth }) {
                             juzDetails={selectedJuz.details}
                             onClose={() => setQuranViewerOpen(false)}
                             onUpdate={onUpdate}
+                            sessionType={activeSession}
                         />
                     )}
                 </DialogContent>

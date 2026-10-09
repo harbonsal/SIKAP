@@ -5,6 +5,8 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 
 export default function Edit({ journal, activeSubjects, initialStudents }) {
+    const sortedInitialStudents = [...(initialStudents || [])].sort((a, b) => String(a.nis).localeCompare(String(b.nis), undefined, {numeric: true}));
+
     const { data, setData, put, processing, errors } = useForm({
         active_subject_id: journal.active_subject_id,
         date: journal.date,
@@ -12,16 +14,27 @@ export default function Edit({ journal, activeSubjects, initialStudents }) {
         pekan_id: journal.pekan_id,
         topic: journal.topic,
         description: journal.description || '',
-        attendances: initialStudents || [],
+        attendances: sortedInitialStudents,
     });
 
-    const [students, setStudents] = useState(initialStudents || []);
+    const [students, setStudents] = useState(sortedInitialStudents);
     const [isLoadingStudents, setIsLoadingStudents] = useState(false);
+    const [silabuses, setSilabuses] = useState([]);
+
+    useEffect(() => {
+        if (data.active_subject_id) {
+            axios.get(route('journals.get-silabus', data.active_subject_id))
+                .then(res => setSilabuses(res.data))
+                .catch(err => console.error("Error fetching silabus:", err));
+        } else {
+            setSilabuses([]);
+        }
+    }, [data.active_subject_id]);
 
     useEffect(() => {
         if (data.active_subject_id === journal.active_subject_id) {
-            setStudents(initialStudents);
-            setData('attendances', initialStudents);
+            setStudents(sortedInitialStudents);
+            setData('attendances', sortedInitialStudents);
             return;
         }
 
@@ -29,11 +42,14 @@ export default function Edit({ journal, activeSubjects, initialStudents }) {
             setIsLoadingStudents(true);
             axios.get(route('journals.get-students', data.active_subject_id))
                 .then(response => {
-                    const studentList = response.data.map(student => ({
+                    const studentList = response.data
+                        .sort((a, b) => String(a.nis).localeCompare(String(b.nis), undefined, {numeric: true}))
+                        .map(student => ({
                         student_id: student.id,
                         name: student.name,
                         nis: student.nis,
                         status: 'Hadir',
+                        is_uniform_complete: true,
                         note: ''
                     }));
                     setStudents(studentList);
@@ -128,6 +144,28 @@ export default function Edit({ journal, activeSubjects, initialStudents }) {
 
                             <div className="space-y-2 sm:col-span-2">
                                 <label className="text-sm font-medium">Materi Pembelajaran (Topik)</label>
+                                {silabuses.length > 0 && (
+                                    <div className="mb-2">
+                                        <select
+                                            className="flex h-10 w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-muted-foreground"
+                                            onChange={e => {
+                                                const match = silabuses.find(s => s.id.toString() === e.target.value);
+                                                if (match) {
+                                                    const text = (match.kompetensi ? "KD: " + match.kompetensi + "\n" : "") + "Materi: " + match.materi;
+                                                    setData('topic', text);
+                                                }
+                                            }}
+                                            defaultValue=""
+                                        >
+                                            <option value="" disabled>💡 Pilih dari Silabus...</option>
+                                            {silabuses.map(s => (
+                                                <option key={s.id} value={s.id}>
+                                                    Pekan {s.pekan || '-'}: {s.materi}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
                                 <textarea
                                     className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                     placeholder="Isi materi yang diajarkan hari ini..."
@@ -177,6 +215,9 @@ export default function Edit({ journal, activeSubjects, initialStudents }) {
                             <div className="divide-y divide-border">
                                 {data.attendances.map((student, index) => (
                                     <div key={student.student_id} className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors">
+                                        <div className="flex-none w-8 text-sm font-semibold text-muted-foreground">
+                                            {index + 1}.
+                                        </div>
                                         <div className="flex-1">
                                             <p className="font-medium">{student.name}</p>
                                             <p className="text-xs text-muted-foreground">NIS: {student.nis}</p>
@@ -199,12 +240,24 @@ export default function Edit({ journal, activeSubjects, initialStudents }) {
                                                 ))}
                                             </div>
 
+                                            <div className="flex items-center gap-2 border-l pl-3 ml-1">
+                                                <label className="flex items-center gap-1.5 cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={student.is_uniform_complete ?? true}
+                                                        onChange={(e) => handleAttendanceChange(index, 'is_uniform_complete', e.target.checked)}
+                                                        className="rounded border-input text-primary focus:ring-primary w-3.5 h-3.5"
+                                                    />
+                                                    Seragam Sesuai
+                                                </label>
+                                            </div>
+
                                             <input
                                                 type="text"
                                                 placeholder="Keterangan..."
                                                 value={student.note || ''}
                                                 onChange={(e) => handleAttendanceChange(index, 'note', e.target.value)}
-                                                className="h-8 text-xs border rounded px-2 w-32 md:w-48"
+                                                className="h-8 text-xs border rounded px-2 w-32 md:w-48 ml-2"
                                             />
                                         </div>
                                     </div>

@@ -41,4 +41,32 @@ class GradeHelper
         $weights = self::getWeights();
         return ($sem1Score * $weights['w1'] + $sem2Score * $weights['w2']) / $weights['total'];
     }
+
+    /**
+     * Sort GradeWeights Collection in a standard order (UH1, UTS, UH2, UAS/UKK).
+     */
+    public static function sortGradeWeights($gradeWeights)
+    {
+        $orderMap = [
+            'uh1' => 1, 'uh 1' => 1,
+            'uts' => 2, 'pts' => 2,
+            'uh2' => 3, 'uh 2' => 3,
+            'uas' => 4, 'ukk' => 4, 'pas' => 4, 'pat' => 4
+        ];
+
+        return collect($gradeWeights)
+            ->filter(function ($gw) {
+                $nameUpper = strtoupper(is_string($gw) ? $gw : $gw->name);
+                return !str_contains($nameUpper, 'VALIDASI') && !str_contains($nameUpper, 'VALIDATION');
+            })
+            ->sortBy(function ($gw) use ($orderMap) {
+                $nameLower = strtolower(is_string($gw) ? $gw : $gw->name);
+                foreach ($orderMap as $key => $val) {
+                    if (str_contains($nameLower, $key)) {
+                        return $val;
+                    }
+                }
+                return 99; // Others at the end
+            })->values();
+    }
 }

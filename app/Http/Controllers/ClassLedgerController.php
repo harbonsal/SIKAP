@@ -18,8 +18,8 @@ class ClassLedgerController extends Controller
         $activeClass = ActiveClass::with(['kelas', 'kelasParalel', 'teacher', 'classMembers.student.user'])
             ->findOrFail($id);
 
-        $activeYear = AcademicYear::where('is_active', true)->first();
-        $targetSemesterName = $request->semester ?: (Semester::where('is_active', true)->first()->name ?? 'Ganjil');
+        $activeYear = \App\Services\AcademicStateService::currentAcademicYear();
+        $targetSemesterName = $request->semester ?: (\App\Services\AcademicStateService::currentSemester()->name ?? 'Ganjil');
         $targetSemester = Semester::where('name', $targetSemesterName)->first();
 
         // 1. Get all subjects for this class
@@ -111,3 +111,4 @@ class ClassLedgerController extends Controller
         ]);
     }
 }
+

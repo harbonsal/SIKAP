@@ -158,6 +158,8 @@ export default function Workspace({
     const [isFetModalOpen, setIsFetModalOpen] = useState(false);
     const [fetUploadFile, setFetUploadFile] = useState(null);
 
+    const activeSemester = semesters.find(s => s.is_active);
+
     useEffect(() => {
         setSelectedOffSlots(new Set(unavailableByTeacher?.[selectedUnavailableTeacherId] || []));
     }, [selectedUnavailableTeacherId, unavailableByTeacher]);
@@ -507,7 +509,7 @@ export default function Workspace({
         let optionsHtml = '<option value="">-- Pilih Kelas Sumber --</option>';
         activeClasses.forEach(c => {
             if (String(c.id) !== String(selectedManageClassId)) {
-                const className = c.kelas?.name + (c.kelas_paralel ? ' ' + c.kelas_paralel.name : '');
+                const className = c.kelas?.name + (c.kelas_paralel ? ' ' + c.kelas_paralel.name : (c.kelasParalel ? ' ' + c.kelasParalel.name : ''));
                 optionsHtml += `<option value="${c.id}">${className}</option>`;
             }
         });
@@ -825,8 +827,8 @@ export default function Workspace({
             ? (headerData.school_name_ar || 'مدرسة التوحيد المتوسطة')
             : (headerData.name || 'SMP INTEGRAL AR-ROHMAH');
         const schoolAddress = isArabic
-            ? (headerData.school_address_ar || headerData.address || 'Jl. Raya Hidayatullah, Sumber Arum, Malang')
-            : (headerData.address || 'Jl. Raya Hidayatullah, Sumber Arum, Malang');
+            ? (headerData.school_address_ar || headerData.address || '-')
+            : (headerData.address || '-');
 
         return (
             <div className="hidden print:block mb-4 border-b-2 border-black pb-2 text-black page-break-avoid w-full">
@@ -837,7 +839,7 @@ export default function Workspace({
                     </div>
                     <div className={isArabic ? 'text-left order-1' : 'text-right'}>
                         <p className="text-xs font-bold uppercase text-gray-800">{isArabic ? 'العام الدراسي' : 'Tahun Pelajaran'}: {activeYear?.name}</p>
-                        <p className="text-xs text-gray-800">{isArabic ? 'الفصل' : 'Semester'}: {activeYear?.semester}</p>
+                        <p className="text-xs text-gray-800">{isArabic ? 'الفصل' : 'Semester'}: {activeSemester?.name || '-'}</p>
                     </div>
                 </div>
                 <div className="text-center">
@@ -867,7 +869,7 @@ export default function Workspace({
                         <th className="p-2 border bg-muted font-medium sticky left-0 z-10 w-24">Waktu</th>
                         {activeClasses.map((activeClass) => (
                             <th key={activeClass.id} className="p-2 border bg-muted font-medium min-w-[120px]">
-                                {activeClass.kelas?.name} {activeClass.kelas_paralel?.name}
+                                {activeClass.kelas?.name} {activeClass.kelas_paralel?.name || activeClass.kelasParalel?.name}
                             </th>
                         ))}
                     </tr>
@@ -956,7 +958,7 @@ export default function Workspace({
                 <div className="print:bg-white rounded-md border p-4 bg-card print:border-none print:shadow-none print:p-0">
                     <PrintHeader
                         isArabic={arabic}
-                        subtitle={`${currentScheduleClass?.kelas?.name || ''} ${currentScheduleClass?.kelas_paralel?.name || ''}`.trim()}
+                        subtitle={`${currentScheduleClass?.kelas?.name || ''} ${currentScheduleClass?.kelas_paralel?.name || currentScheduleClass?.kelasParalel?.name || ''}`.trim()}
                     />
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm border-collapse table-fixed">
@@ -1123,7 +1125,10 @@ export default function Workspace({
                                                                         <div className="absolute top-0 right-0 bg-amber-500 text-white text-[8px] font-bold px-1 rounded-bl-md rounded-tr-md shadow-sm z-10" title="Kelas Gabungan">GABUNGAN</div>
                                                                     )}
                                                                     <div className="font-bold text-sm leading-tight text-center">
-                                                                        {schedule.active_class?.kelas?.name} {schedule.active_class?.kelas_paralel?.name}
+                                                                        {(() => {
+                                                                            const cls = schedule.active_class || schedule.active_subject?.active_class;
+                                                                            return cls ? `${cls.kelas?.name || ''} ${cls.kelas_paralel?.name || cls.kelasParalel?.name || ''}`.trim() : '';
+                                                                        })()}
                                                                     </div>
                                                                     <div className="text-[10px] font-medium uppercase mt-0.5 truncate w-full text-center opacity-80">
                                                                         {schedule.active_subject?.mapel?.name}
@@ -1161,7 +1166,7 @@ export default function Workspace({
             <Head title={managementEnabled ? 'Pusat Pengaturan Jadwal' : 'Jadwal Pelajaran'} />
 
             <div className="space-y-6">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between print:hidden">
                     <div>
                         <h2 className="text-3xl font-bold tracking-tight text-foreground">
                             {managementEnabled ? 'Pusat Jadwal & KBM' : 'Jadwal Pelajaran'}
@@ -1203,7 +1208,7 @@ export default function Workspace({
                 </div>
 
                 {managementEnabled && (
-                    <div className={`rounded-2xl border p-4 md:p-5 ${isPlanningMode ? 'border-amber-300 bg-amber-50/70' : 'border-blue-200 bg-blue-50/60'}`}>
+                    <div className={`rounded-2xl border p-4 md:p-5 print:hidden ${isPlanningMode ? 'border-amber-300 bg-amber-50/70' : 'border-blue-200 bg-blue-50/60'}`}>
                         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                             <div className="space-y-1">
                                 <div className="text-sm font-semibold text-foreground">
@@ -1274,7 +1279,7 @@ export default function Workspace({
                     </div>
                 )}
 
-                <div className="flex flex-wrap items-center gap-2 bg-muted p-1 rounded-lg w-fit">
+                <div className="flex flex-wrap items-center gap-2 bg-muted p-1 rounded-lg w-fit print:hidden">
                     {allowedTabs.map((tab) => {
                         const Icon = tab.icon;
                         return (
@@ -1292,7 +1297,7 @@ export default function Workspace({
 
                 {activeTab === 'schedule' && (
                     <div className="space-y-6">
-                        <div className="flex flex-wrap items-center gap-2 bg-muted p-1 rounded-lg w-fit">
+                        <div className="flex flex-wrap items-center gap-2 bg-muted p-1 rounded-lg w-fit print:hidden">
                             {(managementEnabled || isAdminLike) && (
                                 <button onClick={() => setSelectedScheduleView('master')} className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${selectedScheduleView === 'master' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
                                     <LayoutGrid className="w-4 h-4 inline-block mr-2" /> Master Grid
@@ -1309,7 +1314,7 @@ export default function Workspace({
                             </button>
                         </div>
 
-                        <div className="flex flex-wrap gap-4 items-end">
+                        <div className="flex flex-wrap gap-4 items-end print:hidden">
                             {(selectedScheduleView === 'class' || selectedScheduleView === 'arabic_class') && (
                                 <div className="w-64">
                                     <Label>Pilih Kelas</Label>
@@ -1320,7 +1325,7 @@ export default function Workspace({
                                     >
                                         {activeClasses.map((item) => (
                                             <option key={item.id} value={item.id}>
-                                                {item.kelas?.name} {item.kelas_paralel?.name}
+                                                {item.kelas?.name} {item.kelas_paralel?.name || item.kelasParalel?.name}
                                             </option>
                                         ))}
                                     </select>
@@ -1379,12 +1384,12 @@ export default function Workspace({
                                     {activeClasses.map((item) => (
                                         <tr key={item.id}>
                                             <td className="px-4 py-3">
-                                                <div className="font-semibold">{item.kelas?.name} {item.kelas_paralel?.name}</div>
+                                                <div className="font-semibold">{item.kelas?.name} {item.kelas_paralel?.name || item.kelasParalel?.name}</div>
                                                 {item.name && <div className="text-xs text-muted-foreground">{item.name}</div>}
                                             </td>
-                                            <td className="px-4 py-3">{item.teacher?.name || '-'}</td>
+                                            <td className="px-4 py-3">{item.teacher?.name || item.wali_kelas?.name || '-'}</td>
                                             <td className="px-4 py-3 text-center font-mono">{item.total_hours_per_week || 0}</td>
-                                            <td className="px-4 py-3 text-center">{item.class_members_count || 0}</td>
+                                            <td className="px-4 py-3 text-center">{item.class_members_count ?? item.classMembers_count ?? 0}</td>
                                             <td className="px-4 py-3">
                                                 <div className="flex flex-wrap items-center justify-center gap-2">
                                                     <button
@@ -1431,7 +1436,7 @@ export default function Workspace({
                                 <Label>Pilih Kelas</Label>
                                 <select value={selectedManageClassId} onChange={(e) => setSelectedManageClassId(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                                     {activeClasses.map((item) => (
-                                        <option key={item.id} value={item.id}>{item.kelas?.name} {item.kelas_paralel?.name}</option>
+                                        <option key={item.id} value={item.id}>{item.kelas?.name} {item.kelas_paralel?.name || item.kelasParalel?.name}</option>
                                     ))}
                                 </select>
                             </div>
@@ -1443,7 +1448,7 @@ export default function Workspace({
                         <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
                             <div className="rounded-xl border bg-card overflow-hidden">
                                 <div className="border-b px-4 py-3">
-                                    <h3 className="font-semibold">Mapel Aktif Kelas {currentManageClass?.kelas?.name} {currentManageClass?.kelas_paralel?.name}</h3>
+                                    <h3 className="font-semibold">Mapel Aktif Kelas {currentManageClass?.kelas?.name} {currentManageClass?.kelas_paralel?.name || currentManageClass?.kelasParalel?.name}</h3>
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm">
@@ -1556,7 +1561,7 @@ export default function Workspace({
                                     <Label>Pilih Kelas</Label>
                                     <select value={selectedManageClassId} onChange={(e) => setSelectedManageClassId(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                                         {activeClasses.map((item) => (
-                                            <option key={item.id} value={item.id}>{item.kelas?.name} {item.kelas_paralel?.name}</option>
+                                            <option key={item.id} value={item.id}>{item.kelas?.name} {item.kelas_paralel?.name || item.kelasParalel?.name}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -1985,7 +1990,7 @@ export default function Workspace({
                                 <Label>Pilih Kelas</Label>
                                 <select value={editorClassId} onChange={(e) => setEditorClassId(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                                     {activeClasses.map((item) => (
-                                        <option key={item.id} value={item.id}>{item.kelas?.name} {item.kelas_paralel?.name}</option>
+                                        <option key={item.id} value={item.id}>{item.kelas?.name} {item.kelas_paralel?.name || item.kelasParalel?.name}</option>
                                     ))}
                                 </select>
                             </div>
@@ -2222,7 +2227,7 @@ export default function Workspace({
                             </div>
                             <div className="space-y-2">
                                 <Label>Tahun Pelajaran</Label>
-                                <Input value={`${activeYear?.name || '-'}${activeYear?.semester ? ` - ${activeYear.semester}` : ''}`} disabled />
+                                <Input value={`${activeYear?.name || '-'}${activeSemester?.name ? ` - ${activeSemester.name}` : ''}`} disabled />
                             </div>
                         </div>
                         <DialogFooter>

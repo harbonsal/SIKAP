@@ -31,10 +31,12 @@ class TahfidzHalaqohSettingsController extends Controller
 
         $musyrifs = TahfidzMusyrif::with([
             'student.user',
-            'student.classMembers.activeClass',
+            'student.latestClassMember.activeClass.kelas',
+            'student.latestClassMember.activeClass.kelasParalel',
             'user',
             'members.student.user',
-            'members.student.classMembers.activeClass'
+            'members.student.latestClassMember.activeClass.kelas',
+            'members.student.latestClassMember.activeClass.kelasParalel'
         ])->where('is_active', true)->get();
 
         // Data for dropdowns
@@ -43,7 +45,11 @@ class TahfidzHalaqohSettingsController extends Controller
         })->get();
 
         // Get active students (status is on User model)
-        $activeStudents = Student::with(['user', 'classMembers.activeClass'])
+        $activeStudents = Student::with([
+            'user', 
+            'latestClassMember.activeClass.kelas',
+            'latestClassMember.activeClass.kelasParalel'
+        ])
             ->whereHas('user', function ($q) {
                 $q->where('status', 'Aktif');
             })

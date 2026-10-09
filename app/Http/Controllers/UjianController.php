@@ -20,7 +20,7 @@ class UjianController extends Controller
     {
         $ujians = Ujian::latest()->paginate(10);
 
-        $activeYear = \App\Models\AcademicYear::where('is_active', true)->first();
+        $activeYear = \App\Services\AcademicStateService::currentAcademicYear();
         $gradeWeights = [];
 
         if ($activeYear) {
@@ -65,7 +65,7 @@ class UjianController extends Controller
         $ujian->update($request->all());
 
         if ($originalName !== $ujian->name) {
-            $activeYear = \App\Models\AcademicYear::where('is_active', true)->first();
+            $activeYear = \App\Services\AcademicStateService::currentAcademicYear();
             if ($activeYear) {
                 \App\Models\GradeWeight::where('academic_year_id', $activeYear->id)
                     ->where('category', 'pengetahuan')
@@ -83,7 +83,7 @@ class UjianController extends Controller
             'weight' => 'required|integer|min:0|max:100',
         ]);
 
-        $activeYear = \App\Models\AcademicYear::where('is_active', true)->first();
+        $activeYear = \App\Services\AcademicStateService::currentAcademicYear();
         if (!$activeYear) {
             return back()->with('error', 'Tidak ada tahun ajaran aktif.');
         }
@@ -114,3 +114,4 @@ class UjianController extends Controller
         return redirect()->route('ujians.index')->with('success', 'Jenis Ujian berhasil dihapus.');
     }
 }
+

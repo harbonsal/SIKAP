@@ -77,11 +77,17 @@ class Student extends Model
         'guardian_occupation',
         'guardian_income',
         'guardian_address',
+        'previous_school',
+        'accepted_grade',
+        'accepted_date',
+        'guardian_phone',
         'entry_year',
         'entry_semester',
+        'target_sabqi_pages',
+        'target_manzil_pages',
     ];
 
-    protected $appends = ['name', 'nomor_induk', 'kelas', 'kamar', 'nis'];
+    protected $appends = ['name', 'nomor_induk', 'kelas', 'kamar', 'nis', 'kelas_name', 'kamar_name'];
 
     public function memorizations()
     {
@@ -91,6 +97,11 @@ class Student extends Model
     public function memorizationDetails()
     {
         return $this->hasMany(TahfidzMemorizationDetail::class);
+    }
+
+    public function careViolations()
+    {
+        return $this->hasMany(CareViolation::class);
     }
 
     public function latestMemorizationDetail()
@@ -158,9 +169,33 @@ class Student extends Model
         return $this->latestClassMember?->activeClass?->kelas;
     }
 
+    public function getKelasNameAttribute()
+    {
+        $activeClass = $this->latestClassMember?->activeClass;
+        if (!$activeClass) return null;
+        
+        if (!empty($activeClass->name)) return $activeClass->name;
+        
+        $kelasName = $activeClass->kelas?->name ?? '';
+        $paralelName = $activeClass->kelasParalel?->name ?? '';
+        $fallback = trim("$kelasName $paralelName");
+        
+        return $fallback ?: null;
+    }
+
     public function getKamarAttribute()
     {
         return $this->latestKamarMember?->activeKamar?->kamar;
+    }
+
+    public function getKamarNameAttribute()
+    {
+        $activeKamar = $this->latestKamarMember?->activeKamar;
+        if (!$activeKamar) return null;
+
+        if (!empty($activeKamar->name)) return $activeKamar->name;
+
+        return $activeKamar->kamar?->name ?? null;
     }
 
     public function activeClass()

@@ -15,8 +15,8 @@ class CharacterAnalysisController extends Controller
 {
     public function index(Request $request)
     {
-        $academicYear = AcademicYear::where('is_active', true)->first();
-        $activeSemester = Semester::where('is_active', true)->first();
+        $academicYear = \App\Services\AcademicStateService::currentAcademicYear();
+        $activeSemester = \App\Services\AcademicStateService::currentSemester();
 
         // Allow user to pick which semester to analyze
         $allSemesters = Semester::orderBy('id')->get();
@@ -331,3 +331,4 @@ class CharacterAnalysisController extends Controller
         ]);
     }
 }
+
