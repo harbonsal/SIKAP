@@ -130,6 +130,13 @@ class JournalController extends Controller
                 ];
             });
 
+        $attendanceSettings = [
+            'teacher_can_set_sick' => \App\Models\Setting::where('key', 'journal_teacher_can_set_sick')->value('value') === 'true',
+            'teacher_can_set_permission' => \App\Models\Setting::where('key', 'journal_teacher_can_set_permission')->value('value') === 'true',
+        ];
+        $userCanManageSettings = $user->hasRole('Administrator') || $user->hasRole('Kepala Sekolah') || $user->hasRole('Manager');
+        $isTeacherOnly = !$userCanManageSettings && !$user->hasRole('Wali Kelas');
+
         return Inertia::render('Academic/Journal/Create', [
             'academicYear' => $academicYear,
             'currentPekan' => $currentPekan,
@@ -137,25 +144,130 @@ class JournalController extends Controller
             'activeSubjects' => $activeSubjects,
             'date' => $today->format('Y-m-d'),
             'selectedSubjectId' => $request->active_subject_id,
+            'attendanceSettings' => $attendanceSettings,
+            'userCanManageSettings' => $userCanManageSettings,
+            'isTeacherOnly' => $isTeacherOnly,
         ]);
     }
 
-    public function getStudents(ActiveSubject $activeSubject)
+    public function getStudents(ActiveSubject $activeSubject, Request $request)
     {
-        $students = $activeSubject->activeClass?->classMembers()
+        $date = $request->input('date', now()->format('Y-m-d'));
+        $startOfDay = \Carbon\Carbon::parse($date)->startOfDay();
+        $endOfDay = \Carbon\Carbon::parse($date)->endOfDay();
+
+        $members = $activeSubject->activeClass?->classMembers()
             ->with(['student.user'])
             ->get()
-            ->filter(fn($member) => $member->student !== null)
-            ->map(function ($member) {
-                return [
-                    'id' => $member->student->user_id ?? $member->student->id,
-                    'name' => $member->student->name,
-                    'nis' => $member->student->nomor_induk ?? $member->student->nis ?? '-',
-                ];
+            ->filter(fn($member) => $member->student !== null);
+
+        $studentIds = $members->pluck('student_id')->filter()->toArray();
+
+        // 1. Ambil seluruh riwayat kesehatan yang relevan untuk santri-santri ini sampai tanggal $date
+        $healthRecords = \App\Models\StudentHealthRecord::whereIn('student_id', $studentIds)
+            ->whereDate('date', '<=', $date)
+            ->with('complaints')
+            ->orderBy('date', 'desc')
+            ->orderBy('id', 'desc')
+            ->get()
+            ->groupBy('student_id');
+
+        // 2. Ambil perizinan santri aktif dari Pengasuhan pada rentang tanggal $date
+        $permissions = \App\Models\StudentPermission::whereIn('student_id', $studentIds)
+            ->whereHas('permissionGroup', function($q) use ($startOfDay, $endOfDay) {
+                $q->where('start_time', '<=', $endOfDay)
+                  ->where('end_time', '>=', $startOfDay);
             })
-            ->values() ?? collect();
+            ->whereIn('status', ['Approved', 'Left'])
+            ->with('permissionGroup')
+            ->get()
+            ->groupBy('student_id');
+
+        $students = $members->map(function ($member) use ($healthRecords, $permissions, $date) {
+            $studentId = $member->student_id;
+
+            // Cek status kesehatan terbaru
+            $isSick = false;
+            $healthInfo = null;
+            $studentHealth = $healthRecords->get($studentId);
+            if ($studentHealth && $studentHealth->isNotEmpty()) {
+                $latestHealth = $studentHealth->first();
+                // Jika statusnya Sakit atau Istirahat
+                if (in_array($latestHealth->status, ['Sakit', 'Istirahat'])) {
+                    $isSick = true;
+                    $complaints = $latestHealth->complaints->pluck('name')->implode(', ');
+                    $healthInfo = $complaints ?: ($latestHealth->description ?: 'Istirahat Sakit (UKS)');
+                }
+            }
+
+            // Cek status perizinan
+            $isPermitted = false;
+            $permissionInfo = null;
+            $studentPerm = $permissions->get($studentId);
+            if ($studentPerm && $studentPerm->isNotEmpty()) {
+                $latestPerm = $studentPerm->first();
+                $isPermitted = true;
+                $permissionInfo = $latestPerm->permissionGroup?->name ?: ($latestPerm->keterangan ?: 'Izin Pengasuhan');
+            }
+
+            // Tentukan suggested_status
+            $suggestedStatus = 'Hadir';
+            $suggestedNote = '';
+            if ($isSick) {
+                $suggestedStatus = 'Sakit';
+                $suggestedNote = 'Sakit (UKS): ' . $healthInfo;
+            } elseif ($isPermitted) {
+                $suggestedStatus = 'Izin';
+                $suggestedNote = 'Izin (Pengasuhan): ' . $permissionInfo;
+            }
+
+            return [
+                'id' => $member->student->user_id ?? $member->student->id,
+                'student_id' => $member->student->id,
+                'name' => $member->student->name,
+                'nis' => $member->student->nomor_induk ?? $member->student->nis ?? '-',
+                'is_sick_from_health' => $isSick,
+                'health_info' => $healthInfo,
+                'is_permitted_from_care' => $isPermitted,
+                'permission_info' => $permissionInfo,
+                'suggested_status' => $suggestedStatus,
+                'suggested_note' => $suggestedNote,
+            ];
+        })->values() ?? collect();
 
         return response()->json($students);
+    }
+
+    public function updateAttendanceSettings(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user->hasRole('Administrator') && !$user->hasRole('Kepala Sekolah') && !$user->hasRole('Manager')) {
+            abort(403, 'Hanya Administrator, Kepala Sekolah, atau Manager yang dapat mengubah pengaturan ini.');
+        }
+
+        $request->validate([
+            'teacher_can_set_sick' => 'required|boolean',
+            'teacher_can_set_permission' => 'required|boolean',
+        ]);
+
+        \App\Models\Setting::updateOrCreate(
+            ['key' => 'journal_teacher_can_set_sick'],
+            ['value' => $request->teacher_can_set_sick ? 'true' : 'false']
+        );
+
+        \App\Models\Setting::updateOrCreate(
+            ['key' => 'journal_teacher_can_set_permission'],
+            ['value' => $request->teacher_can_set_permission ? 'true' : 'false']
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Pengaturan hak absensi guru berhasil disimpan.',
+            'settings' => [
+                'teacher_can_set_sick' => (bool)$request->teacher_can_set_sick,
+                'teacher_can_set_permission' => (bool)$request->teacher_can_set_permission,
+            ]
+        ]);
     }
 
     public function getSilabus(ActiveSubject $activeSubject)
@@ -410,33 +522,91 @@ class JournalController extends Controller
                 ];
             });
 
-        // We also need the list of students for the attendance form.
-        // The `getStudents` API returns them, but for Edit we might want to pre-load them.
-        // Let's use the same `getStudents` logic but manually here to pass as prop if needed, 
-        // OR simpler: The frontend `Edit.jsx` will likely fetch students on mount based on `active_subject_id`.
-        // BUT we need to merge with existing attendance.
+        // Class members with health records and permissions check
+        $date = $journal->date ? \Carbon\Carbon::parse($journal->date)->format('Y-m-d') : now()->format('Y-m-d');
+        $startOfDay = \Carbon\Carbon::parse($date)->startOfDay();
+        $endOfDay = \Carbon\Carbon::parse($date)->endOfDay();
 
-        // Let's fetch the class members to ensure we show everyone, then merge status.
-        $classMembers = $journal->activeSubject->activeClass->classMembers()
-            ->with('student')
+        $members = $journal->activeSubject?->activeClass?->classMembers()
+            ->with(['student.user'])
             ->get()
-            ->map(function ($member) use ($journal) {
-                // Find existing attendance
-                $attendance = $journal->studentAttendances->firstWhere('student_id', $member->student->user_id);
+            ->filter(fn($member) => $member->student !== null) ?? collect();
 
-                return [
-                    'student_id' => $member->student->user_id, // User ID
-                    'name' => $member->student->name,
-                    'nis' => $member->student->nomor_induk ?? '-',
-                    'status' => $attendance ? $attendance->status : 'Hadir', // Default to Hadir if new student?
-                    'note' => $attendance ? $attendance->note : '',
-                ];
-            });
+        $studentIds = $members->pluck('student_id')->filter()->toArray();
+
+        $healthRecords = \App\Models\StudentHealthRecord::whereIn('student_id', $studentIds)
+            ->whereDate('date', '<=', $date)
+            ->with('complaints')
+            ->orderBy('date', 'desc')
+            ->orderBy('id', 'desc')
+            ->get()
+            ->groupBy('student_id');
+
+        $permissions = \App\Models\StudentPermission::whereIn('student_id', $studentIds)
+            ->whereHas('permissionGroup', function($q) use ($startOfDay, $endOfDay) {
+                $q->where('start_time', '<=', $endOfDay)
+                  ->where('end_time', '>=', $startOfDay);
+            })
+            ->whereIn('status', ['Approved', 'Left'])
+            ->with('permissionGroup')
+            ->get()
+            ->groupBy('student_id');
+
+        $classMembers = $members->map(function ($member) use ($journal, $healthRecords, $permissions) {
+            $attendance = $journal->studentAttendances->firstWhere('student_id', $member->student->user_id);
+            $studentId = $member->student_id;
+
+            $isSick = false;
+            $healthInfo = null;
+            $studentHealth = $healthRecords->get($studentId);
+            if ($studentHealth && $studentHealth->isNotEmpty()) {
+                $latestHealth = $studentHealth->first();
+                if (in_array($latestHealth->status, ['Sakit', 'Istirahat'])) {
+                    $isSick = true;
+                    $complaints = $latestHealth->complaints->pluck('name')->implode(', ');
+                    $healthInfo = $complaints ?: ($latestHealth->description ?: 'Istirahat Sakit (UKS)');
+                }
+            }
+
+            $isPermitted = false;
+            $permissionInfo = null;
+            $studentPerm = $permissions->get($studentId);
+            if ($studentPerm && $studentPerm->isNotEmpty()) {
+                $latestPerm = $studentPerm->first();
+                $isPermitted = true;
+                $permissionInfo = $latestPerm->permissionGroup?->name ?: ($latestPerm->keterangan ?: 'Izin Pengasuhan');
+            }
+
+            $status = $attendance ? $attendance->status : ($isSick ? 'Sakit' : ($isPermitted ? 'Izin' : 'Hadir'));
+            $note = $attendance ? $attendance->note : ($isSick ? 'Sakit (UKS): ' . $healthInfo : ($isPermitted ? 'Izin (Pengasuhan): ' . $permissionInfo : ''));
+
+            return [
+                'student_id' => $member->student->user_id, // User ID
+                'name' => $member->student->name,
+                'nis' => $member->student->nomor_induk ?? $member->student->nis ?? '-',
+                'status' => $status,
+                'note' => $note ?? '',
+                'is_sick_from_health' => $isSick,
+                'health_info' => $healthInfo,
+                'is_permitted_from_care' => $isPermitted,
+                'permission_info' => $permissionInfo,
+            ];
+        })->values();
+
+        $attendanceSettings = [
+            'teacher_can_set_sick' => \App\Models\Setting::where('key', 'journal_teacher_can_set_sick')->value('value') === 'true',
+            'teacher_can_set_permission' => \App\Models\Setting::where('key', 'journal_teacher_can_set_permission')->value('value') === 'true',
+        ];
+        $userCanManageSettings = $user->hasRole('Administrator') || $user->hasRole('Kepala Sekolah') || $user->hasRole('Manager');
+        $isTeacherOnly = !$userCanManageSettings && !$user->hasRole('Wali Kelas');
 
         return Inertia::render('Academic/Journal/Edit', [
             'journal' => $journal,
             'activeSubjects' => $activeSubjects,
             'initialStudents' => $classMembers,
+            'attendanceSettings' => $attendanceSettings,
+            'userCanManageSettings' => $userCanManageSettings,
+            'isTeacherOnly' => $isTeacherOnly,
         ]);
     }
 

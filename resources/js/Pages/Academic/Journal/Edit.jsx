@@ -1,10 +1,18 @@
 import MainLayout from '@/Layouts/MainLayout';
 import { Head, useForm, Link } from '@inertiajs/react';
-import { Save, Calendar, Clock, BookOpen, UserCheck, AlertCircle } from 'lucide-react';
+import { Save, Calendar, Clock, BookOpen, UserCheck, AlertCircle, Settings, ShieldAlert, HeartPulse, FileText, Lock } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import AttendanceSettingsModal from './AttendanceSettingsModal';
 
-export default function Edit({ journal, activeSubjects, initialStudents }) {
+export default function Edit({ 
+    journal, 
+    activeSubjects, 
+    initialStudents,
+    attendanceSettings = { teacher_can_set_sick: false, teacher_can_set_permission: false },
+    userCanManageSettings = false,
+    isTeacherOnly = false
+}) {
     const sortedInitialStudents = [...(initialStudents || [])].sort((a, b) => String(a.nis).localeCompare(String(b.nis), undefined, {numeric: true}));
 
     const { data, setData, put, processing, errors } = useForm({
@@ -20,6 +28,8 @@ export default function Edit({ journal, activeSubjects, initialStudents }) {
     const [students, setStudents] = useState(sortedInitialStudents);
     const [isLoadingStudents, setIsLoadingStudents] = useState(false);
     const [silabuses, setSilabuses] = useState([]);
+    const [settings, setSettings] = useState(attendanceSettings);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     useEffect(() => {
         if (data.active_subject_id) {
@@ -32,7 +42,7 @@ export default function Edit({ journal, activeSubjects, initialStudents }) {
     }, [data.active_subject_id]);
 
     useEffect(() => {
-        if (data.active_subject_id === journal.active_subject_id) {
+        if (data.active_subject_id === journal.active_subject_id && data.date === journal.date) {
             setStudents(sortedInitialStudents);
             setData('attendances', sortedInitialStudents);
             return;
@@ -40,7 +50,7 @@ export default function Edit({ journal, activeSubjects, initialStudents }) {
 
         if (data.active_subject_id) {
             setIsLoadingStudents(true);
-            axios.get(route('journals.get-students', data.active_subject_id))
+            axios.get(route('journals.get-students', data.active_subject_id), { params: { date: data.date } })
                 .then(response => {
                     const studentList = response.data
                         .sort((a, b) => String(a.nis).localeCompare(String(b.nis), undefined, {numeric: true}))
@@ -48,9 +58,13 @@ export default function Edit({ journal, activeSubjects, initialStudents }) {
                         student_id: student.id,
                         name: student.name,
                         nis: student.nis,
-                        status: 'Hadir',
+                        status: student.suggested_status || 'Hadir',
                         is_uniform_complete: true,
-                        note: ''
+                        note: student.suggested_note || '',
+                        is_sick_from_health: student.is_sick_from_health || false,
+                        health_info: student.health_info || null,
+                        is_permitted_from_care: student.is_permitted_from_care || false,
+                        permission_info: student.permission_info || null,
                     }));
                     setStudents(studentList);
                     setData('attendances', studentList);
@@ -62,7 +76,7 @@ export default function Edit({ journal, activeSubjects, initialStudents }) {
                     setIsLoadingStudents(false);
                 });
         }
-    }, [data.active_subject_id]);
+    }, [data.active_subject_id, data.date]);
 
     const handleAttendanceChange = (index, field, value) => {
         const updatedAttendances = [...data.attendances];
@@ -188,13 +202,29 @@ export default function Edit({ journal, activeSubjects, initialStudents }) {
                         </div>
                     </div>
 
+                    {/* ABSENSI */}
                     <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
-                        <div className="p-6 border-b flex items-center justify-between">
-                            <h3 className="text-lg font-semibold flex items-center gap-2">
-                                <UserCheck className="h-5 w-5" /> Absensi Siswa
-                            </h3>
-                            <div className="text-sm text-muted-foreground">
-                                Total: {data.attendances.length} Siswa
+                        <div className="p-6 border-b flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                                <h3 className="text-lg font-semibold flex items-center gap-2">
+                                    <UserCheck className="h-5 w-5 text-primary" /> Absensi Siswa
+                                </h3>
+                                <span className="text-xs bg-muted px-2.5 py-1 rounded-full text-muted-foreground font-medium">
+                                    Total: {data.attendances.length} Siswa
+                                </span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                {userCanManageSettings && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsSettingsOpen(true)}
+                                        className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-input bg-background hover:bg-muted text-foreground shadow-sm transition-colors"
+                                    >
+                                        <Settings className="w-3.5 h-3.5 text-primary" />
+                                        <span>Atur Hak Absensi Guru</span>
+                                    </button>
+                                )}
                             </div>
                         </div>
 
@@ -205,7 +235,7 @@ export default function Edit({ journal, activeSubjects, initialStudents }) {
                             </div>
                         ) : isLoadingStudents ? (
                             <div className="p-12 text-center">
-                                <p className="text-muted-foreground animate-pulse">Memuat data siswa...</p>
+                                <p className="text-muted-foreground animate-pulse">Memuat data siswa dan menyinkronkan status kesehatan...</p>
                             </div>
                         ) : data.attendances.length === 0 ? (
                             <div className="p-12 text-center text-muted-foreground">
@@ -213,55 +243,135 @@ export default function Edit({ journal, activeSubjects, initialStudents }) {
                             </div>
                         ) : (
                             <div className="divide-y divide-border">
-                                {data.attendances.map((student, index) => (
-                                    <div key={student.student_id} className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors">
-                                        <div className="flex-none w-8 text-sm font-semibold text-muted-foreground">
-                                            {index + 1}.
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="font-medium">{student.name}</p>
-                                            <p className="text-xs text-muted-foreground">NIS: {student.nis}</p>
-                                        </div>
+                                {data.attendances.map((student, index) => {
+                                    const isSickFromHealth = !!student.is_sick_from_health;
+                                    const isPermittedFromCare = !!student.is_permitted_from_care;
 
-                                        <div className="flex items-center gap-2">
-                                            <div className="flex bg-muted rounded-md p-1">
-                                                {['Hadir', 'Sakit', 'Izin', 'Alpa', 'Terlambat'].map((status) => (
-                                                    <button
-                                                        type="button"
-                                                        key={status}
-                                                        onClick={() => handleAttendanceChange(index, 'status', status)}
-                                                        className={`px-3 py-1.5 text-xs font-medium rounded-sm transition-all ${student.status === status
-                                                            ? 'bg-background shadow-sm text-foreground'
-                                                            : 'text-muted-foreground hover:text-foreground'
-                                                            }`}
-                                                    >
-                                                        {status}
-                                                    </button>
-                                                ))}
+                                    return (
+                                        <div key={student.student_id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:bg-muted/30 transition-colors">
+                                            <div className="flex items-start gap-3 flex-1">
+                                                <div className="flex-none w-6 text-sm font-semibold text-muted-foreground pt-0.5">
+                                                    {index + 1}.
+                                                </div>
+                                                <div>
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <p className="font-semibold text-foreground">{student.name}</p>
+                                                        <span className="text-xs text-muted-foreground">NIS: {student.nis}</span>
+                                                    </div>
+
+                                                    {/* Badges dari Poskestren / Pengasuhan */}
+                                                    <div className="flex items-center gap-2 flex-wrap mt-1">
+                                                        {isSickFromHealth && (
+                                                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-red-100 text-red-800 dark:bg-red-950/80 dark:text-red-300 px-2 py-0.5 rounded-md border border-red-200 dark:border-red-800">
+                                                                <HeartPulse className="w-3.5 h-3.5 text-red-600 animate-pulse" />
+                                                                <span>Sakit (UKS): {student.health_info}</span>
+                                                                {isTeacherOnly && <Lock className="w-3 h-3 text-red-500 ml-0.5" />}
+                                                            </span>
+                                                        )}
+
+                                                        {isPermittedFromCare && (
+                                                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">
+                                                                <FileText className="w-3.5 h-3.5 text-amber-600" />
+                                                                <span>Izin (Pengasuhan): {student.permission_info}</span>
+                                                                {isTeacherOnly && !settings.teacher_can_set_permission && <Lock className="w-3 h-3 text-amber-500 ml-0.5" />}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
 
-                                            <div className="flex items-center gap-2 border-l pl-3 ml-1">
-                                                <label className="flex items-center gap-1.5 cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={student.is_uniform_complete ?? true}
-                                                        onChange={(e) => handleAttendanceChange(index, 'is_uniform_complete', e.target.checked)}
-                                                        className="rounded border-input text-primary focus:ring-primary w-3.5 h-3.5"
-                                                    />
-                                                    Seragam Sesuai
-                                                </label>
-                                            </div>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <div className="flex bg-muted rounded-lg p-1 border">
+                                                    {['Hadir', 'Sakit', 'Izin', 'Alpa', 'Terlambat'].map((status) => {
+                                                        const isSelected = student.status === status;
+                                                        
+                                                        // Evaluasi apakah tombol ini disabled
+                                                        let isDisabled = false;
+                                                        let disabledTitle = '';
 
-                                            <input
-                                                type="text"
-                                                placeholder="Keterangan..."
-                                                value={student.note || ''}
-                                                onChange={(e) => handleAttendanceChange(index, 'note', e.target.value)}
-                                                className="h-8 text-xs border rounded px-2 w-32 md:w-48 ml-2"
-                                            />
+                                                        if (isTeacherOnly) {
+                                                            // Jika santri tercatat sakit dari UKS, tombol status selain Sakit terkunci
+                                                            if (isSickFromHealth && status !== 'Sakit') {
+                                                                isDisabled = true;
+                                                                disabledTitle = 'Santri terdata sakit di UKS (status dikunci Sakit)';
+                                                            }
+                                                            // Jika santri TIDAK sakit dari UKS, apakah guru boleh memberikan status Sakit?
+                                                            else if (status === 'Sakit' && !isSickFromHealth && !settings.teacher_can_set_sick) {
+                                                                isDisabled = true;
+                                                                disabledTitle = 'Status Sakit hanya dapat diinput oleh Bagian Kesehatan/Poskestren';
+                                                            }
+                                                            // Jika santri tercatat izin dari pengasuhan dan guru tidak punya hak override
+                                                            else if (isPermittedFromCare && !settings.teacher_can_set_permission && status !== 'Izin') {
+                                                                isDisabled = true;
+                                                                disabledTitle = 'Santri memiliki surat izin resmi Pengasuhan';
+                                                            }
+                                                            // Jika santri TIDAK izin dari pengasuhan, apakah guru boleh memberikan status Izin?
+                                                            else if (status === 'Izin' && !isPermittedFromCare && !settings.teacher_can_set_permission) {
+                                                                isDisabled = true;
+                                                                disabledTitle = 'Status Izin hanya dapat diinput oleh Bagian Pengasuhan';
+                                                            }
+                                                        }
+
+                                                        // Styling tombol
+                                                        let buttonClass = 'text-muted-foreground hover:text-foreground hover:bg-background/50';
+                                                        if (isSelected) {
+                                                            if (status === 'Sakit') {
+                                                                buttonClass = 'bg-red-600 text-white font-bold shadow-sm ring-1 ring-red-400';
+                                                            } else if (status === 'Izin') {
+                                                                buttonClass = 'bg-amber-600 text-white font-bold shadow-sm ring-1 ring-amber-400';
+                                                            } else if (status === 'Hadir') {
+                                                                buttonClass = 'bg-emerald-600 text-white font-bold shadow-sm ring-1 ring-emerald-400';
+                                                            } else if (status === 'Alpa') {
+                                                                buttonClass = 'bg-rose-700 text-white font-bold shadow-sm ring-1 ring-rose-400';
+                                                            } else if (status === 'Terlambat') {
+                                                                buttonClass = 'bg-orange-600 text-white font-bold shadow-sm ring-1 ring-orange-400';
+                                                            }
+                                                        } else if (isDisabled) {
+                                                            buttonClass = 'text-muted-foreground/35 cursor-not-allowed opacity-40 hover:bg-transparent';
+                                                        }
+
+                                                        return (
+                                                            <button
+                                                                type="button"
+                                                                key={status}
+                                                                disabled={isDisabled}
+                                                                title={disabledTitle || status}
+                                                                onClick={() => {
+                                                                    if (!isDisabled) {
+                                                                        handleAttendanceChange(index, 'status', status);
+                                                                    }
+                                                                }}
+                                                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${buttonClass}`}
+                                                            >
+                                                                {status}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                <div className="flex items-center gap-2 border-l pl-3 ml-1">
+                                                    <label className="flex items-center gap-1.5 cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={student.is_uniform_complete ?? true}
+                                                            onChange={(e) => handleAttendanceChange(index, 'is_uniform_complete', e.target.checked)}
+                                                            className="rounded border-input text-primary focus:ring-primary w-3.5 h-3.5"
+                                                        />
+                                                        Seragam Sesuai
+                                                    </label>
+                                                </div>
+
+                                                <input
+                                                    type="text"
+                                                    placeholder={student.status === 'Hadir' ? "Catatan tambahan..." : `Keterangan ${student.status.toLowerCase()}...`}
+                                                    value={student.note || ''}
+                                                    onChange={(e) => handleAttendanceChange(index, 'note', e.target.value)}
+                                                    className="h-8 text-xs border rounded-md px-2.5 w-32 md:w-48 ml-1 bg-background"
+                                                />
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
@@ -283,6 +393,14 @@ export default function Edit({ journal, activeSubjects, initialStudents }) {
                         </button>
                     </div>
                 </form>
+
+                {/* Modal Pengaturan Hak Absensi Guru */}
+                <AttendanceSettingsModal
+                    isOpen={isSettingsOpen}
+                    onClose={() => setIsSettingsOpen(false)}
+                    settings={settings}
+                    onSaved={(newSettings) => setSettings(newSettings)}
+                />
             </div>
         </MainLayout>
     );
