@@ -1,17 +1,23 @@
 import MainLayout from '@/Layouts/MainLayout';
 import { Link, usePage } from '@inertiajs/react';
 import { cn } from '@/lib/utils';
-import { BookOpen, CalendarClock, ShieldCheck } from 'lucide-react';
+import { BookOpen, CalendarClock, ShieldCheck, Settings } from 'lucide-react';
 
 const tabs = [
     { title: 'Jurnal & Absensi Kelas', route: 'journals.index', icon: BookOpen },
     { title: 'Rekap Belum Absen', route: 'journals.missing', icon: CalendarClock },
     { title: 'Absensi Manual', route: 'journals.manual.index', icon: ShieldCheck },
     { title: 'Jadwal Piket', route: 'pickets.index', icon: CalendarClock },
+    { title: 'Pengaturan Absensi', route: 'journals.settings', icon: Settings, canManage: true },
 ];
 
 export default function AbsensiLayout({ children, breadcrumbItems }) {
-    const { url } = usePage();
+    const { auth } = usePage().props;
+
+    const canManage = auth?.user?.roles?.some(r => ['Administrator', 'Admin', 'Kepala Sekolah', 'Manager'].includes(r)) 
+        || ['Administrator', 'Kepala Sekolah', 'Manager'].includes(auth?.user?.user_level?.name);
+
+    const visibleTabs = tabs.filter(tab => !tab.canManage || canManage);
 
     const isTabActive = (routeName) => {
         return route().current(routeName) || route().current(routeName + '.*');
@@ -27,7 +33,7 @@ export default function AbsensiLayout({ children, breadcrumbItems }) {
                 {/* Tab Navigation */}
                 <div className="bg-white/50 backdrop-blur-sm p-1.5 rounded-xl border border-border shadow-sm overflow-x-auto no-scrollbar mb-6">
                     <nav className="flex space-x-2 min-w-max">
-                        {tabs.map((tab) => {
+                        {visibleTabs.map((tab) => {
                             const Icon = tab.icon;
                             const active = isTabActive(tab.route);
                             return (

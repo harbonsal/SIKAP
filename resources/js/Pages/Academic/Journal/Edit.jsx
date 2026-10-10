@@ -1,9 +1,8 @@
 import MainLayout from '@/Layouts/MainLayout';
 import { Head, useForm, Link } from '@inertiajs/react';
-import { Save, Calendar, Clock, BookOpen, UserCheck, AlertCircle, Settings, ShieldAlert, HeartPulse, FileText, Lock } from 'lucide-react';
+import { Save, Calendar, Clock, BookOpen, UserCheck, AlertCircle, HeartPulse, FileText } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import AttendanceSettingsModal from './AttendanceSettingsModal';
 
 export default function Edit({ 
     journal, 
@@ -28,8 +27,6 @@ export default function Edit({
     const [students, setStudents] = useState(sortedInitialStudents);
     const [isLoadingStudents, setIsLoadingStudents] = useState(false);
     const [silabuses, setSilabuses] = useState([]);
-    const [settings, setSettings] = useState(attendanceSettings);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     useEffect(() => {
         if (data.active_subject_id) {
@@ -214,18 +211,7 @@ export default function Edit({
                                 </span>
                             </div>
 
-                            <div className="flex items-center gap-2">
-                                {userCanManageSettings && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsSettingsOpen(true)}
-                                        className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-input bg-background hover:bg-muted text-foreground shadow-sm transition-colors"
-                                    >
-                                        <Settings className="w-3.5 h-3.5 text-primary" />
-                                        <span>Atur Hak Absensi Guru</span>
-                                    </button>
-                                )}
-                            </div>
+                            {/* Action Header */}
                         </div>
 
                         {!data.active_subject_id ? (
@@ -265,7 +251,6 @@ export default function Edit({
                                                             <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-red-100 text-red-800 dark:bg-red-950/80 dark:text-red-300 px-2 py-0.5 rounded-md border border-red-200 dark:border-red-800">
                                                                 <HeartPulse className="w-3.5 h-3.5 text-red-600 animate-pulse" />
                                                                 <span>Sakit (UKS): {student.health_info}</span>
-                                                                {isTeacherOnly && <Lock className="w-3 h-3 text-red-500 ml-0.5" />}
                                                             </span>
                                                         )}
 
@@ -285,22 +270,10 @@ export default function Edit({
                                                         const isSelected = student.status === status;
                                                         
                                                         // Evaluasi apakah tombol ini disabled
+                                                        // Pada mode Edit, guru bersangkutan bebas mengoreksi status kehadiran santri
+                                                        // untuk mengantisipasi jika terjadi kesalahan saat input sebelumnya.
                                                         let isDisabled = false;
                                                         let disabledTitle = '';
-
-                                                        if (isTeacherOnly) {
-                                                            // Jika santri tercatat sakit dari UKS, tombol status selain Sakit terkunci
-                                                            if (isSickFromHealth && status !== 'Sakit') {
-                                                                isDisabled = true;
-                                                                disabledTitle = 'Santri terdata sakit di UKS (status dikunci Sakit)';
-                                                            }
-                                                            // Jika santri TIDAK sakit dari UKS, status Sakit mutlak hanya diisi oleh bagian kesehatan
-                                                            else if (status === 'Sakit' && !isSickFromHealth && !settings.teacher_can_set_sick) {
-                                                                isDisabled = true;
-                                                                disabledTitle = 'Status Sakit mutlak hanya dapat diinput oleh Bagian Kesehatan/Poskestren';
-                                                            }
-                                                            // Catatan: Untuk status Izin, pengajar & bagian pendidikan memiliki hak untuk mengisi izin di kelas
-                                                        }
 
                                                         // Styling tombol
                                                         let buttonClass = 'text-muted-foreground hover:text-foreground hover:bg-background/50';
@@ -383,14 +356,6 @@ export default function Edit({
                         </button>
                     </div>
                 </form>
-
-                {/* Modal Pengaturan Hak Absensi Guru */}
-                <AttendanceSettingsModal
-                    isOpen={isSettingsOpen}
-                    onClose={() => setIsSettingsOpen(false)}
-                    settings={settings}
-                    onSaved={(newSettings) => setSettings(newSettings)}
-                />
             </div>
         </MainLayout>
     );

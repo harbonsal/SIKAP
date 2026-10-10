@@ -371,6 +371,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/journals/last-journal/{active_subject}', [App\Http\Controllers\JournalController::class, 'getLastJournal'])->name('journals.last-journal');
     Route::get('/journals/get-students/{active_subject}', [App\Http\Controllers\JournalController::class, 'getStudents'])->name('journals.get-students');
     Route::get('/journals/get-silabus/{active_subject}', [App\Http\Controllers\JournalController::class, 'getSilabus'])->name('journals.get-silabus');
+    Route::get('/journals/settings', [App\Http\Controllers\JournalController::class, 'settings'])->name('journals.settings');
     Route::post('/journals/settings/attendance', [App\Http\Controllers\JournalController::class, 'updateAttendanceSettings'])->name('journals.settings.attendance');
 
 

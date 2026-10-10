@@ -135,7 +135,7 @@ class JournalController extends Controller
             'teacher_can_set_permission' => \App\Models\Setting::where('key', 'journal_teacher_can_set_permission')->value('value') === 'true',
         ];
         $userCanManageSettings = $user->hasRole('Administrator') || $user->hasRole('Kepala Sekolah') || $user->hasRole('Manager');
-        $isTeacherOnly = !$userCanManageSettings && !$user->hasRole('Wali Kelas');
+        $isTeacherOnly = !$userCanManageSettings;
 
         return Inertia::render('Academic/Journal/Create', [
             'academicYear' => $academicYear,
@@ -271,6 +271,23 @@ class JournalController extends Controller
                 'teacher_can_set_sick' => (bool)$request->teacher_can_set_sick,
                 'teacher_can_set_permission' => (bool)$request->teacher_can_set_permission,
             ]
+        ]);
+    }
+
+    public function settings()
+    {
+        $user = Auth::user();
+        if (!$user->hasRole('Administrator') && !$user->hasRole('Kepala Sekolah') && !$user->hasRole('Manager')) {
+            abort(403, 'Anda tidak memiliki hak akses ke Pengaturan Absensi.');
+        }
+
+        $attendanceSettings = [
+            'teacher_can_set_sick' => \App\Models\Setting::where('key', 'journal_teacher_can_set_sick')->value('value') === 'true',
+            'teacher_can_set_permission' => \App\Models\Setting::where('key', 'journal_teacher_can_set_permission')->value('value') === 'true',
+        ];
+
+        return Inertia::render('Academic/Journal/Settings', [
+            'attendanceSettings' => $attendanceSettings,
         ]);
     }
 
@@ -606,7 +623,7 @@ class JournalController extends Controller
             'teacher_can_set_permission' => \App\Models\Setting::where('key', 'journal_teacher_can_set_permission')->value('value') === 'true',
         ];
         $userCanManageSettings = $user->hasRole('Administrator') || $user->hasRole('Kepala Sekolah') || $user->hasRole('Manager');
-        $isTeacherOnly = !$userCanManageSettings && !$user->hasRole('Wali Kelas');
+        $isTeacherOnly = !$userCanManageSettings;
 
         return Inertia::render('Academic/Journal/Edit', [
             'journal' => $journal,
