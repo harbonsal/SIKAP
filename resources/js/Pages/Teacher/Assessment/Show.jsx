@@ -299,11 +299,11 @@ export default function Show({ activeSubject, gradeWeights, semester, previousPa
                                         <table className="w-full text-sm text-left border-collapse border border-gray-300">
                                             <thead className="text-xs uppercase bg-gray-100 text-gray-700 sticky top-0 z-30 shadow-sm">
                                                 <tr>
-                                                    <th className="px-4 py-3 font-bold w-[50px] min-w-[50px] max-w-[50px] text-center sticky left-0 z-40 bg-gray-100 border-b border-r border-gray-300 shadow-[1px_0_0_0_rgba(0,0,0,0.1)]">No</th>
-                                                    <th className="px-4 py-3 font-bold w-[130px] min-w-[130px] max-w-[130px] text-center sticky left-[50px] z-40 bg-gray-100 border-b border-r border-gray-300 shadow-[1px_0_0_0_rgba(0,0,0,0.1)]">
+                                                    <th className="px-2 md:px-4 py-3 font-bold w-[40px] min-w-[40px] max-w-[40px] text-center sticky left-0 z-40 bg-gray-100 border-b border-r border-gray-300 shadow-[1px_0_0_0_rgba(0,0,0,0.1)]">No</th>
+                                                    <th className="hidden md:table-cell px-4 py-3 font-bold w-[130px] min-w-[130px] max-w-[130px] text-center sticky left-[40px] z-40 bg-gray-100 border-b border-r border-gray-300 shadow-[1px_0_0_0_rgba(0,0,0,0.1)]">
                                                         NIS
                                                     </th>
-                                                    <th className="px-4 py-3 font-bold min-w-[220px] sticky left-[180px] z-40 bg-gray-100 border-b border-r border-gray-300 shadow-[4px_0_4px_-2px_rgba(0,0,0,0.1)]">
+                                                    <th className="px-3 md:px-4 py-3 font-bold min-w-[140px] md:min-w-[220px] sticky left-[40px] md:left-[170px] z-40 bg-gray-100 border-b border-r border-gray-300 shadow-[4px_0_4px_-2px_rgba(0,0,0,0.1)]">
                                                         Nama Siswa
                                                     </th>
                                                     {gradeWeights.map(weight => (
@@ -336,7 +336,7 @@ export default function Show({ activeSubject, gradeWeights, semester, previousPa
                                                                         <span>Input UH2</span>
                                                                     </Link>
                                                                 )}
-                                                            </div>
+                              </div>
                                                         </th>
                                                     ))}
                                                     <th className="px-4 py-3 font-bold text-center w-24 bg-blue-50 text-blue-800 border-b border-l border-gray-300">
@@ -347,19 +347,20 @@ export default function Show({ activeSubject, gradeWeights, semester, previousPa
                                             <tbody className="divide-y divide-gray-300">
                                                 {activeSubject.active_class.class_members.map((member, index) => (
                                                     <tr key={member.id} className="hover:bg-blue-50/50 transition-colors group even:bg-gray-50/50">
-                                                        <td className="px-4 py-3 text-center sticky left-0 z-20 bg-background group-hover:bg-blue-50/50 group-even:bg-gray-50/50 border-r border-gray-300 font-medium text-gray-700">
+                                                        <td className="px-2 md:px-4 py-3 text-center sticky left-0 z-20 bg-background group-hover:bg-blue-50/50 group-even:bg-gray-50/50 border-r border-gray-300 font-medium text-gray-700">
                                                             {index + 1}
                                                         </td>
-                                                        <td className="px-4 py-3 text-center sticky left-[50px] z-20 bg-background group-hover:bg-blue-50/50 group-even:bg-gray-50/50 border-r border-gray-300 shadow-[1px_0_0_0_rgba(0,0,0,0.05)]">
+                                                        <td className="hidden md:table-cell px-4 py-3 text-center sticky left-[40px] z-20 bg-background group-hover:bg-blue-50/50 group-even:bg-gray-50/50 border-r border-gray-300 shadow-[1px_0_0_0_rgba(0,0,0,0.05)]">
                                                             <span className="font-bold text-gray-800 font-mono text-[15px]">{member.student.nomor_induk || member.student.nis || '-'}</span>
                                                         </td>
-                                                        <td className="px-4 py-3 sticky left-[180px] z-20 bg-background group-hover:bg-blue-50/50 group-even:bg-gray-50/50 border-r border-gray-300 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
-                                                            <span className="font-bold text-gray-800">{member.student.name}</span>
+                                                        <td className="px-3 md:px-4 py-3 sticky left-[40px] md:left-[170px] z-20 bg-background group-hover:bg-blue-50/50 group-even:bg-gray-50/50 border-r border-gray-300 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                                                            <span className="font-bold text-gray-800 text-xs md:text-sm">{member.student.name}</span>
                                                         </td>
                                                         {gradeWeights.map(weight => (
                                                             <td key={weight.id} className="p-2 text-center border-r border-gray-300 relative">
                                                                 <Input
                                                                     type="number"
+                                                                    inputMode="decimal"
                                                                     id={`grade-input-${member.student.id}-${weight.id}`}
                                                                     min="0"
                                                                     max="100"

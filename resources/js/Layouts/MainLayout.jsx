@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { usePage, Link, router } from '@inertiajs/react';
-import { Menu, X, CheckCircle, XCircle, AlertTriangle, Info, Home } from 'lucide-react';
+import { Menu, X, CheckCircle, XCircle, AlertTriangle, Info, Home, BookOpen, GraduationCap, User } from 'lucide-react';
 import Sidebar from '@/Components/Sidebar';
 import Dropdown from '@/Components/Dropdown';
 import AcademicYearSwitcher from '@/Components/AcademicYearSwitcher';
@@ -219,7 +219,7 @@ export default function MainLayout({ children, breadcrumbItems = null, showBread
                 </header>
 
                 {/* Page Content */}
-                <main className="flex-1 p-3 sm:p-4 lg:p-6">
+                <main className="flex-1 p-3 sm:p-4 lg:p-6 pb-20 lg:pb-6">
                     <div className="print:hidden">
                         {['success', 'error', 'warning', 'info'].map((type) =>
                             flash?.[type] && !dismissedTypes[type] ? (
@@ -241,6 +241,77 @@ export default function MainLayout({ children, breadcrumbItems = null, showBread
                         {children}
                     </div>
                 </main>
+
+                {/* Mobile Bottom Navigation Dock (Thumb Zone) */}
+                <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-lg border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.08)] px-2 py-1 print:hidden">
+                    <div className="grid grid-cols-5 items-center justify-around max-w-md mx-auto">
+                        {/* 1. Beranda */}
+                        <Link
+                            href={route('dashboard')}
+                            className={cn(
+                                "flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all duration-150 active:scale-95",
+                                route().current('dashboard')
+                                    ? "text-primary font-bold"
+                                    : "text-muted-foreground hover:text-foreground"
+                            )}
+                        >
+                            <Home className={cn("h-5 w-5 mb-0.5", route().current('dashboard') && "stroke-[2.5px]")} />
+                            <span className="text-[10px] leading-tight">Beranda</span>
+                        </Link>
+
+                        {/* 2. Jurnal & Absensi */}
+                        <Link
+                            href={route('journals.index')}
+                            className={cn(
+                                "flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all duration-150 active:scale-95",
+                                route().current('journals.*')
+                                    ? "text-primary font-bold"
+                                    : "text-muted-foreground hover:text-foreground"
+                            )}
+                        >
+                            <BookOpen className={cn("h-5 w-5 mb-0.5", route().current('journals.*') && "stroke-[2.5px]")} />
+                            <span className="text-[10px] leading-tight">Jurnal</span>
+                        </Link>
+
+                        {/* 3. Input Nilai */}
+                        <Link
+                            href={route('assessments.index')}
+                            className={cn(
+                                "flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all duration-150 active:scale-95",
+                                route().current('assessments.*')
+                                    ? "text-primary font-bold"
+                                    : "text-muted-foreground hover:text-foreground"
+                            )}
+                        >
+                            <GraduationCap className={cn("h-5 w-5 mb-0.5", route().current('assessments.*') && "stroke-[2.5px]")} />
+                            <span className="text-[10px] leading-tight">Nilai</span>
+                        </Link>
+
+                        {/* 4. Profil */}
+                        <Link
+                            href={route('profile.edit')}
+                            className={cn(
+                                "flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all duration-150 active:scale-95",
+                                route().current('profile.*')
+                                    ? "text-primary font-bold"
+                                    : "text-muted-foreground hover:text-foreground"
+                            )}
+                        >
+                            <User className={cn("h-5 w-5 mb-0.5", route().current('profile.*') && "stroke-[2.5px]")} />
+                            <span className="text-[10px] leading-tight">Profil</span>
+                        </Link>
+
+                        {/* 5. Menu Lainnya (Buka Sidebar) */}
+                        <button
+                            type="button"
+                            onClick={() => setSidebarOpen(true)}
+                            className="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl text-muted-foreground hover:text-foreground transition-all duration-150 active:scale-95"
+                        >
+                            <Menu className="h-5 w-5 mb-0.5" />
+                            <span className="text-[10px] leading-tight">Menu</span>
+                        </button>
+                    </div>
+                </nav>
             </div>
         </div>
     );

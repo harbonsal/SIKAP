@@ -330,8 +330,9 @@ export default function Create({
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <div className="flex bg-muted rounded-lg p-1 border">
+                                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto">
+                                                {/* Tombol Status Kehadiran (5 Kolom Penuh di HP) */}
+                                                <div className="grid grid-cols-5 sm:flex gap-1.5 p-1 bg-muted/70 dark:bg-muted/30 rounded-xl border border-border/80 shadow-inner">
                                                     {['Hadir', 'Sakit', 'Izin', 'Alpa', 'Terlambat'].map((status) => {
                                                         const isSelected = student.status === status;
                                                         
@@ -350,22 +351,35 @@ export default function Create({
                                                             disabledTitle = 'Status Sakit mutlak hanya dapat diinput oleh Bagian Kesehatan (Poskestren)';
                                                         }
 
-                                                        // Styling tombol
-                                                        let buttonClass = 'text-muted-foreground hover:text-foreground hover:bg-background/50';
-                                                        if (isSelected) {
-                                                            if (status === 'Sakit') {
-                                                                buttonClass = 'bg-red-600 text-white font-bold shadow-sm ring-1 ring-red-400';
+                                                        // Warna status yang tajam, vibrant, dan berdaya kontras tinggi
+                                                        let buttonClass = '';
+                                                        if (isDisabled) {
+                                                            buttonClass = 'opacity-30 cursor-not-allowed bg-muted/40 text-muted-foreground border-transparent hover:bg-transparent';
+                                                        } else if (isSelected) {
+                                                            if (status === 'Hadir') {
+                                                                buttonClass = 'bg-emerald-600 text-white font-bold shadow-md shadow-emerald-600/30 ring-2 ring-emerald-500 scale-[1.02]';
+                                                            } else if (status === 'Sakit') {
+                                                                buttonClass = 'bg-rose-600 text-white font-bold shadow-md shadow-rose-600/30 ring-2 ring-rose-500 scale-[1.02]';
                                                             } else if (status === 'Izin') {
-                                                                buttonClass = 'bg-amber-600 text-white font-bold shadow-sm ring-1 ring-amber-400';
-                                                            } else if (status === 'Hadir') {
-                                                                buttonClass = 'bg-emerald-600 text-white font-bold shadow-sm ring-1 ring-emerald-400';
+                                                                buttonClass = 'bg-amber-500 text-white font-bold shadow-md shadow-amber-500/30 ring-2 ring-amber-400 scale-[1.02]';
                                                             } else if (status === 'Alpa') {
-                                                                buttonClass = 'bg-rose-700 text-white font-bold shadow-sm ring-1 ring-rose-400';
+                                                                buttonClass = 'bg-red-800 text-white font-bold shadow-md shadow-red-800/30 ring-2 ring-red-700 scale-[1.02]';
                                                             } else if (status === 'Terlambat') {
-                                                                buttonClass = 'bg-orange-600 text-white font-bold shadow-sm ring-1 ring-orange-400';
+                                                                buttonClass = 'bg-orange-600 text-white font-bold shadow-md shadow-orange-600/30 ring-2 ring-orange-500 scale-[1.02]';
                                                             }
-                                                        } else if (isDisabled) {
-                                                            buttonClass = 'text-muted-foreground/35 cursor-not-allowed opacity-40 hover:bg-transparent';
+                                                        } else {
+                                                            // State Tidak Aktif (Kontras Jelas & Border Ringan)
+                                                            if (status === 'Hadir') {
+                                                                buttonClass = 'bg-white dark:bg-zinc-800 text-emerald-800 dark:text-emerald-300 border border-emerald-300/80 hover:bg-emerald-50 dark:hover:bg-emerald-950/40';
+                                                            } else if (status === 'Sakit') {
+                                                                buttonClass = 'bg-white dark:bg-zinc-800 text-rose-800 dark:text-rose-300 border border-rose-300/80 hover:bg-rose-50 dark:hover:bg-rose-950/40';
+                                                            } else if (status === 'Izin') {
+                                                                buttonClass = 'bg-white dark:bg-zinc-800 text-amber-900 dark:text-amber-300 border border-amber-300/80 hover:bg-amber-50 dark:hover:bg-amber-950/40';
+                                                            } else if (status === 'Alpa') {
+                                                                buttonClass = 'bg-white dark:bg-zinc-800 text-red-900 dark:text-red-300 border border-red-300/80 hover:bg-red-50 dark:hover:bg-red-950/40';
+                                                            } else if (status === 'Terlambat') {
+                                                                buttonClass = 'bg-white dark:bg-zinc-800 text-orange-900 dark:text-orange-300 border border-orange-300/80 hover:bg-orange-50 dark:hover:bg-orange-950/40';
+                                                            }
                                                         }
 
                                                         return (
@@ -379,7 +393,7 @@ export default function Create({
                                                                         handleAttendanceChange(index, 'status', status);
                                                                     }
                                                                 }}
-                                                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${buttonClass}`}
+                                                                className={`h-10 sm:h-8 px-1 sm:px-3 text-xs font-bold rounded-lg flex items-center justify-center transition-all duration-150 active:scale-95 ${buttonClass}`}
                                                             >
                                                                 {status}
                                                             </button>
@@ -387,25 +401,27 @@ export default function Create({
                                                     })}
                                                 </div>
 
-                                                <div className="flex items-center gap-2 border-l pl-3 ml-1">
-                                                    <label className="flex items-center gap-1.5 cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
+                                                {/* Seragam & Catatan */}
+                                                <div className="flex items-center gap-2 w-full sm:w-auto">
+                                                    <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold px-2.5 py-2 sm:py-1.5 rounded-lg bg-muted/40 sm:bg-transparent border sm:border-0 border-border text-foreground hover:bg-muted/70 transition-colors shrink-0">
                                                         <input
                                                             type="checkbox"
                                                             checked={student.is_uniform_complete ?? true}
                                                             onChange={(e) => handleAttendanceChange(index, 'is_uniform_complete', e.target.checked)}
-                                                            className="rounded border-input text-primary focus:ring-primary w-3.5 h-3.5"
+                                                            className="rounded border-input text-primary focus:ring-primary w-4 h-4 sm:w-3.5 sm:h-3.5"
                                                         />
-                                                        Seragam Sesuai
+                                                        <span className="hidden sm:inline">Seragam Sesuai</span>
+                                                        <span className="sm:hidden">Seragam</span>
                                                     </label>
-                                                </div>
 
-                                                <input
-                                                    type="text"
-                                                    placeholder={student.status === 'Hadir' ? "Catatan tambahan..." : `Keterangan ${student.status.toLowerCase()}...`}
-                                                    value={student.note || ''}
-                                                    onChange={(e) => handleAttendanceChange(index, 'note', e.target.value)}
-                                                    className="h-8 text-xs border rounded-md px-2.5 w-32 md:w-48 ml-1 bg-background"
-                                                />
+                                                    <input
+                                                        type="text"
+                                                        placeholder={student.status === 'Hadir' ? "Catatan..." : `Ket. ${student.status.toLowerCase()}...`}
+                                                        value={student.note || ''}
+                                                        onChange={(e) => handleAttendanceChange(index, 'note', e.target.value)}
+                                                        className="h-10 sm:h-8 text-sm sm:text-xs border rounded-lg px-2.5 flex-1 sm:w-36 md:w-48 bg-background focus:ring-2 focus:ring-primary/30"
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
                                     );
