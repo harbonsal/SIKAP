@@ -30,68 +30,33 @@ export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} 
 
     return (
         <div className="space-y-5 sm:space-y-8">
-            {/* 1. HERO WELCOME BANNER (Mobile-First Card) */}
-            {showWelcome && can('menu_dashboard') && (
-                <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-indigo-700 via-indigo-600 to-blue-600 text-white shadow-xl shadow-indigo-600/20 p-5 sm:p-7">
-                    {/* Background Glows */}
-                    <div className="absolute top-0 right-0 w-56 h-56 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-                    <div className="absolute bottom-0 left-0 w-44 h-44 bg-black/15 rounded-full blur-2xl translate-y-1/3 -translate-x-1/4 pointer-events-none" />
-
-                    <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="space-y-1.5">
-                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-[11px] font-semibold tracking-wide text-indigo-100 border border-white/20">
-                                <Calendar className="w-3.5 h-3.5 text-yellow-300" />
-                                <span>{todayFormatted}</span>
-                            </div>
-
-                            <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-white drop-shadow-sm flex items-center gap-2">
-                                <span>Assalamu'alaikum, {auth.user.name.split(' ')[0]}</span>
-                                <span className="inline-block animate-wave origin-bottom-right">👋</span>
-                            </h2>
-
-                            <p className="text-indigo-100 text-xs sm:text-sm font-medium leading-relaxed max-w-xl">
-                                Selamat datang di ruang kerja guru. Pantau jadwal mengajar hari ini dan kelola absensi siswa dengan mudah dari smartphone Anda.
-                            </p>
-                        </div>
-
-                        {/* Quick Badge info */}
-                        <div className="flex items-center gap-2 self-start md:self-auto pt-1 md:pt-0">
-                            <div className="px-3.5 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-center">
-                                <span className="text-[10px] text-indigo-200 uppercase tracking-wider font-semibold block">Jadwal Hari Ini</span>
-                                <span className="text-lg font-black text-yellow-300">{schedule?.length || 0} Mapel</span>
-                            </div>
-                            <div className="px-3.5 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-center">
-                                <span className="text-[10px] text-indigo-200 uppercase tracking-wider font-semibold block">Total Santri</span>
-                                <span className="text-lg font-black text-white">{stats.my_students || 0}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* 2. JADWAL MENGAJAR HARI INI (Priority Focus di HP - Langsung Terlihat Tanpa Toggle) */}
+            {/* 1. JADWAL MENGAJAR HARI INI (Langsung Muncul di Posisi Teratas) */}
             {showSchedule && can('view_academic_schedules') && canViewAcademic && (
                 <div className="space-y-3">
                     <div className="flex items-center justify-between px-1">
-                        <div className="flex items-center gap-2">
-                            <div className="p-2 rounded-xl bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
+                        <div className="flex items-center gap-2.5">
+                            <div className="p-2.5 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white shadow-md shadow-indigo-500/20">
                                 <CalendarDays className="h-5 w-5" />
                             </div>
                             <div>
-                                <h3 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
-                                    Jadwal Mengajar Hari Ini
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <h3 className="text-base sm:text-lg font-black tracking-tight text-foreground">
+                                        Jadwal KBM Hari Ini
+                                    </h3>
                                     {schedule && schedule.length > 0 && (
-                                        <span className="text-xs bg-indigo-600 text-white font-extrabold px-2 py-0.5 rounded-full shadow-sm">
-                                            {schedule.length}
+                                        <span className="text-xs bg-indigo-600 text-white font-extrabold px-2.5 py-0.5 rounded-full shadow-sm">
+                                            {schedule.length} Mapel
                                         </span>
                                     )}
-                                </h3>
-                                <p className="text-xs text-muted-foreground">Jadwal KBM yang harus diisi jurnal & absensinya</p>
+                                </div>
+                                <p className="text-[11px] sm:text-xs text-muted-foreground font-medium">
+                                    {todayFormatted} • Langsung isi jurnal & absensi
+                                </p>
                             </div>
                         </div>
                         <Link
                             href={route('academic.schedules.index')}
-                            className="text-xs font-semibold text-primary hover:underline flex items-center gap-0.5"
+                            className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5 px-2.5 py-1 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/50 transition-colors"
                         >
                             <span>Semua</span>
                             <ChevronRight className="w-3.5 h-3.5" />

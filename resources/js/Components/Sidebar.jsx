@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
 import { Home, Users, BookOpen, Heart, Settings, ChevronDown, ChevronRight, Database, Calendar, FileText, GraduationCap, ClipboardCheck, Book, User, Search, Banknote, LogOut, Trash2, Download, Cpu, Bot } from 'lucide-react';
+import Swal from 'sweetalert2';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -374,16 +375,19 @@ export default function Sidebar({ className }) {
     const filteredNavItems = filterItemsBetter(navItems);
     const [deferredPrompt, setDeferredPrompt] = useState(typeof window !== 'undefined' ? window.deferredPWAInstallPrompt : null);
     const [isMobileDevice, setIsMobileDevice] = useState(false);
+    const [isStandalone, setIsStandalone] = useState(false);
 
     useEffect(() => {
-        // Detect Mobile
-        const checkMobile = () => {
+        // Detect Mobile & Standalone status
+        const checkEnv = () => {
             const userAgent = navigator.userAgent || navigator.vendor || window.opera;
             const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
-            setIsMobileDevice(isMobileUA || window.innerWidth < 768);
+            setIsMobileDevice(isMobileUA || window.innerWidth < 1024);
+            const standalone = (typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches) || (typeof navigator !== 'undefined' && navigator.standalone);
+            setIsStandalone(!!standalone);
         };
-        checkMobile();
-        window.addEventListener('resize', checkMobile);
+        checkEnv();
+        window.addEventListener('resize', checkEnv);
 
         if (window.deferredPWAInstallPrompt) {
             setDeferredPrompt(window.deferredPWAInstallPrompt);
@@ -403,24 +407,58 @@ export default function Sidebar({ className }) {
         window.addEventListener('pwa-prompt-ready', customHandler);
         
         return () => {
-            window.removeEventListener('resize', checkMobile);
+            window.removeEventListener('resize', checkEnv);
             window.removeEventListener('beforeinstallprompt', handler);
             window.removeEventListener('pwa-prompt-ready', customHandler);
         };
     }, []);
 
     const handleInstallClick = async () => {
-        if (!deferredPrompt) return;
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') {
-            setDeferredPrompt(null);
-            window.deferredPWAInstallPrompt = null;
+        // 1. Jika browser mendukung event instalasi langsung
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                setDeferredPrompt(null);
+                window.deferredPWAInstallPrompt = null;
+            }
+            return;
         }
+
+        // 2. Jika sudah berjalan di dalam aplikasi PWA terpasang
+        if (isStandalone) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Aplikasi Sudah Terpasang',
+                text: 'Aplikasi SIKAP sudah terpasang dan sedang berjalan langsung di perangkat Anda.',
+                confirmButtonColor: '#4f46e5'
+            });
+            return;
+        }
+
+        // 3. Khusus perangkat iOS (Safari)
+        const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+        if (isIOS) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Pasang di iPhone / iPad',
+                html: '<div style="text-align: left; font-size: 14px; line-height: 1.6;">1. Ketuk ikon <b>Bagikan (Share)</b> 📤 di bilah navigasi Safari.<br/><br/>2. Gulir ke bawah lalu pilih menu <b>"Tambahkan ke Layar Utama" (Add to Home Screen)</b> ➕.<br/><br/>3. Ketuk <b>Tambah (Add)</b> di pojok kanan atas.</div>',
+                confirmButtonColor: '#4f46e5'
+            });
+            return;
+        }
+
+        // 4. Android / Browser Desktop jika prompt otomatis belum siap
+        Swal.fire({
+            icon: 'info',
+            title: 'Pasang Aplikasi SIKAP',
+            html: '<div style="text-align: left; font-size: 14px; line-height: 1.6;">Untuk memasang aplikasi SIKAP secara langsung:<br/><br/>1. Ketuk ikon <b>titik tiga (⋮)</b> di pojok kanan atas browser Chrome.<br/><br/>2. Pilih menu <b>"Instal aplikasi"</b> atau <b>"Tambahkan ke Layar Utama"</b>.<br/><br/>Aplikasi akan otomatis muncul di menu aplikasi HP Anda.</div>',
+            confirmButtonColor: '#4f46e5'
+        });
     };
 
-    // PWA Logic: Only show for mobile devices, and not for Administrators/Managers
-    const showInstallButton = deferredPrompt && isMobileDevice && (userRole !== 'Administrator' && userRole !== 'Manager');
+    // Tombol install tampil di perangkat apa saja selama belum berjalan sebagai standalone app
+    const showInstallButton = !isStandalone;
 
     return (
         <div className={cn("flex flex-col h-screen w-64 bg-background/95 backdrop-blur-sm border-r border-border", className)}>

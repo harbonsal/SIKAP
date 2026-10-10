@@ -1,35 +1,29 @@
-const CACHE_NAME = 'sikap-pwa-v1';
-const urlsToCache = [
-  '/',
-];
+const CACHE_NAME = 'sikap-pwa-v2';
 
 self.addEventListener('install', event => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        return cache.addAll(urlsToCache);
-      })
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.filter(name => name !== CACHE_NAME).map(name => caches.delete(name))
+      );
+    }).then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', event => {
-  // Bypassing respondWith for dynamic Laravel routes prevents the 
-  // "redirected response was used for a request whose redirect mode is not follow"
-  // error in Chrome, while still satisfying the PWA install requirement.
-  return;
-});
+  // Hanya tangani GET request HTTP/HTTPS
+  if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) {
+    return;
+  }
 
-self.addEventListener('activate', event => {
-  const cacheWhitelist = [CACHE_NAME];
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
+  // Network-first dengan fallback ke cache agar rute dinamis Laravel selalu terbarui
+  event.respondWith(
+    fetch(event.request).catch(() => {
+      return caches.match(event.request);
     })
   );
 });

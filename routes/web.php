@@ -1957,33 +1957,57 @@ Route::get('/manifest.json', function () {
     $schoolName = \App\Models\SchoolInfo::first()?->name ?? 'Lembaga Anda';
     $appName = 'SIKAP ' . $schoolName;
     $logoSetting = \App\Models\Setting::where('key', 'app_logo')->value('value');
-    $logoPath = $logoSetting ? asset('storage/' . $logoSetting) : '/images/logo.png';
+    
+    $icons = [
+        [
+            'src' => asset('pwa-192x192.png'),
+            'sizes' => '192x192',
+            'type' => 'image/png',
+            'purpose' => 'any'
+        ],
+        [
+            'src' => asset('pwa-192x192.png'),
+            'sizes' => '192x192',
+            'type' => 'image/png',
+            'purpose' => 'maskable'
+        ],
+        [
+            'src' => asset('pwa-512x512.png'),
+            'sizes' => '512x512',
+            'type' => 'image/png',
+            'purpose' => 'any'
+        ],
+        [
+            'src' => asset('pwa-512x512.png'),
+            'sizes' => '512x512',
+            'type' => 'image/png',
+            'purpose' => 'maskable'
+        ]
+    ];
+
+    if ($logoSetting && file_exists(public_path('storage/' . $logoSetting))) {
+        $icons[] = [
+            'src' => asset('storage/' . $logoSetting),
+            'sizes' => '512x512',
+            'type' => 'image/png',
+            'purpose' => 'any'
+        ];
+    }
     
     return response()->json([
-        'id' => 'sikap_pwa_' . \Illuminate\Support\Str::slug($schoolName),
+        'id' => '/',
         'name' => $appName,
         'short_name' => 'SIKAP',
         'description' => 'Sistem Informasi Akademik Pesantren ' . $schoolName,
-        'theme_color' => '#ffffff',
+        'theme_color' => '#4f46e5',
         'background_color' => '#ffffff',
         'display' => 'standalone',
         'scope' => '/',
         'start_url' => '/',
-        'orientation' => 'portrait',
-        'icons' => [
-            [
-                'src' => $logoPath,
-                'sizes' => '192x192',
-                'type' => 'image/png',
-                'purpose' => 'any maskable'
-            ],
-            [
-                'src' => $logoPath,
-                'sizes' => '512x512',
-                'type' => 'image/png',
-                'purpose' => 'any maskable'
-            ]
-        ]
+        'orientation' => 'portrait-primary',
+        'icons' => $icons
+    ], 200, [
+        'Content-Type' => 'application/manifest+json; charset=utf-8'
     ]);
 })->name('pwa.manifest');
 
