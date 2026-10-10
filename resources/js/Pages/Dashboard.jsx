@@ -31,8 +31,8 @@ export default function Dashboard({ stats, schedule, dashboard_type, allowed_wid
         <MainLayout>
             <Head title="Dashboard" />
 
-            <div className="py-6 min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-50">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="py-4 sm:py-6 min-h-screen bg-gradient-to-br from-gray-50/50 via-gray-100/40 to-gray-50/50 dark:from-background dark:via-background dark:to-background">
+                <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
                     {renderDashboard()}
                 </div>
             </div>
