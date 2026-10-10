@@ -41,17 +41,27 @@ class PermissionController extends Controller
         }
     }
 
+    private function allowedRoles(): array
+    {
+        return [
+            'Administrator', 'Admin', 'Sekertaris Divisi', 'Sekretaris Divisi', 'Kepala Sekolah', 'Manager', 
+            'Manager Pengasuhan', 'Musrif', 'Musyrif', 'Musrif Asrama', 
+            'Guru', 'Guru Kelas', 'Wali Kelas', 'Pengajar', 'Staf Pendidikan', 'Kurikulum'
+        ];
+    }
+
     public function index(Request $request)
     {
-        $user = auth()->user()->load('userLevel');
-        $userRole = $user->userLevel ? $user->userLevel->name : '';
-        $allowedRoles = ['Administrator', 'Sekertaris Divisi', 'Kepala Sekolah', 'Manager'];
+        $user = auth()->user()->load(['userLevel', 'additionalLevels']);
         
-        if (!in_array($userRole, $allowedRoles)) {
+        if (!$user->hasRole($this->allowedRoles())) {
             abort(403, 'Anda tidak memiliki hak akses untuk mengatur perizinan.');
         }
 
-        $isAdmin = $userRole === 'Administrator';
+        $canSeeAllKamars = $user->hasRole([
+            'Administrator', 'Admin', 'Sekertaris Divisi', 'Sekretaris Divisi', 'Kepala Sekolah', 'Manager', 
+            'Manager Pengasuhan', 'Guru', 'Guru Kelas', 'Wali Kelas', 'Pengajar', 'Staf Pendidikan', 'Kurikulum'
+        ]);
 
         $academicYear = \App\Services\AcademicStateService::currentAcademicYear() ?? \App\Services\AcademicStateService::currentAcademicYear();
 
@@ -59,7 +69,7 @@ class PermissionController extends Controller
         $kamarQuery = ActiveKamar::where('academic_year_id', $academicYear->id)
             ->with(['kamar', 'musrif']);
 
-        if (!$isAdmin) {
+        if (!$canSeeAllKamars) {
             $kamarQuery->where('musrif_id', $user->id);
         }
 
@@ -240,21 +250,22 @@ class PermissionController extends Controller
 
     public function create(Request $request)
     {
-        $user = auth()->user()->load('userLevel');
-        $userRole = $user->userLevel ? $user->userLevel->name : '';
-        $allowedRoles = ['Administrator', 'Sekertaris Divisi', 'Kepala Sekolah', 'Manager'];
+        $user = auth()->user()->load(['userLevel', 'additionalLevels']);
         
-        if (!in_array($userRole, $allowedRoles)) {
+        if (!$user->hasRole($this->allowedRoles())) {
             abort(403, 'Anda tidak memiliki hak akses untuk membuat perizinan.');
         }
 
-        $isAdmin = $userRole === 'Administrator';
+        $canSeeAllKamars = $user->hasRole([
+            'Administrator', 'Admin', 'Sekertaris Divisi', 'Sekretaris Divisi', 'Kepala Sekolah', 'Manager', 
+            'Manager Pengasuhan', 'Guru', 'Guru Kelas', 'Wali Kelas', 'Pengajar', 'Staf Pendidikan', 'Kurikulum'
+        ]);
         $academicYear = \App\Services\AcademicStateService::currentAcademicYear() ?? \App\Services\AcademicStateService::currentAcademicYear();
 
         $kamarQuery = ActiveKamar::where('academic_year_id', $academicYear->id)
             ->with(['kamar']);
 
-        if (!$isAdmin) {
+        if (!$canSeeAllKamars) {
             $kamarQuery->where('musrif_id', $user->id);
         }
 
@@ -285,11 +296,9 @@ class PermissionController extends Controller
 
     public function store(Request $request)
     {
-        $user = auth()->user()->load('userLevel');
-        $userRole = $user->userLevel ? $user->userLevel->name : '';
-        $allowedRoles = ['Administrator', 'Sekertaris Divisi', 'Kepala Sekolah', 'Manager'];
+        $user = auth()->user()->load(['userLevel', 'additionalLevels']);
         
-        if (!in_array($userRole, $allowedRoles)) {
+        if (!$user->hasRole($this->allowedRoles())) {
             abort(403, 'Anda tidak memiliki hak akses untuk menyimpan perizinan.');
         }
 
@@ -306,12 +315,14 @@ class PermissionController extends Controller
         try {
             $kamarIds = [];
             $academicYear = \App\Services\AcademicStateService::currentAcademicYear() ?? \App\Services\AcademicStateService::currentAcademicYear();
-            $user = auth()->user()->load('userLevel');
-            $isAdmin = $user->userLevel && $user->userLevel->name === 'Administrator';
+            $canSeeAllKamars = $user->hasRole([
+                'Administrator', 'Admin', 'Sekertaris Divisi', 'Sekretaris Divisi', 'Kepala Sekolah', 'Manager', 
+                'Manager Pengasuhan', 'Guru', 'Guru Kelas', 'Wali Kelas', 'Pengajar', 'Staf Pendidikan', 'Kurikulum'
+            ]);
 
             if ($request->active_kamar_id === 'all') {
                 $kamarQuery = ActiveKamar::where('academic_year_id', $academicYear->id);
-                if (!$isAdmin) {
+                if (!$canSeeAllKamars) {
                     $kamarQuery->where('musrif_id', $user->id);
                 }
                 $kamarIds = $kamarQuery->pluck('id')->toArray();
@@ -356,11 +367,9 @@ class PermissionController extends Controller
 
     public function destroy(PermissionGroup $permission)
     {
-        $user = auth()->user()->load('userLevel');
-        $userRole = $user->userLevel ? $user->userLevel->name : '';
-        $allowedRoles = ['Administrator', 'Sekertaris Divisi', 'Kepala Sekolah', 'Manager'];
+        $user = auth()->user()->load(['userLevel', 'additionalLevels']);
         
-        if (!in_array($userRole, $allowedRoles)) {
+        if (!$user->hasRole($this->allowedRoles())) {
             abort(403, 'Anda tidak memiliki hak akses untuk menghapus perizinan.');
         }
 
@@ -378,11 +387,9 @@ class PermissionController extends Controller
 
     public function bulkUpdateTime(Request $request)
     {
-        $user = auth()->user()->load('userLevel');
-        $userRole = $user->userLevel ? $user->userLevel->name : '';
-        $allowedRoles = ['Administrator', 'Sekertaris Divisi', 'Kepala Sekolah', 'Manager'];
+        $user = auth()->user()->load(['userLevel', 'additionalLevels']);
         
-        if (!in_array($userRole, $allowedRoles)) {
+        if (!$user->hasRole($this->allowedRoles())) {
             return back()->withErrors(['error' => 'Anda tidak memiliki akses untuk mengubah perizinan.']);
         }
 
@@ -408,11 +415,9 @@ class PermissionController extends Controller
 
     public function bulkDestroy(Request $request)
     {
-        $user = auth()->user()->load('userLevel');
-        $userRole = $user->userLevel ? $user->userLevel->name : '';
-        $allowedRoles = ['Administrator', 'Sekertaris Divisi', 'Kepala Sekolah', 'Manager'];
+        $user = auth()->user()->load(['userLevel', 'additionalLevels']);
         
-        if (!in_array($userRole, $allowedRoles)) {
+        if (!$user->hasRole($this->allowedRoles())) {
             abort(403, 'Anda tidak memiliki hak akses untuk menghapus perizinan.');
         }
 
@@ -435,11 +440,9 @@ class PermissionController extends Controller
 
     public function updateTime(Request $request, PermissionGroup $permission)
     {
-        $user = auth()->user()->load('userLevel');
-        $userRole = $user->userLevel ? $user->userLevel->name : '';
-        $allowedRoles = ['Administrator', 'Sekertaris Divisi', 'Kepala Sekolah', 'Manager'];
+        $user = auth()->user()->load(['userLevel', 'additionalLevels']);
         
-        if (!in_array($userRole, $allowedRoles)) {
+        if (!$user->hasRole($this->allowedRoles())) {
             abort(403, 'Anda tidak memiliki hak akses untuk mengubah waktu perizinan.');
         }
 
@@ -460,11 +463,9 @@ class PermissionController extends Controller
 
     public function show(PermissionGroup $permission)
     {
-        $user = auth()->user()->load('userLevel');
-        $userRole = $user->userLevel ? $user->userLevel->name : '';
-        $allowedRoles = ['Administrator', 'Sekertaris Divisi', 'Kepala Sekolah', 'Manager'];
+        $user = auth()->user()->load(['userLevel', 'additionalLevels']);
         
-        if (!in_array($userRole, $allowedRoles)) {
+        if (!$user->hasRole($this->allowedRoles())) {
             abort(403, 'Anda tidak memiliki hak akses untuk melihat detail perizinan ini.');
         }
 

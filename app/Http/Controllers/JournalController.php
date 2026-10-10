@@ -178,8 +178,12 @@ class JournalController extends Controller
                 $q->where('start_time', '<=', $endOfDay)
                   ->where('end_time', '>=', $startOfDay);
             })
-            ->whereIn('status', ['Approved', 'Left'])
+            ->where(function ($q) {
+                $q->whereIn('status', ['Pending', 'Out'])
+                  ->orWhereNull('return_at');
+            })
             ->with('permissionGroup')
+            ->orderBy('id', 'desc')
             ->get()
             ->groupBy('student_id');
 
@@ -547,8 +551,12 @@ class JournalController extends Controller
                 $q->where('start_time', '<=', $endOfDay)
                   ->where('end_time', '>=', $startOfDay);
             })
-            ->whereIn('status', ['Approved', 'Left'])
+            ->where(function ($q) {
+                $q->whereIn('status', ['Pending', 'Out'])
+                  ->orWhereNull('return_at');
+            })
             ->with('permissionGroup')
+            ->orderBy('id', 'desc')
             ->get()
             ->groupBy('student_id');
 

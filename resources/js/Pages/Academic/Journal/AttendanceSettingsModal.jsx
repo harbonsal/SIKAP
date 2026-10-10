@@ -110,10 +110,10 @@ export default function AttendanceSettingsModal({ isOpen, onClose, settings, onS
                                 </div>
                                 <div>
                                     <h4 className="text-sm font-semibold text-foreground">
-                                        Izinkan Guru Memberikan Status "Izin"
+                                        Status "Izin" Santri di Kelas
                                     </h4>
                                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                                        Jika <span className="font-semibold text-foreground">OFF (Nonaktif)</span>, guru tidak dapat memilih status Izin secara mandiri. Status Izin hanya akan terisi otomatis berdasarkan surat/catatan perizinan dari Bagian Pengasuhan.
+                                        Status Izin otomatis tersinkronisasi jika telah diisi oleh pihak Pengasuhan (Perizinan Santri). Selain itu, pengajar dan bagian pendidikan yang memiliki role juga berhak memberikan status Izin secara langsung di absensi kelas.
                                     </p>
                                 </div>
                             </div>

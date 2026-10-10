@@ -337,7 +337,6 @@ export default function Create({
                                                             <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">
                                                                 <FileText className="w-3.5 h-3.5 text-amber-600" />
                                                                 <span>Izin (Pengasuhan): {student.permission_info}</span>
-                                                                {isTeacherOnly && !settings.teacher_can_set_permission && <Lock className="w-3 h-3 text-amber-500 ml-0.5" />}
                                                             </span>
                                                         )}
                                                     </div>
@@ -359,21 +358,12 @@ export default function Create({
                                                                 isDisabled = true;
                                                                 disabledTitle = 'Santri terdata sakit di UKS (status dikunci Sakit)';
                                                             }
-                                                            // Jika santri TIDAK sakit dari UKS, apakah guru boleh memberikan status Sakit?
+                                                            // Jika santri TIDAK sakit dari UKS, status Sakit mutlak hanya diisi oleh bagian kesehatan
                                                             else if (status === 'Sakit' && !isSickFromHealth && !settings.teacher_can_set_sick) {
                                                                 isDisabled = true;
-                                                                disabledTitle = 'Status Sakit hanya dapat diinput oleh Bagian Kesehatan/Poskestren';
+                                                                disabledTitle = 'Status Sakit mutlak hanya dapat diinput oleh Bagian Kesehatan/Poskestren';
                                                             }
-                                                            // Jika santri tercatat izin dari pengasuhan dan guru tidak punya hak override
-                                                            else if (isPermittedFromCare && !settings.teacher_can_set_permission && status !== 'Izin') {
-                                                                isDisabled = true;
-                                                                disabledTitle = 'Santri memiliki surat izin resmi Pengasuhan';
-                                                            }
-                                                            // Jika santri TIDAK izin dari pengasuhan, apakah guru boleh memberikan status Izin?
-                                                            else if (status === 'Izin' && !isPermittedFromCare && !settings.teacher_can_set_permission) {
-                                                                isDisabled = true;
-                                                                disabledTitle = 'Status Izin hanya dapat diinput oleh Bagian Pengasuhan';
-                                                            }
+                                                            // Catatan: Untuk status Izin, pengajar & bagian pendidikan memiliki hak untuk mengisi izin di kelas
                                                         }
 
                                                         // Styling tombol

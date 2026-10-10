@@ -126,7 +126,7 @@ const navItems = [
                     { title: "Plotting Anggota Kamar", href: "kamar-members.index", permission: 'view_kamar_members' },
                 ]
             },
-            { title: "Perizinan Santri", href: "rfid.scan", activeRoutes: ['rfid.scan', 'permissions.index', 'permissions.monitor'], permission: 'view_permissions', allowRoles: ['Sekertaris Divisi', 'Sekretaris Divisi'] },
+            { title: "Perizinan Santri", href: "rfid.scan", activeRoutes: ['rfid.scan', 'permissions.index', 'permissions.monitor'], permission: 'view_permissions', allowRoles: ['Sekertaris Divisi', 'Sekretaris Divisi', 'Musrif', 'Musyrif', 'Musrif Asrama', 'Manager Pengasuhan', 'Kepala Sekolah', 'Guru', 'Guru Kelas', 'Wali Kelas', 'Kurikulum', 'Staf Pendidikan'] },
             {
                 title: "Kesehatan",
                 children: [
