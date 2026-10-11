@@ -24,12 +24,14 @@ export default function AcademicYearSwitcher() {
 
     if (!can_switch_year) {
         return (
-            <div className="hidden md:flex items-center gap-2 px-4 py-2 rounded-full border bg-background border-border/60 text-sm font-medium shadow-sm">
-                <Calendar className="w-4 h-4 text-primary" />
-                <span className="hidden xl:inline-block tracking-tight text-xs font-semibold uppercase opacity-70 mr-1">Tahun Ajaran</span>
-                <span className="font-bold">{active_year.name}</span>
-                <span className="mx-1 text-muted-foreground/40">|</span>
-                <span className="font-medium">{active_semester.name}</span>
+            <div className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-full border bg-background border-border/70 text-xs font-semibold shadow-2xs shrink-0 select-none">
+                <Calendar className="w-3.5 h-3.5 text-primary shrink-0" />
+                <span className="font-bold">
+                    <span className="sm:hidden">{active_year.name?.split('/')[0] || active_year.name}</span>
+                    <span className="hidden sm:inline">{active_year.name}</span>
+                </span>
+                <span className="text-muted-foreground/40 text-[10px]">|</span>
+                <span className="font-medium text-muted-foreground">{active_semester.name}</span>
             </div>
         );
     }
@@ -38,17 +40,19 @@ export default function AcademicYearSwitcher() {
         <Dropdown>
             <Dropdown.Trigger>
                 <div className={`
-                    flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium cursor-pointer transition-all duration-200 shadow-sm
+                    flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-full border text-xs font-semibold cursor-pointer transition-all duration-200 shadow-2xs shrink-0 select-none active:scale-95
                     ${isDifferentFromSystem
-                        ? 'bg-amber-100/50 border-amber-200 text-amber-700 hover:bg-amber-100 hover:border-amber-300'
-                        : 'bg-background border-border/60 hover:border-primary/50 hover:bg-accent/50 hover:text-accent-foreground hover:shadow-md'}
+                        ? 'bg-amber-100/60 border-amber-300 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                        : 'bg-background border-border/70 hover:border-primary/50 text-foreground'}
                 `}>
-                    <Calendar className={`w-4 h-4 ${isDifferentFromSystem ? 'text-amber-600' : 'text-primary'}`} />
-                    <span className="hidden md:inline-block tracking-tight text-xs font-semibold uppercase opacity-70 mr-1">Tahun Ajaran</span>
-                    <span className="font-bold">{active_year.name}</span>
-                    <span className="mx-1 text-muted-foreground/40">|</span>
-                    <span className="font-medium">{active_semester.name}</span>
-                    <ChevronDown className="w-3.5 h-3.5 opacity-50 ml-1" />
+                    <Calendar className={`w-3.5 h-3.5 shrink-0 ${isDifferentFromSystem ? 'text-amber-600' : 'text-primary'}`} />
+                    <span className="font-bold">
+                        <span className="sm:hidden">{active_year.name?.split('/')[0] || active_year.name}</span>
+                        <span className="hidden sm:inline">{active_year.name}</span>
+                    </span>
+                    <span className="text-muted-foreground/40 text-[10px]">|</span>
+                    <span className="font-medium text-muted-foreground">{active_semester.name}</span>
+                    <ChevronDown className="w-3 h-3 opacity-60 ml-0.5" />
                 </div>
             </Dropdown.Trigger>
 

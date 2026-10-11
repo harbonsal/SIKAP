@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
-import { Users, GraduationCap, Clock, CalendarDays, BookOpen, FilePenLine, User, Calendar, Bot, Book, ChevronRight, Sparkles } from 'lucide-react';
+import { Users, GraduationCap, Clock, CalendarDays, BookOpen, FilePenLine, User, Calendar, Bot, Book, ChevronRight, Sparkles, BarChart2, CalendarRange, Download } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} }) {
     const { auth } = usePage().props;
@@ -27,6 +28,44 @@ export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} 
         month: 'long',
         year: 'numeric'
     }).format(new Date());
+
+    const handleInstallClick = () => {
+        if (typeof window !== 'undefined' && window.deferredPWAInstallPrompt) {
+            window.deferredPWAInstallPrompt.prompt();
+            window.deferredPWAInstallPrompt.userChoice.then(({ outcome }) => {
+                if (outcome === 'accepted') {
+                    window.deferredPWAInstallPrompt = null;
+                }
+            });
+            return;
+        }
+        const isStandalone = (typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches) || (typeof navigator !== 'undefined' && navigator.standalone);
+        if (isStandalone) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Aplikasi Terpasang',
+                text: 'Aplikasi SIKAP sudah terpasang dan sedang berjalan langsung di perangkat Anda.',
+                confirmButtonColor: '#4f46e5'
+            });
+            return;
+        }
+        const isIOS = typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent);
+        if (isIOS) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Pasang di iPhone / iPad',
+                html: '<div style="text-align: left; font-size: 14px; line-height: 1.6;">1. Ketuk ikon <b>Bagikan (Share)</b> 📤 di bilah navigasi Safari.<br/><br/>2. Gulir ke bawah lalu pilih menu <b>"Tambahkan ke Layar Utama" (Add to Home Screen)</b> ➕.<br/><br/>3. Ketuk <b>Tambah</b> di pojok kanan atas.</div>',
+                confirmButtonColor: '#4f46e5'
+            });
+            return;
+        }
+        Swal.fire({
+            icon: 'info',
+            title: 'Pasang Aplikasi SIKAP',
+            html: '<div style="text-align: left; font-size: 14px; line-height: 1.6;">Untuk memasang aplikasi SIKAP secara langsung:<br/><br/>1. Ketuk ikon <b>titik tiga (⋮)</b> di pojok kanan atas browser Chrome.<br/><br/>2. Pilih menu <b>"Instal aplikasi"</b> atau <b>"Tambahkan ke Layar Utama"</b>.<br/><br/>Aplikasi akan otomatis muncul di menu aplikasi HP Anda.</div>',
+            confirmButtonColor: '#4f46e5'
+        });
+    };
 
     return (
         <div className="space-y-5 sm:space-y-8">
@@ -109,7 +148,7 @@ export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} 
                                                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-600/20 active:scale-95 transition-all"
                                             >
                                                 <FilePenLine className="w-4 h-4" />
-                                                <span>Isi Jurnal & Absensi</span>
+                                                <span>Isi Jurnal</span>
                                             </Link>
                                             <Link
                                                 href={route('assessments.index', { active_subject_id: subjectId })}
@@ -137,146 +176,133 @@ export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} 
                 </div>
             )}
 
-            {/* 3. PINTASAN MENU CEPAT (Super App 4-Column Grid di Mobile) */}
+            {/* 2. ALAT & FITUR PENUNJANG KBM (Iconic Super App Grid - Tanpa Redundansi Bottom Bar) */}
             {showQuickActions && (
                 <div className="space-y-3">
                     <div className="flex items-center justify-between px-1">
                         <div>
-                            <h3 className="text-base sm:text-lg font-bold text-foreground">Akses Cepat Fitur</h3>
-                            <p className="text-xs text-muted-foreground">Pintasan menu prioritas pengajar</p>
+                            <h3 className="text-base sm:text-lg font-black tracking-tight text-foreground">Alat & Penunjang KBM</h3>
+                            <p className="text-[11px] sm:text-xs text-muted-foreground">Peralatan mengajar & evaluasi santri</p>
                         </div>
                     </div>
 
-                    <div className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-border/80 bg-card text-card-foreground shadow-sm">
-                        <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-8 gap-3 sm:gap-4">
+                    <div className="p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border border-border/80 bg-card text-card-foreground shadow-sm">
+                        <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-8 gap-2.5 sm:gap-4">
                             
-                            {/* 1. Absensi & Jurnal */}
-                            {(allowedWidgets.shortcut_journals ?? true) && can('view_journals') && canViewAcademic && (
-                                <Link
-                                    href={route('journals.index')}
-                                    className="flex flex-col items-center justify-center p-2 sm:p-3 rounded-2xl hover:bg-muted/50 transition-all active:scale-95 group text-center"
-                                >
-                                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/25 mb-2 group-hover:scale-110 transition-transform">
-                                        <CalendarDays className="w-6 h-6 sm:w-7 sm:h-7" />
-                                    </div>
-                                    <span className="text-[11px] sm:text-xs font-bold text-foreground line-clamp-1 group-hover:text-amber-600 transition-colors">
-                                        Absensi
-                                    </span>
-                                    <span className="text-[10px] text-muted-foreground hidden sm:inline">Jurnal KBM</span>
-                                </Link>
-                            )}
-
-                            {/* 2. Input Nilai */}
-                            {(allowedWidgets.shortcut_grades ?? true) && can('view_assessments') && canViewAcademic && (
-                                <Link
-                                    href={route('assessments.index')}
-                                    className="flex flex-col items-center justify-center p-2 sm:p-3 rounded-2xl hover:bg-muted/50 transition-all active:scale-95 group text-center"
-                                >
-                                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/25 mb-2 group-hover:scale-110 transition-transform">
-                                        <GraduationCap className="w-6 h-6 sm:w-7 sm:h-7" />
-                                    </div>
-                                    <span className="text-[11px] sm:text-xs font-bold text-foreground line-clamp-1 group-hover:text-emerald-600 transition-colors">
-                                        Nilai
-                                    </span>
-                                    <span className="text-[10px] text-muted-foreground hidden sm:inline">Akademik</span>
-                                </Link>
-                            )}
-
-                            {/* 3. Jadwal Pelajaran */}
-                            {(allowedWidgets.shortcut_calendar ?? true) && can('view_academic_schedules') && canViewAcademic && (
-                                <Link
-                                    href={route('academic.schedules.index')}
-                                    className="flex flex-col items-center justify-center p-2 sm:p-3 rounded-2xl hover:bg-muted/50 transition-all active:scale-95 group text-center"
-                                >
-                                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/25 mb-2 group-hover:scale-110 transition-transform">
-                                        <Clock className="w-6 h-6 sm:w-7 sm:h-7" />
-                                    </div>
-                                    <span className="text-[11px] sm:text-xs font-bold text-foreground line-clamp-1 group-hover:text-blue-600 transition-colors">
-                                        Jadwal
-                                    </span>
-                                    <span className="text-[10px] text-muted-foreground hidden sm:inline">Semua Kelas</span>
-                                </Link>
-                            )}
-
-                            {/* 4. Silabus & RPP */}
+                            {/* 1. Silabus & RPP */}
                             {(allowedWidgets.shortcut_silabus ?? true) && can('view_silabus') && canViewAcademic && (
                                 <Link
                                     href={route('silabus.index')}
-                                    className="flex flex-col items-center justify-center p-2 sm:p-3 rounded-2xl hover:bg-muted/50 transition-all active:scale-95 group text-center"
+                                    className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-muted/50 transition-all active:scale-95 group text-center"
                                 >
-                                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500 text-white flex items-center justify-center shadow-lg shadow-cyan-500/25 mb-2 group-hover:scale-110 transition-transform">
+                                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 text-white flex items-center justify-center shadow-lg shadow-cyan-500/25 mb-1.5 group-hover:scale-105 transition-transform">
                                         <BookOpen className="w-6 h-6 sm:w-7 sm:h-7" />
                                     </div>
                                     <span className="text-[11px] sm:text-xs font-bold text-foreground line-clamp-1 group-hover:text-cyan-600 transition-colors">
                                         Silabus
                                     </span>
-                                    <span className="text-[10px] text-muted-foreground hidden sm:inline">Materi KBM</span>
                                 </Link>
                             )}
 
-                            {/* 5. Penilaian Tahfidz */}
+                            {/* 2. Penilaian Tahfidz */}
                             {(allowedWidgets.shortcut_tahfidz ?? true) && can('menu_tahfidz') && (
                                 <Link
                                     href={route('tahfidz.assessments.index')}
-                                    className="flex flex-col items-center justify-center p-2 sm:p-3 rounded-2xl hover:bg-muted/50 transition-all active:scale-95 group text-center"
+                                    className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-muted/50 transition-all active:scale-95 group text-center"
                                 >
-                                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white flex items-center justify-center shadow-lg shadow-teal-500/25 mb-2 group-hover:scale-110 transition-transform">
+                                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white flex items-center justify-center shadow-lg shadow-teal-500/25 mb-1.5 group-hover:scale-105 transition-transform">
                                         <Book className="w-6 h-6 sm:w-7 sm:h-7" />
                                     </div>
                                     <span className="text-[11px] sm:text-xs font-bold text-foreground line-clamp-1 group-hover:text-teal-600 transition-colors">
                                         Tahfidz
                                     </span>
-                                    <span className="text-[10px] text-muted-foreground hidden sm:inline">Hafalan</span>
                                 </Link>
                             )}
 
-                            {/* 6. Ikhtabir Nafsi (Tes AI) */}
+                            {/* 3. Ikhtabir Nafsi (Tes AI) */}
                             {(allowedWidgets.shortcut_ikhtabir !== false) && (
                                 <Link
                                     href={route('ikhtabir-nafsi.index')}
-                                    className="flex flex-col items-center justify-center p-2 sm:p-3 rounded-2xl hover:bg-muted/50 transition-all active:scale-95 group text-center"
+                                    className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-muted/50 transition-all active:scale-95 group text-center"
                                 >
-                                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 text-white flex items-center justify-center shadow-lg shadow-rose-500/25 mb-2 group-hover:scale-110 transition-transform">
+                                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 text-white flex items-center justify-center shadow-lg shadow-rose-500/25 mb-1.5 group-hover:scale-105 transition-transform">
                                         <Bot className="w-6 h-6 sm:w-7 sm:h-7" />
                                     </div>
                                     <span className="text-[11px] sm:text-xs font-bold text-foreground line-clamp-1 group-hover:text-rose-600 transition-colors">
                                         Tes AI
                                     </span>
-                                    <span className="text-[10px] text-muted-foreground hidden sm:inline">Ikhtabir Nafsi</span>
                                 </Link>
                             )}
 
-                            {/* 7. Data Santri */}
+                            {/* 4. Data Santri Ajar */}
                             {can('view_students') && canViewAcademic && (
                                 <Link
                                     href={route('students.index', { my_students: 1, status: 'Aktif' })}
-                                    className="flex flex-col items-center justify-center p-2 sm:p-3 rounded-2xl hover:bg-muted/50 transition-all active:scale-95 group text-center"
+                                    className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-muted/50 transition-all active:scale-95 group text-center"
                                 >
-                                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-purple-500/25 mb-2 group-hover:scale-110 transition-transform">
+                                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-purple-500/25 mb-1.5 group-hover:scale-105 transition-transform">
                                         <Users className="w-6 h-6 sm:w-7 sm:h-7" />
                                     </div>
                                     <span className="text-[11px] sm:text-xs font-bold text-foreground line-clamp-1 group-hover:text-purple-600 transition-colors">
                                         Santri
                                     </span>
-                                    <span className="text-[10px] text-muted-foreground hidden sm:inline">Biodata</span>
                                 </Link>
                             )}
 
-                            {/* 8. Profil Saya */}
-                            {(allowedWidgets.shortcut_profile ?? true) && (
+                            {/* 5. Rekap Nilai Kelas */}
+                            {can('view_assessments') && canViewAcademic && (
                                 <Link
-                                    href={route('profile.edit')}
-                                    className="flex flex-col items-center justify-center p-2 sm:p-3 rounded-2xl hover:bg-muted/50 transition-all active:scale-95 group text-center"
+                                    href={route('recap.class.index')}
+                                    className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-muted/50 transition-all active:scale-95 group text-center"
                                 >
-                                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-slate-600 to-indigo-700 text-white flex items-center justify-center shadow-lg shadow-slate-500/25 mb-2 group-hover:scale-110 transition-transform">
-                                        <User className="w-6 h-6 sm:w-7 sm:h-7" />
+                                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/25 mb-1.5 group-hover:scale-105 transition-transform">
+                                        <BarChart2 className="w-6 h-6 sm:w-7 sm:h-7" />
                                     </div>
-                                    <span className="text-[11px] sm:text-xs font-bold text-foreground line-clamp-1 group-hover:text-slate-600 transition-colors">
-                                        Profil
+                                    <span className="text-[11px] sm:text-xs font-bold text-foreground line-clamp-1 group-hover:text-amber-600 transition-colors">
+                                        Rekap
                                     </span>
-                                    <span className="text-[10px] text-muted-foreground hidden sm:inline">Akun Saya</span>
                                 </Link>
                             )}
+
+                            {/* 6. Pantauan Skrining Quran */}
+                            <Link
+                                href={route('tahfidz.pantau-skrining')}
+                                className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-muted/50 transition-all active:scale-95 group text-center"
+                            >
+                                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-700 text-white flex items-center justify-center shadow-lg shadow-violet-600/25 mb-1.5 group-hover:scale-105 transition-transform">
+                                    <Sparkles className="w-6 h-6 sm:w-7 sm:h-7" />
+                                </div>
+                                <span className="text-[11px] sm:text-xs font-bold text-foreground line-clamp-1 group-hover:text-violet-600 transition-colors">
+                                    Skrining
+                                </span>
+                            </Link>
+
+                            {/* 7. Kalender Akademik */}
+                            <Link
+                                href={route('academic-calendar.index')}
+                                className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-muted/50 transition-all active:scale-95 group text-center"
+                            >
+                                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-sky-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/25 mb-1.5 group-hover:scale-105 transition-transform">
+                                    <CalendarRange className="w-6 h-6 sm:w-7 sm:h-7" />
+                                </div>
+                                <span className="text-[11px] sm:text-xs font-bold text-foreground line-clamp-1 group-hover:text-blue-600 transition-colors">
+                                    Kalender
+                                </span>
+                            </Link>
+
+                            {/* 8. Pasang Aplikasi SIKAP */}
+                            <button
+                                type="button"
+                                onClick={handleInstallClick}
+                                className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-muted/50 transition-all active:scale-95 group text-center"
+                            >
+                                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/25 mb-1.5 group-hover:scale-105 transition-transform">
+                                    <Download className="w-6 h-6 sm:w-7 sm:h-7" />
+                                </div>
+                                <span className="text-[11px] sm:text-xs font-bold text-foreground line-clamp-1 group-hover:text-emerald-600 transition-colors">
+                                    Pasang App
+                                </span>
+                            </button>
 
                         </div>
                     </div>

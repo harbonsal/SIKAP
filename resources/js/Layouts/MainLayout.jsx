@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { usePage, Link, router } from '@inertiajs/react';
-import { Menu, X, CheckCircle, XCircle, AlertTriangle, Info, Home, BookOpen, GraduationCap, User } from 'lucide-react';
+import { Menu, X, CheckCircle, XCircle, AlertTriangle, Info, Home, BookOpen, GraduationCap, User, Download, CalendarDays, Settings, LogOut, Calendar } from 'lucide-react';
+import Swal from 'sweetalert2';
 import Sidebar from '@/Components/Sidebar';
 import Dropdown from '@/Components/Dropdown';
 import AcademicYearSwitcher from '@/Components/AcademicYearSwitcher';
@@ -98,10 +99,52 @@ function FlashMessage({ type, message, errors, onDismiss }) {
 }
 
 export default function MainLayout({ children, breadcrumbItems = null, showBreadcrumb = true }) {
-    const { auth, flash } = usePage().props;
+    const { auth, flash, app_settings } = usePage().props;
     const user = auth.user;
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [dismissedTypes, setDismissedTypes] = useState({});
+    const [isStandalone, setIsStandalone] = useState(false);
+
+    useEffect(() => {
+        const standalone = (typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches) || (typeof navigator !== 'undefined' && navigator.standalone);
+        setIsStandalone(!!standalone);
+    }, []);
+
+    const handleInstallClick = async () => {
+        if (window.deferredPWAInstallPrompt) {
+            window.deferredPWAInstallPrompt.prompt();
+            const { outcome } = await window.deferredPWAInstallPrompt.userChoice;
+            if (outcome === 'accepted') {
+                window.deferredPWAInstallPrompt = null;
+            }
+            return;
+        }
+        if (isStandalone) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Aplikasi Sudah Terpasang',
+                text: 'Aplikasi SIKAP sudah terpasang dan sedang berjalan langsung di perangkat Anda.',
+                confirmButtonColor: '#4f46e5'
+            });
+            return;
+        }
+        const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+        if (isIOS) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Pasang di iPhone / iPad',
+                html: '<div style="text-align: left; font-size: 14px; line-height: 1.6;">1. Ketuk tombol <b>Bagikan (Share)</b> 📤 di bilah navigasi Safari.<br/><br/>2. Gulir ke bawah lalu pilih menu <b>"Tambahkan ke Layar Utama" (Add to Home Screen)</b> ➕.<br/><br/>3. Ketuk <b>Tambah</b> di pojok kanan atas.</div>',
+                confirmButtonColor: '#4f46e5'
+            });
+            return;
+        }
+        Swal.fire({
+            icon: 'info',
+            title: 'Pasang Aplikasi SIKAP',
+            html: '<div style="text-align: left; font-size: 14px; line-height: 1.6;">Untuk memasang aplikasi SIKAP secara langsung:<br/><br/>1. Ketuk ikon <b>titik tiga (⋮)</b> di pojok kanan atas browser Chrome.<br/><br/>2. Pilih menu <b>"Instal aplikasi"</b> atau <b>"Tambahkan ke Layar Utama"</b>.<br/><br/>Aplikasi akan otomatis muncul di menu aplikasi HP Anda.</div>',
+            confirmButtonColor: '#4f46e5'
+        });
+    };
 
     // Auto-close sidebar on navigation (mobile)
     useEffect(() => {
@@ -152,7 +195,7 @@ export default function MainLayout({ children, breadcrumbItems = null, showBread
     const dismissFlash = (type) => setDismissedTypes((prev) => ({ ...prev, [type]: true }));
 
     return (
-        <div className="min-h-screen bg-background font-sans antialiased flex">
+        <div className="h-[100dvh] max-h-[100dvh] w-full bg-background font-sans antialiased flex overflow-hidden">
             <LoadingOverlay />
             
             {/* Mobile Sidebar Overlay */}
@@ -164,62 +207,89 @@ export default function MainLayout({ children, breadcrumbItems = null, showBread
                 />
             )}
 
-            {/* Sidebar */}
+            {/* Sidebar Drawer */}
             <div className={cn(
-                "fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 print:hidden",
+                "fixed inset-y-0 left-0 z-50 w-64 h-full transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-auto lg:h-full print:hidden shrink-0",
                 sidebarOpen ? "translate-x-0" : "-translate-x-full"
             )}>
                 <Sidebar />
             </div>
 
-            {/* Main Content */}
-            <div className="flex-1 flex flex-col min-h-screen lg:pl-0 transition-all duration-200">
-                {/* Header */}
-                <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 print:hidden">
-                    <div className="flex h-14 items-center gap-2 sm:gap-4 px-2 sm:px-4 lg:px-6 justify-between">
-                        {/* Hamburger Menu Button - More Visible */}
-                        <button
-                            className="lg:hidden p-2 sm:p-3 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-md"
-                            onClick={() => setSidebarOpen(!sidebarOpen)}
-                            aria-label="Toggle menu"
-                        >
-                            {sidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-                        </button>
+            {/* Main Content Area */}
+            <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden">
+                {/* Header - Fixed top in flex flow, shrink-0, stationary during scrolling */}
+                <header className="shrink-0 z-30 h-14 border-b border-border bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 print:hidden select-none">
+                    <div className="flex h-14 items-center justify-between gap-2 px-3 sm:px-4 lg:px-6">
+                        {/* Left: Brand Identity (Iconic Logo + Name) */}
+                        <div className="flex items-center gap-2 shrink-0">
+                            <Link href={route('dashboard')} className="flex items-center gap-2 active:scale-95 transition-transform">
+                                <img
+                                    src={app_settings?.app_logo || "/images/logo.png"}
+                                    alt="Logo"
+                                    className="h-8 w-8 object-contain rounded-lg shadow-2xs"
+                                />
+                                <span className="font-black text-sm tracking-tight text-foreground truncate max-w-[120px] sm:max-w-none">
+                                    {app_settings?.app_name || "SIKAP"}
+                                </span>
+                            </Link>
+                        </div>
 
-                        {/* Home Button - Prominent */}
-                        <Link
-                            href={route('dashboard')}
-                            className="lg:hidden p-2 sm:p-3 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-md"
-                            aria-label="Home"
-                        >
-                            <Home className="h-6 w-6" />
-                        </Link>
-
-                        {/* Smart Search Bar - Center */}
-                        <div className="flex-1 max-w-md hidden sm:block">
+                        {/* Center: Smart Search Bar (Desktop only) */}
+                        <div className="flex-1 max-w-md hidden sm:block mx-4">
                             <SmartSearchBar />
                         </div>
 
-                        {/* User Menu */}
-                        <div className="flex items-center gap-2 sm:gap-4">
+                        {/* Right: Iconic Action Controls (Clean, minimal text) */}
+                        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
                             <AcademicYearSwitcher />
+
+                            {!isStandalone && (
+                                <button
+                                    onClick={handleInstallClick}
+                                    className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800 transition-all active:scale-95 flex items-center justify-center shadow-2xs"
+                                    title="Pasang Aplikasi (PWA)"
+                                    aria-label="Pasang Aplikasi (PWA)"
+                                >
+                                    <Download className="h-4 w-4" />
+                                </button>
+                            )}
+
                             <Dropdown>
                                 <Dropdown.Trigger>
-                                    <button className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground">
-                                        {user?.name || 'User'}
+                                    <button className="flex items-center p-0.5 rounded-full hover:bg-muted/70 transition-colors active:scale-95 ring-2 ring-primary/20" title={user?.name}>
+                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-600 to-blue-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
+                                            {user?.name ? user.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'U'}
+                                        </div>
                                     </button>
                                 </Dropdown.Trigger>
-                                <Dropdown.Content>
-                                    <Dropdown.Link href={route('profile.edit')}>Profile</Dropdown.Link>
-                                    <Dropdown.Link href={route('logout')} method="post" as="button">Log Out</Dropdown.Link>
+                                <Dropdown.Content align="right" width="56" contentClasses="py-1 bg-white dark:bg-zinc-950 border border-border shadow-xl rounded-xl">
+                                    <div className="px-3.5 py-2.5 border-b border-border/60 bg-muted/20 text-xs">
+                                        <p className="font-bold text-foreground truncate">{user?.name}</p>
+                                        <span className="inline-block mt-0.5 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 truncate max-w-full">
+                                            {user?.user_level?.name || user?.email}
+                                        </span>
+                                    </div>
+                                    <Dropdown.Link href={route('profile.edit')} className="flex items-center gap-2.5 text-xs py-2">
+                                        <User className="w-3.5 h-3.5 text-indigo-500" />
+                                        <span>Profil Saya</span>
+                                    </Dropdown.Link>
+                                    <Dropdown.Link href={route('academic-calendar.index')} className="flex items-center gap-2.5 text-xs py-2">
+                                        <Calendar className="w-3.5 h-3.5 text-blue-500" />
+                                        <span>Kalender Akademik</span>
+                                    </Dropdown.Link>
+                                    <div className="border-t border-border/50 my-1"></div>
+                                    <Dropdown.Link href={route('logout')} method="post" as="button" className="flex items-center gap-2.5 text-xs py-2 text-red-600 hover:text-red-700">
+                                        <LogOut className="w-3.5 h-3.5 text-red-500" />
+                                        <span>Keluar</span>
+                                    </Dropdown.Link>
                                 </Dropdown.Content>
                             </Dropdown>
                         </div>
                     </div>
                 </header>
 
-                {/* Page Content */}
-                <main className="flex-1 p-3 sm:p-4 lg:p-6 pb-20 lg:pb-6">
+                {/* Page Content with isolated scroll container */}
+                <main scroll-region="true" className="flex-1 overflow-y-auto overscroll-y-contain p-3 sm:p-4 lg:p-6 pb-4 lg:pb-6">
                     <div className="print:hidden">
                         {['success', 'error', 'warning', 'info'].map((type) =>
                             flash?.[type] && !dismissedTypes[type] ? (
@@ -237,78 +307,78 @@ export default function MainLayout({ children, breadcrumbItems = null, showBread
                         {showBreadcrumb && <Breadcrumb items={breadcrumbItems} />}
                     </div>
                     
-                    <div className="w-full max-w-full overflow-x-auto">
+                    <div className="w-full max-w-full">
                         {children}
                     </div>
                 </main>
 
-                {/* Mobile Bottom Navigation Dock (Thumb Zone) */}
-                <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-lg border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.08)] px-2 py-1 print:hidden">
+                {/* Mobile Bottom Navigation Dock (Thumb Zone) - Stationary Fixed in flex flow */}
+                <nav className="lg:hidden shrink-0 z-30 bg-background/95 backdrop-blur-lg border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.08)] px-2 py-1 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] print:hidden select-none">
                     <div className="grid grid-cols-5 items-center justify-around max-w-md mx-auto">
                         {/* 1. Beranda */}
                         <Link
                             href={route('dashboard')}
                             className={cn(
-                                "flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all duration-150 active:scale-95",
+                                "flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-150 active:scale-95",
                                 route().current('dashboard')
                                     ? "text-primary font-bold"
                                     : "text-muted-foreground hover:text-foreground"
                             )}
                         >
                             <Home className={cn("h-5 w-5 mb-0.5", route().current('dashboard') && "stroke-[2.5px]")} />
-                            <span className="text-[10px] leading-tight">Beranda</span>
+                            <span className="text-[10px] leading-tight font-medium">Beranda</span>
                         </Link>
 
-                        {/* 2. Jurnal & Absensi */}
+                        {/* 2. Jadwal */}
+                        <Link
+                            href={route('academic.schedules.index')}
+                            className={cn(
+                                "flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-150 active:scale-95",
+                                route().current('academic.schedules.*')
+                                    ? "text-primary font-bold"
+                                    : "text-muted-foreground hover:text-foreground"
+                            )}
+                        >
+                            <CalendarDays className={cn("h-5 w-5 mb-0.5", route().current('academic.schedules.*') && "stroke-[2.5px]")} />
+                            <span className="text-[10px] leading-tight font-medium">Jadwal</span>
+                        </Link>
+
+                        {/* 3. Jurnal KBM */}
                         <Link
                             href={route('journals.index')}
                             className={cn(
-                                "flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all duration-150 active:scale-95",
+                                "flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-150 active:scale-95",
                                 route().current('journals.*')
                                     ? "text-primary font-bold"
                                     : "text-muted-foreground hover:text-foreground"
                             )}
                         >
                             <BookOpen className={cn("h-5 w-5 mb-0.5", route().current('journals.*') && "stroke-[2.5px]")} />
-                            <span className="text-[10px] leading-tight">Jurnal</span>
+                            <span className="text-[10px] leading-tight font-medium">Jurnal</span>
                         </Link>
 
-                        {/* 3. Input Nilai */}
+                        {/* 4. Nilai */}
                         <Link
                             href={route('assessments.index')}
                             className={cn(
-                                "flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all duration-150 active:scale-95",
+                                "flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-150 active:scale-95",
                                 route().current('assessments.*')
                                     ? "text-primary font-bold"
                                     : "text-muted-foreground hover:text-foreground"
                             )}
                         >
                             <GraduationCap className={cn("h-5 w-5 mb-0.5", route().current('assessments.*') && "stroke-[2.5px]")} />
-                            <span className="text-[10px] leading-tight">Nilai</span>
+                            <span className="text-[10px] leading-tight font-medium">Nilai</span>
                         </Link>
 
-                        {/* 4. Profil */}
-                        <Link
-                            href={route('profile.edit')}
-                            className={cn(
-                                "flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all duration-150 active:scale-95",
-                                route().current('profile.*')
-                                    ? "text-primary font-bold"
-                                    : "text-muted-foreground hover:text-foreground"
-                            )}
-                        >
-                            <User className={cn("h-5 w-5 mb-0.5", route().current('profile.*') && "stroke-[2.5px]")} />
-                            <span className="text-[10px] leading-tight">Profil</span>
-                        </Link>
-
-                        {/* 5. Menu Lainnya (Buka Sidebar) */}
+                        {/* 5. Menu / Lainnya */}
                         <button
                             type="button"
                             onClick={() => setSidebarOpen(true)}
-                            className="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl text-muted-foreground hover:text-foreground transition-all duration-150 active:scale-95"
+                            className="flex flex-col items-center justify-center py-1 px-1 rounded-xl text-muted-foreground hover:text-foreground transition-all duration-150 active:scale-95"
                         >
                             <Menu className="h-5 w-5 mb-0.5" />
-                            <span className="text-[10px] leading-tight">Menu</span>
+                            <span className="text-[10px] leading-tight font-medium">Menu</span>
                         </button>
                     </div>
                 </nav>
