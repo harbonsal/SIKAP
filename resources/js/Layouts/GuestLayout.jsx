@@ -44,45 +44,36 @@ export default function GuestLayout({ children }) {
                         </div>
 
                         {/* Top Branding Section */}
-                        <div className="pt-7 pb-4 px-6 sm:px-8 text-center border-b border-slate-100 dark:border-slate-800/80 bg-gradient-to-b from-slate-50/50 to-transparent dark:from-slate-800/30">
-                            {/* Logo with Multi-Tone Seal */}
-                            <div className="flex justify-center mb-3">
+                        <div className="pt-6 pb-3 px-5 sm:px-8 text-center border-b border-slate-100 dark:border-slate-800/80 bg-gradient-to-b from-slate-50/50 to-transparent dark:from-slate-800/30">
+                            {/* Logo */}
+                            <div className="flex justify-center mb-2.5">
                                 <Link href="/" className="group inline-block transition-transform active:scale-95">
-                                    <div className="relative p-2.5 rounded-2xl bg-white dark:bg-slate-800 shadow-md ring-1 ring-amber-400/30 border border-slate-100 dark:border-slate-700">
-                                        <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-tr from-amber-500/30 via-emerald-500/30 to-blue-500/30 blur-xs opacity-75 group-hover:opacity-100 transition-opacity"></div>
+                                    <div className="relative p-2 rounded-2xl bg-white dark:bg-slate-800 shadow-sm ring-1 ring-amber-400/30 border border-slate-100 dark:border-slate-700">
                                         <img
                                             src={app_settings?.app_logo || "/images/logo.png"}
                                             alt="Logo Pesantren"
-                                            className="relative h-20 w-auto object-contain drop-shadow-md"
+                                            className="h-16 sm:h-20 w-auto object-contain drop-shadow-sm"
                                         />
                                     </div>
                                 </Link>
                             </div>
 
-                            {/* Name & Tagline */}
-                            <div className="space-y-1">
+                            {/* Name & Clean Tagline */}
+                            <div>
                                 <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-800 dark:text-white flex items-center justify-center gap-1.5">
                                     <span>SIKAP</span>
                                     <span className="text-emerald-700 dark:text-emerald-400 font-extrabold text-base sm:text-lg">
                                         {schoolName}
                                     </span>
                                 </h1>
-                                <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium tracking-wide">
-                                    Sistem Informasi Akademik & Karakter Pesantren
+                                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium tracking-wide mt-0.5">
+                                    Sistem Akademik Pesantren
                                 </p>
-
-                                {/* 4-Color Identity Indicators */}
-                                <div className="flex items-center justify-center gap-1.5 pt-1.5">
-                                    <span className="w-2 h-2 rounded-full bg-red-600 ring-2 ring-red-600/20 shadow-xs" title="Merah (Semangat & Ghirah)"></span>
-                                    <span className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-500/20 shadow-xs" title="Kuning-Oranye (Iluminasi & Kemuliaan)"></span>
-                                    <span className="w-2 h-2 rounded-full bg-emerald-600 ring-2 ring-emerald-600/20 shadow-xs" title="Hijau Daun (Kesejukan & Adab)"></span>
-                                    <span className="w-2 h-2 rounded-full bg-blue-600 ring-2 ring-blue-600/20 shadow-xs" title="Biru (Kedalaman Ilmu & Amanah)"></span>
-                                </div>
                             </div>
                         </div>
 
                         {/* Card Body (Forms & Actions) */}
-                        <div className="px-6 py-6 sm:px-8">
+                        <div className="px-5 py-5 sm:px-8 sm:py-6">
                             {children}
                         </div>
                     </div>
