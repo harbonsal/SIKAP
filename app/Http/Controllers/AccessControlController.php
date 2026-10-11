@@ -268,7 +268,10 @@ class AccessControlController extends Controller
 
     public function index(Request $request)
     {
-        $userLevels = UserLevel::with('permissions:id,name')->orderBy('id')->get()->map(function ($level) {
+        $userLevels = UserLevel::with('permissions:id,name')
+            ->where('name', '!=', 'Administrator')
+            ->orderBy('id')
+            ->get()->map(function ($level) {
             return [
                 'id' => $level->id,
                 'name' => $level->name,

@@ -1018,33 +1018,6 @@ class FeatureRegistryService
                     'delete' => 'delete_character_assessments',
                 ],
             ],
-            [
-                'id' => 'api_keys',
-                'name' => 'Manajemen API Key & AI Engine',
-                'description' => 'Pengaturan kredensial API Google Gemini, OpenAI, dan AI Tester',
-                'category' => 'Master & Pengaturan',
-                'icon' => 'KeyRound',
-                'parent_menu' => 'menu_settings',
-                'actions' => ['view', 'edit'],
-                'permission_keys' => [
-                    'view' => 'view_school_info',
-                    'edit' => 'edit_school_info',
-                ],
-            ],
-            [
-                'id' => 'system_backup',
-                'name' => 'Backup & Pemulihan Sistem',
-                'description' => 'Pencadangan database berkala dan unduhan file backup',
-                'category' => 'Master & Pengaturan',
-                'icon' => 'Database',
-                'parent_menu' => 'menu_settings',
-                'actions' => ['create', 'view', 'delete'],
-                'permission_keys' => [
-                    'create' => 'create_backup',
-                    'view' => 'view_backup',
-                    'delete' => 'delete_backup',
-                ],
-            ],
         ];
     }
 
@@ -1071,11 +1044,18 @@ class FeatureRegistryService
 
         $unmappedPermissions = [];
         foreach ($allDbPermissions as $pName) {
-            // Ignore system menu headers and excluded internal permissions
-            if (str_starts_with($pName, 'menu_') || in_array($pName, [
-                'view_user_levels', 'create_user_levels', 'edit_user_levels', 'delete_user_levels',
-                'view_access_control', 'edit_access_control'
-            ])) {
+            // Ignore system menu headers and excluded internal/admin-only permissions
+            if (
+                str_starts_with($pName, 'menu_') ||
+                in_array($pName, [
+                    'view_user_levels', 'create_user_levels', 'edit_user_levels', 'delete_user_levels',
+                    'view_access_control', 'edit_access_control',
+                    'view_backup', 'create_backup', 'delete_backup',
+                    'view_api_keys', 'create_api_keys', 'edit_api_keys', 'delete_api_keys',
+                ]) ||
+                str_contains($pName, 'backup') ||
+                str_contains($pName, 'api_key')
+            ) {
                 continue;
             }
 

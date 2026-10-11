@@ -29,17 +29,21 @@ export default function Index({ userLevels = [], features = [], currentTab = 'ro
     const [activeTab, setActiveTab] = useState(currentTab);
     const [searchRoleQuery, setSearchRoleQuery] = useState('');
 
-    // Filter roles for the primary role list table
+    // Filter roles for the primary role list table (strictly exclude Administrator)
+    const nonAdminUserLevels = useMemo(() => {
+        return userLevels.filter((lvl) => lvl.name !== 'Administrator');
+    }, [userLevels]);
+
     const filteredUserLevels = useMemo(() => {
         const q = searchRoleQuery.toLowerCase().trim();
-        if (!q) return userLevels;
-        return userLevels.filter(
+        if (!q) return nonAdminUserLevels;
+        return nonAdminUserLevels.filter(
             (lvl) =>
                 lvl.name.toLowerCase().includes(q) ||
                 (lvl.category && lvl.category.toLowerCase().includes(q)) ||
                 (lvl.dashboard_type && lvl.dashboard_type.toLowerCase().includes(q))
         );
-    }, [userLevels, searchRoleQuery]);
+    }, [nonAdminUserLevels, searchRoleQuery]);
 
     // Quick Access Matrix state (Secondary Tab)
     const [searchMatrixQuery, setSearchMatrixQuery] = useState('');
@@ -49,7 +53,7 @@ export default function Index({ userLevels = [], features = [], currentTab = 'ro
 
     const initialMatrix = useMemo(() => {
         const matrix = {};
-        userLevels.forEach((level) => {
+        nonAdminUserLevels.forEach((level) => {
             matrix[level.id] = {};
             const levelWidgets = level.widgets || {};
             features.forEach((feat) => {
@@ -64,7 +68,7 @@ export default function Index({ userLevels = [], features = [], currentTab = 'ro
             });
         });
         return matrix;
-    }, [userLevels, features]);
+    }, [nonAdminUserLevels, features]);
 
     const [matrix, setMatrix] = useState(initialMatrix);
 
@@ -200,7 +204,7 @@ export default function Index({ userLevels = [], features = [], currentTab = 'ro
                 {/* TAB 1 (UTAMA): DAFTAR ROLE & LINK KE PENGATURAN HAK AKSES */}
                 {activeTab === 'roles' && (
                     <div className="space-y-5">
-                        {/* Information Alert Box explaining Administrator & How it works */}
+                        {/* Information Alert Box */}
                         <div className="rounded-2xl border border-indigo-200 dark:border-indigo-900 bg-gradient-to-r from-indigo-50/80 to-purple-50/50 dark:from-indigo-950/30 dark:to-purple-950/20 p-4 sm:p-5 shadow-xs space-y-2">
                             <div className="flex items-start gap-3">
                                 <div className="p-2 rounded-xl bg-indigo-600 text-white shrink-0 mt-0.5">
@@ -208,13 +212,13 @@ export default function Index({ userLevels = [], features = [], currentTab = 'ro
                                 </div>
                                 <div className="space-y-1">
                                     <h3 className="font-bold text-sm text-foreground">
-                                        Tentang Role Administrator & Konfigurasi Izin
+                                        Pengaturan Hak Akses Peran Pengguna
                                     </h3>
                                     <p className="text-xs text-muted-foreground leading-relaxed">
-                                        Peran <strong>Administrator</strong> di dalam sistem adalah <strong>Administrator Sistem (Super Admin)</strong> yang secara default memiliki hak akses penuh ke seluruh database dan fitur tanpa batas.
+                                        Daftar di bawah menampilkan seluruh peran operasional sistem (<em>Guru, Wali Kelas, Musrif, Santri, Kepala Sekolah, Staf TU, dll.</em>). Peran <strong>Super Admin (Administrator)</strong> memiliki hak akses absolut otomatis ke seluruh database sehingga tidak ditampilkan dan tidak perlu dikonfigurasi di sini.
                                     </p>
                                     <p className="text-xs text-muted-foreground leading-relaxed">
-                                        Untuk mengatur hak akses peran selain Administrator (seperti <em>Guru, Wali Kelas, Musrif, Santri, Kepala Sekolah, Staf TU, dll.</em>), silakan klik tombol <strong>"Atur Hak Akses"</strong> di samping nama peran masing-masing.
+                                        Klik tombol <strong>"Atur Hak Akses"</strong> pada peran yang ingin disesuaikan untuk mengatur izin modul dan menu yang dapat diakses.
                                     </p>
                                 </div>
                             </div>
@@ -267,106 +271,78 @@ export default function Index({ userLevels = [], features = [], currentTab = 'ro
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-border">
-                                        {filteredUserLevels.map((level, index) => {
-                                            const isAdmin = level.name === 'Administrator';
-                                            return (
-                                                <tr
-                                                    key={level.id}
-                                                    className={cn(
-                                                        "transition-colors hover:bg-muted/40",
-                                                        isAdmin ? "bg-purple-500/[0.03]" : ""
-                                                    )}
-                                                >
-                                                    {/* Col 0: No */}
-                                                    <td className="px-6 py-4 text-center text-muted-foreground font-semibold">
-                                                        {index + 1}
-                                                    </td>
+                                        {filteredUserLevels.map((level, index) => (
+                                            <tr
+                                                key={level.id}
+                                                className="transition-colors hover:bg-muted/40"
+                                            >
+                                                {/* Col 0: No */}
+                                                <td className="px-6 py-4 text-center text-muted-foreground font-semibold">
+                                                    {index + 1}
+                                                </td>
 
-                                                    {/* Col 1: Role Name */}
-                                                    <td className="px-6 py-4 font-bold text-foreground">
-                                                        <div className="flex items-center gap-2.5">
-                                                            <div className={cn(
-                                                                "w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0",
-                                                                isAdmin
-                                                                    ? "bg-purple-600 text-white shadow-xs"
-                                                                    : "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800"
-                                                            )}>
-                                                                {isAdmin ? <Shield className="w-4 h-4" /> : level.name.charAt(0)}
-                                                            </div>
-                                                            <div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="font-extrabold text-foreground text-sm">
-                                                                        {level.name}
-                                                                    </span>
-                                                                    {isAdmin && (
-                                                                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/30">
-                                                                            Super Admin
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                                <span className="text-[11px] text-muted-foreground font-normal">
-                                                                    ID: #{level.id}
+                                                {/* Col 1: Role Name */}
+                                                <td className="px-6 py-4 font-bold text-foreground">
+                                                    <div className="flex items-center gap-2.5">
+                                                        <div className="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
+                                                            {level.name.charAt(0)}
+                                                        </div>
+                                                        <div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-extrabold text-foreground text-sm">
+                                                                    {level.name}
                                                                 </span>
                                                             </div>
+                                                            <span className="text-[11px] text-muted-foreground font-normal">
+                                                                ID: #{level.id}
+                                                            </span>
                                                         </div>
-                                                    </td>
+                                                    </div>
+                                                </td>
 
-                                                    {/* Col 2: Category */}
-                                                    <td className="px-6 py-4">
-                                                        <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-muted text-foreground border border-border/70">
-                                                            {level.category || 'Lainnya'}
-                                                        </span>
-                                                    </td>
+                                                {/* Col 2: Category */}
+                                                <td className="px-6 py-4">
+                                                    <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-muted text-foreground border border-border/70">
+                                                        {level.category || 'Lainnya'}
+                                                    </span>
+                                                </td>
 
-                                                    {/* Col 3: Dashboard Type */}
-                                                    <td className="px-6 py-4">
-                                                        <span className={cn(
-                                                            "text-xs font-bold px-2 py-0.5 rounded-md border",
-                                                            level.dashboard_type === 'Teacher'
-                                                                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                                                                : level.dashboard_type === 'Student'
-                                                                ? "bg-blue-500/10 text-blue-600 border-blue-500/20"
-                                                                : level.dashboard_type === 'Admin'
-                                                                ? "bg-purple-500/10 text-purple-600 border-purple-500/20"
-                                                                : "bg-muted text-muted-foreground border-border"
-                                                        )}>
-                                                            {level.dashboard_type || 'Default'}
-                                                        </span>
-                                                    </td>
+                                                {/* Col 3: Dashboard Type */}
+                                                <td className="px-6 py-4">
+                                                    <span className={cn(
+                                                        "text-xs font-bold px-2 py-0.5 rounded-md border",
+                                                        level.dashboard_type === 'Teacher'
+                                                            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                                                            : level.dashboard_type === 'Student'
+                                                            ? "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                                                            : level.dashboard_type === 'Admin'
+                                                            ? "bg-purple-500/10 text-purple-600 border-purple-500/20"
+                                                            : "bg-muted text-muted-foreground border-border"
+                                                    )}>
+                                                        {level.dashboard_type || 'Default'}
+                                                    </span>
+                                                </td>
 
-                                                    {/* Col 4: Active Permissions Count */}
-                                                    <td className="px-6 py-4 text-center">
-                                                        {isAdmin ? (
-                                                            <span className="font-bold text-xs text-purple-600 dark:text-purple-400 bg-purple-500/10 px-3 py-1 rounded-full border border-purple-500/20">
-                                                                Akses Penuh (100%)
-                                                            </span>
-                                                        ) : (
-                                                            <span className="font-mono font-bold text-xs text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-500/20">
-                                                                {level.permission_names?.length || 0} Izin Aktif
-                                                            </span>
-                                                        )}
-                                                    </td>
+                                                {/* Col 4: Active Permissions Count */}
+                                                <td className="px-6 py-4 text-center">
+                                                    <span className="font-mono font-bold text-xs text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-500/20">
+                                                        {level.permission_names?.length || 0} Izin Aktif
+                                                    </span>
+                                                </td>
 
-                                                    {/* Col 5: Action Link to Detail Access Control */}
-                                                    <td className="px-6 py-4 text-center">
-                                                        {isAdmin ? (
-                                                            <span className="text-xs text-muted-foreground italic bg-muted px-3 py-1.5 rounded-xl border border-border/50">
-                                                                Super Admin Otomatis
-                                                            </span>
-                                                        ) : (
-                                                            <Link
-                                                                href={route('settings.access-control.edit', level.id)}
-                                                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-xs font-bold text-white shadow-xs transition-all active:scale-95 group"
-                                                            >
-                                                                <SlidersHorizontal className="w-3.5 h-3.5" />
-                                                                <span>Atur Hak Akses</span>
-                                                                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                                                            </Link>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
+                                                {/* Col 5: Action Link to Detail Access Control */}
+                                                <td className="px-6 py-4 text-center">
+                                                    <Link
+                                                        href={route('settings.access-control.edit', level.id)}
+                                                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-xs font-bold text-white shadow-xs transition-all active:scale-95 group"
+                                                    >
+                                                        <SlidersHorizontal className="w-3.5 h-3.5" />
+                                                        <span>Atur Hak Akses</span>
+                                                        <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                                                    </Link>
+                                                </td>
+                                            </tr>
+                                        ))}
                                     </tbody>
                                 </table>
                             </div>
@@ -408,7 +384,7 @@ export default function Index({ userLevels = [], features = [], currentTab = 'ro
                                     <thead className="sticky top-0 z-20 bg-muted/95 backdrop-blur-md border-b border-border">
                                         <tr>
                                             <th className="px-4 py-3 min-w-[280px] border-r border-border font-bold">Fitur Akses Cepat</th>
-                                            {userLevels.map((lvl) => (
+                                            {nonAdminUserLevels.map((lvl) => (
                                                 <th key={lvl.id} className="px-3 py-3 text-center min-w-[120px] border-r border-border font-bold">
                                                     {lvl.name}
                                                 </th>
@@ -421,7 +397,7 @@ export default function Index({ userLevels = [], features = [], currentTab = 'ro
                                                 <td className="px-4 py-2.5 font-semibold border-r border-border">
                                                     {feat.label}
                                                 </td>
-                                                {userLevels.map((lvl) => {
+                                                {nonAdminUserLevels.map((lvl) => {
                                                     const isChecked = Boolean(matrix[lvl.id]?.[feat.key]);
                                                     return (
                                                         <td
