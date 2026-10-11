@@ -282,7 +282,7 @@ class AccessControlController extends Controller
         return Inertia::render('Settings/AccessControl/Index', [
             'userLevels' => $userLevels,
             'features' => self::getFeaturesRegistry(),
-            'currentTab' => $request->query('tab', 'quick-access'),
+            'currentTab' => $request->query('tab', 'roles'),
         ]);
     }
 
