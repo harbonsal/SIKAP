@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sikap-pwa-v2';
+const CACHE_NAME = 'sikap-pwa-v3';
 
 self.addEventListener('install', event => {
   self.skipWaiting();

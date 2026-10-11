@@ -32,6 +32,10 @@ $appPath  = '/home/sinawang/sikap-app';
 // 2. Tarik kode terbaru dari GitHub (git pull)
 echo "[1/3] Menarik commit terbaru dari GitHub...\n";
 if (is_dir($repoPath)) {
+    // Self-healing: bersihkan lock file git & fetch origin main
+    shell_exec("cd $repoPath && rm -f .git/refs/remotes/origin/main.lock .git/index.lock .git/FETCH_HEAD.lock 2>&1");
+    shell_exec("cd $repoPath && git fetch --prune origin main 2>&1");
+    shell_exec("cd $repoPath && git reset --hard origin/main 2>&1");
     $pullOutput = shell_exec("cd $repoPath && git pull origin main 2>&1");
     echo $pullOutput . "\n";
 } else {
