@@ -66,6 +66,21 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
+// App Version Detection Endpoint
+Route::get('/api/app-version', function () {
+    $manifestPath = public_path('build/manifest.json');
+    $buildTime = file_exists($manifestPath) ? filemtime($manifestPath) : time();
+
+    return response()->json([
+        'build_time' => $buildTime,
+        'version' => date('Y.m.d.Hi', $buildTime),
+        'last_update' => date('d M Y H:i', $buildTime) . ' WIB',
+        'status' => 'ok',
+    ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0')
+      ->header('Pragma', 'no-cache')
+      ->header('Expires', '0');
+})->name('api.app-version');
+
 // TEMPORARY DEBUG ROUTE
 Route::get('/fix-inactive-students', function () {
     $count = 0;

@@ -198,6 +198,11 @@ class HandleInertiaRequests extends Middleware
                 'app_logo' => \App\Models\Setting::where('key', 'app_logo')->value('value') ? asset('storage/' . \App\Models\Setting::where('key', 'app_logo')->value('value')) : '/images/logo.png',
                 'login_background' => \App\Models\Setting::where('key', 'login_background')->value('value') ? asset('storage/' . \App\Models\Setting::where('key', 'login_background')->value('value')) : '/masjid_login.webp',
             ],
+            'app_version' => fn() => [
+                'build_time' => file_exists(public_path('build/manifest.json')) ? filemtime(public_path('build/manifest.json')) : time(),
+                'version' => file_exists(public_path('build/manifest.json')) ? date('Y.m.d.Hi', filemtime(public_path('build/manifest.json'))) : date('Y.m.d.Hi'),
+                'last_update' => file_exists(public_path('build/manifest.json')) ? (date('d M Y H:i', filemtime(public_path('build/manifest.json'))) . ' WIB') : 'Terbaru',
+            ],
             'quran_settings' => fn() => [
                 'skrining_enabled' => Setting::where('key', 'quran_skrining_enabled')->value('value') !== '0',
             ],

@@ -5,6 +5,7 @@ import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import { Link, usePage } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
 import { Home } from 'lucide-react';
+import AppUpdateDetector from '@/Components/AppUpdateDetector';
 
 export default function AuthenticatedLayout({ header, children }) {
     const user = usePage().props.auth.user;
@@ -304,6 +305,9 @@ export default function AuthenticatedLayout({ header, children }) {
             <main className="w-full max-w-full overflow-x-auto">
                 {children}
             </main>
+
+            {/* App Update Detector */}
+            <AppUpdateDetector />
         </div>
     );
 }

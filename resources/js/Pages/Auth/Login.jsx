@@ -188,7 +188,7 @@ export default function Login({ status, canResetPassword }) {
                 </div>
 
                 <div className="text-[11px] font-mono text-slate-400 dark:text-slate-500">
-                    ⚡ Last Update: 12 Okt 2026 04:02 WIB
+                    ⚡ Last Update: 12 Okt 2026 04:22 WIB
                 </div>
             </div>
         </GuestLayout>

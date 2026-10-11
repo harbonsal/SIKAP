@@ -1,4 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
+import AppUpdateDetector from '@/Components/AppUpdateDetector';
 
 export default function GuestLayout({ children }) {
     const { app_settings } = usePage().props;
@@ -97,6 +98,9 @@ export default function GuestLayout({ children }) {
                     </p>
                 </div>
             </div>
+
+            {/* App Update Detector */}
+            <AppUpdateDetector />
         </div>
     );
 }

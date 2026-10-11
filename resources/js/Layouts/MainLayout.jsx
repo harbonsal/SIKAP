@@ -8,6 +8,7 @@ import AcademicYearSwitcher from '@/Components/AcademicYearSwitcher';
 import SmartSearchBar from '@/Components/SmartSearchBar';
 import LoadingOverlay from '@/Components/LoadingOverlay';
 import Breadcrumb from '@/Components/Breadcrumb';
+import AppUpdateDetector from '@/Components/AppUpdateDetector';
 import { cn } from '@/lib/utils';
 
 const flashConfig = {
@@ -383,6 +384,9 @@ export default function MainLayout({ children, breadcrumbItems = null, showBread
                     </div>
                 </nav>
             </div>
+
+            {/* App Update Detector */}
+            <AppUpdateDetector />
         </div>
     );
 }
