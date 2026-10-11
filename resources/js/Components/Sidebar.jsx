@@ -186,7 +186,7 @@ const navItems = [
                 roles: ['Administrator'],
                 children: [
                     { title: "Data Master Sekolah", href: "settings.school-info.index", activeRoutes: ['settings.school-info.index', 'user-levels.index', 'settings.regions.index'] },
-                    { title: "Manajemen Akses", href: "settings.access-control.index" },
+                    { title: "Manajemen Akses & Pintasan", href: "settings.access-control.index", activeRoutes: ['settings.access-control.index', 'settings.access-control.edit', 'settings.quick-access.index'] },
                     { title: "Manajemen API Key", href: "settings.api-keys.index" },
                     { title: "Tes API Key", href: "settings.api-keys.tester", fallbackPath: "/settings/system/api-keys/tester" },
                     { title: "Backup Sistem", href: "settings.system.backup.index" },

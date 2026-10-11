@@ -2,7 +2,7 @@ import MasterSekolahLayout from '@/Layouts/MasterSekolahLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import Pagination from '@/Components/Pagination';
 import { useState, useEffect } from 'react';
-import { Search, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, SlidersHorizontal } from 'lucide-react';
 import { useDebounce } from 'use-debounce';
 
 export default function Index({ userLevels, filters }) {
@@ -33,13 +33,22 @@ export default function Index({ userLevels, filters }) {
             <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <h2 className="text-3xl font-bold tracking-tight text-foreground">User Level</h2>
-                    <Link
-                        href={route('user-levels.create')}
-                        className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-                    >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Tambah Level
-                    </Link>
+                    <div className="flex items-center gap-2">
+                        <Link
+                            href={route('settings.access-control.index', { tab: 'quick-access' })}
+                            className="inline-flex items-center justify-center rounded-md border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/50 px-4 py-2 text-sm font-semibold text-indigo-700 dark:text-indigo-300 shadow-sm hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors"
+                        >
+                            <SlidersHorizontal className="mr-2 h-4 w-4" />
+                            Matriks Akses Cepat
+                        </Link>
+                        <Link
+                            href={route('user-levels.create')}
+                            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                        >
+                            <Plus className="mr-2 h-4 w-4" />
+                            Tambah Level
+                        </Link>
+                    </div>
                 </div>
 
                 <div className="flex items-center space-x-2">

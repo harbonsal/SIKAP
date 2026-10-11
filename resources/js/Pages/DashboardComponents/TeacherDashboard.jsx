@@ -155,6 +155,17 @@ export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} 
         navigator.standalone === true
     );
 
+    // Helper to check whether admin explicitly enabled or disabled this shortcut for this role
+    const isAllowedByAdmin = (shortcutId) => {
+        if (allowedWidgets[`shortcut_${shortcutId}`] !== undefined) {
+            return Boolean(allowedWidgets[`shortcut_${shortcutId}`]);
+        }
+        if (allowedWidgets[shortcutId] !== undefined) {
+            return Boolean(allowedWidgets[shortcutId]);
+        }
+        return true;
+    };
+
     // Filter Mode: 'daily' | 'period' | 'all'
     const [filterMode, setFilterMode] = useState(() => {
         if (typeof window !== 'undefined' && user?.id) {
@@ -214,7 +225,7 @@ export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} 
             newSelection = ['students', 'silabus', 'calendar', 'ikhtabir', 'skrining'];
             setFilterMode('period');
         } else if (presetName === 'all') {
-            newSelection = ALL_SHORTCUTS.map((s) => s.id);
+            newSelection = ALL_SHORTCUTS.filter(s => isAllowedByAdmin(s.id) && s.visible(can, canViewAcademic, isStandalone)).map((s) => s.id);
             setFilterMode('all');
         }
         setTempEnabled(newSelection);
@@ -238,11 +249,12 @@ export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} 
     };
 
     const resetToDefault = () => {
-        setTempEnabled(DEFAULT_ENABLED);
+        setTempEnabled(DEFAULT_ENABLED.filter(id => isAllowedByAdmin(id)));
     };
 
-    // Filter visible shortcuts according to active tab and enabled list
+    // Filter visible shortcuts according to active tab, admin allowance, and enabled list
     const visibleShortcuts = ALL_SHORTCUTS.filter((s) => {
+        if (!isAllowedByAdmin(s.id)) return false;
         if (!s.visible(can, canViewAcademic, isStandalone)) return false;
         if (!enabledShortcuts.includes(s.id)) return false;
         if (filterMode === 'daily') return s.category === 'daily';
@@ -633,7 +645,7 @@ export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} 
                             Kustomisasi Tiap Menu
                         </span>
                         <div className="divide-y divide-border/50 rounded-xl border border-border/80 bg-muted/10 overflow-hidden">
-                            {ALL_SHORTCUTS.filter(s => s.visible(can, canViewAcademic, isStandalone)).map((shortcut) => {
+                            {ALL_SHORTCUTS.filter(s => isAllowedByAdmin(s.id) && s.visible(can, canViewAcademic, isStandalone)).map((shortcut) => {
                                 const isChecked = tempEnabled.includes(shortcut.id);
                                 const IconComp = shortcut.icon;
                                 return (

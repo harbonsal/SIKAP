@@ -257,6 +257,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/access-control', [App\Http\Controllers\AccessControlController::class, 'index'])
         ->name('settings.access-control.index')
         ->middleware('permission:view_access_control');
+    Route::post('/settings/access-control/quick-access-matrix', [App\Http\Controllers\AccessControlController::class, 'updateQuickAccessMatrix'])
+        ->name('settings.access-control.quick-access-matrix')
+        ->middleware('permission:edit_access_control');
+    Route::get('/settings/quick-access', function () {
+        return redirect()->route('settings.access-control.index', ['tab' => 'quick-access']);
+    })->name('settings.quick-access.index')->middleware('permission:view_access_control');
     Route::get('/settings/access-control/{user_level}', [App\Http\Controllers\AccessControlController::class, 'edit'])
         ->name('settings.access-control.edit')
         ->middleware('permission:view_access_control');

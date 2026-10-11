@@ -134,7 +134,8 @@ export default function StudentDashboard({ stats, schedule, allowedWidgets = {} 
                 )}
 
                 {/* 3. Skrining Hafalan */}
-                <Link href={route('tahfidz.pantau-skrining')} className="block h-full">
+                {(allowedWidgets.shortcut_skrining ?? true) && (
+                    <Link href={route('tahfidz.pantau-skrining')} className="block h-full">
                     <Card className={`border-none shadow-md hover:shadow-lg transition-all relative overflow-hidden group cursor-pointer h-full flex flex-col hover:-translate-y-1 duration-300 ${
                         hasPendingSkrining
                             ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-white'
@@ -225,6 +226,7 @@ export default function StudentDashboard({ stats, schedule, allowedWidgets = {} 
                         </CardContent>
                     </Card>
                 </Link>
+                )}
 
                 {/* 4. Analisis Nilai / Info Akademik (<70) */}
                 {allowedWidgets.widget_grade_analysis && (
@@ -270,6 +272,7 @@ export default function StudentDashboard({ stats, schedule, allowedWidgets = {} 
                 )}
 
                 {/* 5. Status Kesehatan */}
+                {(allowedWidgets.shortcut_health ?? true) && (
                 <Card className={`border-none shadow-md hover:shadow-lg transition-all relative overflow-hidden group h-full ${stats.latest_health_status?.is_sick ? 'bg-rose-50' : 'bg-white'}`}>
                     <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
                         {stats.latest_health_status?.is_sick ? (
@@ -302,6 +305,7 @@ export default function StudentDashboard({ stats, schedule, allowedWidgets = {} 
                         )}
                     </CardContent>
                 </Card>
+                )}
 
                 {/* 6. Info Keuangan */}
                 {allowedWidgets.widget_finance_monitoring && (
