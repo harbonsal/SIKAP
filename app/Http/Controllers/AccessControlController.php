@@ -339,109 +339,93 @@ class AccessControlController extends Controller
 
     public function edit(UserLevel $userLevel)
     {
-        $excludedPermissions = [
-            'view_user_levels',
-            'create_user_levels',
-            'edit_user_levels',
-            'delete_user_levels',
-            'view_access_control',
-            'edit_access_control',
-        ];
+        // Administrator has universal superuser access, redirect with note if attempted
+        if ($userLevel->name === 'Administrator') {
+            return redirect()->route('settings.access-control.index')
+                ->with('info', 'Level Administrator adalah Super Admin dan memiliki semua hak akses secara otomatis.');
+        }
 
-        $permissions = Permission::whereNotIn('name', $excludedPermissions)->get();
+        // Get all editable user levels (excluding Administrator) for the role-switcher
+        $allUserLevels = UserLevel::where('name', '!=', 'Administrator')
+            ->orderBy('id')
+            ->get(['id', 'name', 'category', 'dashboard_type']);
 
-        // Group permissions by module
-        $groupedPermissions = $permissions->groupBy(function ($item) {
-            $parts = explode('_', $item->name, 2);
-            $action = $parts[0];
-            $module = $parts[1] ?? 'other';
+        // Dynamic Features from Catalog + Auto-Discovered DB permissions
+        $features = \App\Services\AccessControl\FeatureRegistryService::getAllFeatures();
 
-            // Allow specific actions to define the module
-            if (in_array($action, ['view', 'create', 'edit', 'delete', 'import', 'export', 'generate', 'use'])) {
-                return $module;
-            }
-            // Logic for 'menu_' permissions
-            if ($action === 'menu') {
-                return 'Menu Sidebar';
-            }
-            return 'Other';
-        });
+        // Get currently active permission names for this user level
+        $activePermissions = $userLevel->permissions()->pluck('name')->toArray();
 
         return Inertia::render('Settings/AccessControl/Edit', [
-            'userLevel' => $userLevel->load('permissions'),
-            'groupedPermissions' => $groupedPermissions,
-            'allPermissions' => $permissions,
+            'userLevel' => $userLevel,
+            'allUserLevels' => $allUserLevels,
+            'features' => $features,
+            'activePermissions' => $activePermissions,
         ]);
-    }
-
-    public function update(Request $request)
-    {
-        // Keep for backward compatibility if needed, or remove.
-        // We will implement bulk update here or in a new method.
-        // Let's use a new method for clarity.
     }
 
     public function bulkUpdate(Request $request)
     {
         $request->validate([
             'user_level_id' => 'required|exists:user_levels,id',
-            'permission_changes' => 'required|array',
-            'permission_changes.*.permission_id' => 'required|exists:permissions,id',
-            'permission_changes.*.has_access' => 'required|boolean',
+            'permissions' => 'nullable|array',
+            'permissions.*' => 'string',
         ]);
 
         $userLevel = UserLevel::findOrFail($request->user_level_id);
-        $permissionsToSync = [];
-        $permissionsToDetach = [];
 
-        // 1. Process explicit changes from UI
-        foreach ($request->permission_changes as $change) {
-            if ($change['has_access']) {
-                $userLevel->permissions()->syncWithoutDetaching([$change['permission_id']]);
-            } else {
-                $userLevel->permissions()->detach($change['permission_id']);
-            }
+        if ($userLevel->name === 'Administrator') {
+            return redirect()->back()->with('error', 'Hak akses Administrator tidak dapat diubah (Super Admin).');
         }
 
-        // 2. SMART AUTO-FIX: Ensure Parent Menus exist if Children exist
-        $currentPermissions = $userLevel->permissions()->pluck('name')->toArray();
-        $missingParents = [];
+        $inputPermissions = $request->input('permissions', []);
 
-        // Definition of Parent -> Child dependency
-        $dependencies = [
-            'menu_academic' => ['view_assessments', 'create_assessments', 'view_journals', 'view_silabus', 'view_academic_schedules'],
-            'menu_tahfidz' => ['view_tahfidz_assessments', 'view_tahfidz_halaqoh', 'view_tahfidz_achievements'],
-            'menu_care' => ['view_health_records', 'view_health_complaints', 'view_permissions'],
-            'menu_finance' => ['view_payments', 'view_bills'],
-            'menu_settings' => ['view_users', 'view_school_info'],
-        ];
+        // 1. Ensure all requested permissions exist in DB (Self-Healing / Dynamic Discovery)
+        $permissionIds = [];
+        foreach ($inputPermissions as $permName) {
+            if (empty($permName)) continue;
+            $perm = Permission::firstOrCreate(['name' => $permName]);
+            $permissionIds[] = $perm->id;
+        }
 
-        foreach ($dependencies as $parent => $children) {
-            // Check if ANY child permission exists in current permissions
-            $hasChild = false;
-            foreach ($children as $child) {
-                if (in_array($child, $currentPermissions)) {
-                    $hasChild = true;
+        // 2. SMART AUTO-ATTACH: Auto-enable parent menu headers and essential permissions
+        $catalog = \App\Services\AccessControl\FeatureRegistryService::getMasterCatalog();
+        $parentMenusToAttach = [];
+
+        foreach ($catalog as $feature) {
+            if (empty($feature['parent_menu'])) continue;
+            $parentMenu = $feature['parent_menu'];
+
+            // Check if ANY permission of this feature is selected
+            $hasActiveAction = false;
+            foreach ($feature['permission_keys'] as $pName) {
+                if (in_array($pName, $inputPermissions)) {
+                    $hasActiveAction = true;
                     break;
                 }
             }
 
-            // If has child but missing parent, Add Parent
-            if ($hasChild && !in_array($parent, $currentPermissions)) {
-                $missingParents[] = $parent;
+            if ($hasActiveAction) {
+                $parentMenusToAttach[$parentMenu] = true;
             }
         }
 
-        if (!empty($missingParents)) {
-            $parentIds = [];
-            foreach ($missingParents as $parentName) {
-                // Self-Healing: Create permission if it doesn't exist
-                $p = Permission::firstOrCreate(['name' => $parentName]);
-                $parentIds[] = $p->id;
-            }
-            $userLevel->permissions()->syncWithoutDetaching($parentIds);
+        // Attach auto-required parent menus & basics
+        $autoPermissions = array_keys($parentMenusToAttach);
+        if (!empty($inputPermissions)) {
+            // Include dashboard menu & password change if any permission exists
+            $autoPermissions[] = 'menu_dashboard';
+            $autoPermissions[] = 'change_password';
         }
 
-        return redirect()->back()->with('success', 'Hak akses berhasil diperbarui (Menu Induk otomatis disesuaikan).');
+        foreach ($autoPermissions as $autoPermName) {
+            $p = Permission::firstOrCreate(['name' => $autoPermName]);
+            $permissionIds[] = $p->id;
+        }
+
+        // 3. Sync permissions for this user level
+        $userLevel->permissions()->sync(array_unique($permissionIds));
+
+        return redirect()->back()->with('success', "Hak akses untuk peran '{$userLevel->name}' berhasil diperbarui.");
     }
 }

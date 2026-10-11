@@ -32,18 +32,28 @@ class AssessmentController extends Controller
                 $q->where('academic_year_id', $activeYear->id);
             });
 
-        // Filter by teacher if not admin/staff (assuming role logic, for now simple check)
-        // If user has 'teacher' role or similar. For now, let's assume if user has a 'teacher' relation or check permissions.
-        // We'll use the permission system: 'view_all_assessments' vs 'view_own_assessments'
-        // Filter by teacher if not admin/staff
-        // Filter by user role/permission using the standardized scope
-        // Strict Role Check for View All
-        $canViewAll = $user->hasRole(['Administrator', 'Manager', 'Manager Tahfidz']);
-        if ($canViewAll) {
-            // User can view all (Administrator, Manager, etc.)
-        } else {
-            // Strict filter for Teachers
-            $query->where('active_subjects.teacher_id', $user->id);
+        // Determine Homeroom Classes for Wali Kelas
+        $homeroomClassIds = \App\Models\ActiveClass::where('academic_year_id', $activeYear->id)
+            ->where(function ($q) use ($user, $activeSemester) {
+                $q->where('teacher_id', $user->id);
+                if ($activeSemester) {
+                    $q->orWhereHas('semesterHomeroomTeachers', function ($subQ) use ($user, $activeSemester) {
+                        $subQ->where('semester_id', $activeSemester->id)
+                            ->where('teacher_id', $user->id);
+                    });
+                }
+            })
+            ->pluck('id');
+
+        $canViewAll = $user->hasRole(['Administrator', 'Manager', 'Manager Tahfidz']) || $user->hasPermission('view_all_assessments');
+        if (!$canViewAll) {
+            // Teacher sees subjects they teach, Wali Kelas can ALSO see all subjects in their homeroom classes
+            $query->where(function ($q) use ($user, $homeroomClassIds) {
+                $q->where('active_subjects.teacher_id', $user->id);
+                if ($homeroomClassIds->isNotEmpty()) {
+                    $q->orWhereIn('active_subjects.active_class_id', $homeroomClassIds);
+                }
+            });
         }
 
         // Filter by Active Class (Specific Class + Parallel)
@@ -94,10 +104,9 @@ class AssessmentController extends Controller
         });
 
         // Get data for filters
-        // Fetch ActiveClasses instead of generic Kelas to include parallel info
         $classesQuery = \App\Models\ActiveClass::with(['kelas', 'kelasParalel'])
             ->where('academic_year_id', $activeYear->id)
-            ->whereHas('activeSubjects'); // Only show classes that have subjects
+            ->whereHas('activeSubjects');
 
         $mapelsQuery = \App\Models\Mapel::whereHas('activeSubjects', function ($q) use ($activeYear) {
             $q->whereHas('activeClass', function ($subQ) use ($activeYear) {
@@ -108,24 +117,35 @@ class AssessmentController extends Controller
         // Initialize teachers list
         $teachers = [];
 
-        if (!$user->hasRole(['Administrator', 'Manager'])) {
-            // Teacher sees only their own classes
-            $classesQuery->whereHas('activeSubjects', function ($q) use ($user) {
-                $q->forUser($user);
+        if (!$canViewAll) {
+            // Teacher sees their own classes and homeroom classes
+            $classesQuery->where(function ($q) use ($user, $homeroomClassIds) {
+                $q->whereHas('activeSubjects', function ($sub) use ($user) {
+                    $sub->forUser($user);
+                });
+                if ($homeroomClassIds->isNotEmpty()) {
+                    $q->orWhereIn('id', $homeroomClassIds);
+                }
             });
-            $mapelsQuery->whereHas('activeSubjects', function ($q) use ($user) {
-                $q->forUser($user);
+
+            $mapelsQuery->whereHas('activeSubjects', function ($q) use ($activeYear, $user, $homeroomClassIds) {
+                $q->whereHas('activeClass', function ($subQ) use ($activeYear) {
+                    $subQ->where('academic_year_id', $activeYear->id);
+                })->where(function ($sq) use ($user, $homeroomClassIds) {
+                    $sq->where('teacher_id', $user->id);
+                    if ($homeroomClassIds->isNotEmpty()) {
+                        $sq->orWhereIn('active_class_id', $homeroomClassIds);
+                    }
+                });
             });
         } else {
             // Admin can see all, fetch Teachers list for filter
-            // Get users who are teachers (have Active Subjects assigned)
             $teachers = \App\Models\User::whereHas('activeSubjects', function ($q) use ($activeYear) {
                 $q->whereHas('activeClass', function ($subQ) use ($activeYear) {
                     $subQ->where('academic_year_id', $activeYear->id);
                 });
             })->orderBy('name')->get(['id', 'name']);
 
-            // Apply Teacher Filter if selected
             if ($request->teacher_id) {
                 $query->where('active_subjects.teacher_id', $request->teacher_id);
             }
@@ -165,9 +185,26 @@ class AssessmentController extends Controller
                 $q->where('academic_year_id', $activeYear->id);
             });
 
-        $canViewAll = $user->hasRole(['Administrator', 'Manager', 'Manager Tahfidz']);
+        $homeroomClassIds = \App\Models\ActiveClass::where('academic_year_id', $activeYear->id)
+            ->where(function ($q) use ($user, $activeSemester) {
+                $q->where('teacher_id', $user->id);
+                if ($activeSemester) {
+                    $q->orWhereHas('semesterHomeroomTeachers', function ($subQ) use ($user, $activeSemester) {
+                        $subQ->where('semester_id', $activeSemester->id)
+                            ->where('teacher_id', $user->id);
+                    });
+                }
+            })
+            ->pluck('id');
+
+        $canViewAll = $user->hasRole(['Administrator', 'Manager', 'Manager Tahfidz']) || $user->hasPermission('view_all_assessments');
         if (!$canViewAll) {
-            $query->where('active_subjects.teacher_id', $user->id);
+            $query->where(function ($q) use ($user, $homeroomClassIds) {
+                $q->where('active_subjects.teacher_id', $user->id);
+                if ($homeroomClassIds->isNotEmpty()) {
+                    $q->orWhereIn('active_subjects.active_class_id', $homeroomClassIds);
+                }
+            });
         }
 
         if ($request->active_class_id) {
@@ -254,6 +291,27 @@ class AssessmentController extends Controller
             }
         ])->findOrFail($id);
 
+        $currentUser = Auth::user();
+        $isSuper = $currentUser->hasRole(['Administrator', 'Manager', 'Manager Tahfidz']) || $currentUser->hasPermission('view_all_assessments');
+        $isTeacher = $activeSubject->teacher_id == $currentUser->id;
+
+        // Check if user is Homeroom Teacher (Wali Kelas) for this class
+        $isHomeroom = false;
+        if ($activeSubject->activeClass) {
+            if ($activeSubject->activeClass->teacher_id == $currentUser->id) {
+                $isHomeroom = true;
+            } elseif ($activeSemester && $activeSubject->activeClass->semesterHomeroomTeachers()->where('semester_id', $activeSemester->id)->where('teacher_id', $currentUser->id)->exists()) {
+                $isHomeroom = true;
+            }
+        }
+
+        if (!$isSuper && !$isTeacher && !$isHomeroom) {
+            abort(403, 'Anda tidak memiliki hak akses untuk melihat atau menginput nilai mata pelajaran ini.');
+        }
+
+        // Wali Kelas has READ-ONLY access to subjects taught by other teachers
+        $isReadOnly = !$isSuper && !$isTeacher && $isHomeroom;
+
         // Sort Class Members by User Nomor Induk (NIS)
         if ($activeSubject->activeClass && $activeSubject->activeClass->classMembers) {
             $sortedMembers = $activeSubject->activeClass->classMembers->sortBy(function ($member) {
@@ -263,10 +321,6 @@ class AssessmentController extends Controller
             $activeSubject->activeClass->setRelation('classMembers', $sortedMembers);
         }
 
-        // Get grade weights for this academic year and semester (if applicable)
-        // Note: GradeWeight currently has academic_year_id. 
-        // We might need to filter by category 'pengetahuan' or 'keterampilan' if we separate them.
-        // For now, fetch all 'pengetahuan' weights.
         $gradeWeights = GradeWeight::where('academic_year_id', $activeYear->id)
             ->where('category', 'pengetahuan')
             ->whereIn('semester', ['all', 'semua', 'All', $activeSemester->name, strtolower($activeSemester->name)])
@@ -280,12 +334,11 @@ class AssessmentController extends Controller
             ->orderBy('id')
             ->get();
 
-        // Fetch KKM for this subject/class
         $kkm = \App\Models\Kkm::where('mapel_id', $activeSubject->mapel_id)
             ->where('kelas_id', $activeSubject->activeClass->kelas_id)
             ->where('academic_year_id', $activeYear->id)
             ->first();
-        $kkmValue = $kkm ? $kkm->kkm_value : 70; // Default 70 if not set
+        $kkmValue = $kkm ? $kkm->kkm_value : 70;
 
         return Inertia::render('Teacher/Assessment/Show', [
             'activeSubject' => $activeSubject,
@@ -293,6 +346,7 @@ class AssessmentController extends Controller
             'semester' => $activeSemester,
             'previousParams' => $request->query(),
             'kkmValue' => $kkmValue,
+            'isReadOnly' => $isReadOnly,
         ]);
     }
 
@@ -316,7 +370,6 @@ class AssessmentController extends Controller
             }
         ])->findOrFail($id);
 
-        // Sort Class Members by User Nomor Induk (NIS)
         if ($activeSubject->activeClass && $activeSubject->activeClass->classMembers) {
             $sortedMembers = $activeSubject->activeClass->classMembers->sortBy(function ($member) {
                 return $member->student->user->nomor_induk ?? $member->student->nis ?? 999999;
@@ -373,6 +426,17 @@ class AssessmentController extends Controller
 
     public function store(Request $request, $id)
     {
+        $currentUser = Auth::user();
+        $activeSubject = ActiveSubject::findOrFail($id);
+
+        $isSuper = $currentUser->hasRole(['Administrator', 'Manager', 'Manager Tahfidz']);
+        $isTeacher = $activeSubject->teacher_id == $currentUser->id;
+
+        // Enforce strict mutate lock: Only assigned teacher or Super Admin can edit grades
+        if (!$isSuper && !$isTeacher) {
+            abort(403, 'Akses ditolak: Hanya guru pengampu mata pelajaran yang berhak menginput atau mengubah nilai.');
+        }
+
         $request->validate([
             'grades' => 'required|array',
             'grades.*.student_id' => 'required|exists:students,id',
@@ -380,7 +444,6 @@ class AssessmentController extends Controller
             'grades.*.score' => 'nullable|numeric|min:0|max:100',
         ]);
 
-        $currentUser = Auth::user();
         $semesterId = \App\Services\AcademicStateService::currentSemester()->id;
 
         foreach ($request->grades as $gradeData) {
@@ -492,11 +555,20 @@ class AssessmentController extends Controller
 
     public function importSubjectGrades(Request $request, $id)
     {
+        $currentUser = Auth::user();
+        $activeSubject = ActiveSubject::findOrFail($id);
+
+        $isSuper = $currentUser->hasRole(['Administrator', 'Manager', 'Manager Tahfidz']);
+        $isTeacher = $activeSubject->teacher_id == $currentUser->id;
+
+        if (!$isSuper && !$isTeacher) {
+            abort(403, 'Akses ditolak: Hanya guru pengampu mata pelajaran yang berhak mengimpor nilai.');
+        }
+
         $request->validate([
             'file' => 'required|file|mimes:csv,txt,xlsx',
         ]);
 
-        $activeSubject = ActiveSubject::findOrFail($id);
         $activeYear = \App\Services\AcademicStateService::currentAcademicYear();
         $activeSemester = \App\Services\AcademicStateService::currentSemester();
 

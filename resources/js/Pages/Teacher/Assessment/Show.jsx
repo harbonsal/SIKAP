@@ -1,6 +1,6 @@
 import MainLayout from '@/Layouts/MainLayout';
 import { Head, Link, useForm, router } from '@inertiajs/react';
-import { ArrowLeft, Save, AlertCircle, Info, Download } from 'lucide-react';
+import { ArrowLeft, Save, AlertCircle, Info, Download, Shield, Eye } from 'lucide-react';
 import { Label } from '@/Components/ui/label';
 import { useState, useEffect } from 'react';
 import { Button } from '@/Components/ui/button';
@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
 import { Input } from '@/Components/ui/input';
 
-export default function Show({ activeSubject, gradeWeights, semester, previousParams, kkmValue }) {
+export default function Show({ activeSubject, gradeWeights, semester, previousParams, kkmValue, isReadOnly = false }) {
     const [grades, setGrades] = useState({});
     const [activeColumns, setActiveColumns] = useState({}); // Stores which columns are active for editing
     const [isSaving, setIsSaving] = useState(false);
@@ -47,6 +47,7 @@ export default function Show({ activeSubject, gradeWeights, semester, previousPa
 
 
     const toggleColumn = (weightId) => {
+        if (isReadOnly) return;
         setActiveColumns(prev => ({
             ...prev,
             [weightId]: !prev[weightId]
@@ -55,6 +56,7 @@ export default function Show({ activeSubject, gradeWeights, semester, previousPa
 
     const handleSubmit = (e) => {
         if (e) e.preventDefault();
+        if (isReadOnly) return;
 
         const gradesArray = [];
         Object.keys(grades).forEach(studentId => {
@@ -90,6 +92,7 @@ export default function Show({ activeSubject, gradeWeights, semester, previousPa
     // Paste Logic
     const handlePaste = (e, startStudentId, startWeightId) => {
         e.preventDefault();
+        if (isReadOnly) return;
         const clipboardData = e.clipboardData.getData('text');
 
         // Don't filter out empty rows immediately, they might represent empty values for students
@@ -250,13 +253,33 @@ export default function Show({ activeSubject, gradeWeights, semester, previousPa
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" asChild className="min-w-[120px] shadow-sm">
-                        <a href={route('assessments.template', activeSubject.id)}>
-                            <Download className="mr-2 h-4 w-4" />
-                            Template Input (Excel)
-                        </a>
-                    </Button>
+
+                {isReadOnly && (
+                    <div className="rounded-xl border border-amber-300 bg-amber-50/90 dark:bg-amber-950/30 dark:border-amber-800 p-4 text-amber-900 dark:text-amber-300 flex items-start gap-3 shadow-xs">
+                        <Shield className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                        <div className="space-y-0.5">
+                            <h4 className="font-bold text-amber-950 dark:text-amber-200 flex items-center gap-2">
+                                <span>Mode Pantau Nilai (Wali Kelas)</span>
+                                <Badge variant="outline" className="bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 border-amber-300 text-[10px]">
+                                    Hanya Baca (Read-Only)
+                                </Badge>
+                            </h4>
+                            <p className="text-xs text-amber-800 dark:text-amber-300">
+                                Sebagai Wali Kelas, Anda memiliki hak untuk memantau seluruh nilai siswa di kelas ini. Hak input, perbaikan, dan penghapusan nilai tetap menjadi wewenang guru pengampu ({activeSubject.teacher?.name || 'Guru Mapel'}) atau Administrator.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-2">
+                    {!isReadOnly && (
+                        <Button variant="outline" asChild className="min-w-[120px] shadow-sm">
+                            <a href={route('assessments.template', activeSubject.id)}>
+                                <Download className="mr-2 h-4 w-4" />
+                                Template Input (Excel)
+                            </a>
+                        </Button>
+                    )}
                     <Button variant="outline" asChild className="min-w-[120px] shadow-sm">
                         <a href={route('assessments.export', activeSubject.id)}>
                             <Download className="mr-2 h-4 w-4" />
@@ -264,10 +287,17 @@ export default function Show({ activeSubject, gradeWeights, semester, previousPa
                         </a>
                     </Button>
 
-                    <Button onClick={handleSubmit} disabled={isSaving} className="min-w-[120px] shadow-sm">
-                        <Save className="mr-2 h-4 w-4" />
-                        {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
-                    </Button>
+                    {!isReadOnly ? (
+                        <Button onClick={handleSubmit} disabled={isSaving} className="min-w-[120px] shadow-sm">
+                            <Save className="mr-2 h-4 w-4" />
+                            {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
+                        </Button>
+                    ) : (
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted text-muted-foreground text-xs font-semibold border border-border">
+                            <Eye className="w-4 h-4 text-amber-600" />
+                            <span>Akses Baca Saja</span>
+                        </div>
+                    )}
                 </div>
 
                 {gradeWeights.length === 0 ? (
@@ -365,8 +395,8 @@ export default function Show({ activeSubject, gradeWeights, semester, previousPa
                                                                     min="0"
                                                                     max="100"
                                                                     step="0.01"
-                                                                    disabled={!activeColumns[weight.id]}
-                                                                    className={`h-9 w-full min-w-[60px] text-center font-bold focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary px-1 transition-all ${activeColumns[weight.id] ? 'bg-white border-gray-300 shadow-sm' : 'bg-gray-100 text-gray-400 cursor-not-allowed border-transparent'} ${(grades[member.student.id]?.[weight.id] !== '' && parseFloat(grades[member.student.id]?.[weight.id] || 0) < kkmValue) ? 'text-red-500' : ''}`}
+                                                                    disabled={isReadOnly || !activeColumns[weight.id]}
+                                                                    className={`h-9 w-full min-w-[60px] text-center font-bold focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary px-1 transition-all ${isReadOnly ? 'bg-muted/40 text-foreground border-border/60 cursor-default' : (activeColumns[weight.id] ? 'bg-white border-gray-300 shadow-sm' : 'bg-gray-100 text-gray-400 cursor-not-allowed border-transparent')} ${(grades[member.student.id]?.[weight.id] !== '' && parseFloat(grades[member.student.id]?.[weight.id] || 0) < kkmValue) ? 'text-red-500' : ''}`}
                                                                     value={grades[member.student.id]?.[weight.id] ?? ''}
                                                                     onChange={(e) => handleGradeChange(member.student.id, weight.id, e.target.value)}
                                                                     onFocus={(e) => e.target.select()}
