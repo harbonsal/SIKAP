@@ -78,16 +78,6 @@ export default function GuestLayout({ children }) {
                         </div>
                     </div>
                 </div>
-
-                {/* Footer Copyright & Pesantren Adab Motto */}
-                <div className="mt-6 text-center space-y-1.5">
-                    <p className="text-[11px] text-slate-300/80 font-medium drop-shadow-xs">
-                        Adab Sebelum Ilmu • Al-Muhafadzatu 'alal Qadimish Shalih
-                    </p>
-                    <p className="text-[10px] text-slate-400/60">
-                        Hak Cipta © {new Date().getFullYear()} {schoolName}. Seluruh Hak Dilindungi.
-                    </p>
-                </div>
             </div>
 
             {/* App Update Detector */}
