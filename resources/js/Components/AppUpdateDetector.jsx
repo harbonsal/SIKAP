@@ -1,18 +1,34 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { usePage } from '@inertiajs/react';
-import { RefreshCw, Sparkles, ArrowUpCircle, X, CheckCircle2 } from 'lucide-react';
+import { RefreshCw, Sparkles, ArrowUpCircle, X } from 'lucide-react';
 
 export default function AppUpdateDetector() {
     const { app_version } = usePage().props;
     const clientBuildTime = app_version?.build_time || null;
 
+    const [isTargetDevice, setIsTargetDevice] = useState(false);
     const [updateAvailable, setUpdateAvailable] = useState(false);
     const [serverData, setServerData] = useState(null);
     const [isUpdating, setIsUpdating] = useState(false);
-    const [isDismissed, setIsDismissed] = useState(false);
     const lastCheckRef = useRef(0);
 
+    // Deteksi apakah perangkat adalah Android / Mobile
+    useEffect(() => {
+        if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
+            const ua = (navigator.userAgent || navigator.vendor || window.opera || '').toLowerCase();
+            const isAndroid = ua.includes('android');
+            const isMobile = /android|iphone|ipad|ipod|mobile/i.test(ua);
+            setIsTargetDevice(isAndroid || isMobile);
+        }
+    }, []);
+
     const checkServerVersion = useCallback(async () => {
+        // Hanya jalankan jika di Android/Mobile
+        if (typeof navigator === 'undefined') return;
+        const ua = (navigator.userAgent || navigator.vendor || window.opera || '').toLowerCase();
+        const isDeviceAllowed = ua.includes('android') || /android|iphone|ipad|ipod|mobile/i.test(ua);
+        if (!isDeviceAllowed) return;
+
         // Prevent spamming checks within 10 seconds
         const now = Date.now();
         if (now - lastCheckRef.current < 10000) return;
@@ -32,22 +48,30 @@ export default function AppUpdateDetector() {
             const data = await res.json();
 
             if (data && data.build_time) {
-                // If we have a client build time and the server has a newer build
-                const hasNewerVersion = clientBuildTime 
-                    ? Number(data.build_time) > Number(clientBuildTime)
-                    : false;
+                const serverBuild = Number(data.build_time);
+                const clientBuild = Number(clientBuildTime || 0);
+                const installedBuild = Number(localStorage.getItem('sikap_installed_build') || 0);
+                const dismissedBuild = Number(localStorage.getItem('sikap_dismissed_build') || 0);
 
-                if (hasNewerVersion) {
+                // Build efektif yang saat ini sedang aktif di klien
+                const currentBuild = Math.max(clientBuild, installedBuild);
+
+                // 1. Jika sudah uptodate (versi klien >= versi server), JANGAN tampilkan reminder
+                if (currentBuild > 0 && serverBuild <= currentBuild) {
+                    setUpdateAvailable(false);
+                    return;
+                }
+
+                // 2. Jika user sudah pernah menutup/mengabaikan build versi ini, JANGAN tampilkan reminder lagi
+                if (dismissedBuild && dismissedBuild >= serverBuild) {
+                    setUpdateAvailable(false);
+                    return;
+                }
+
+                // 3. Tampilkan hanya jika ada versi server yang benar-benar lebih baru dan belum pernah diabaikan
+                if (serverBuild > currentBuild) {
                     setServerData(data);
                     setUpdateAvailable(true);
-
-                    // Check if already dismissed for this specific build time in this session
-                    const dismissedTime = sessionStorage.getItem('sikap_update_dismissed');
-                    if (dismissedTime && String(dismissedTime) === String(data.build_time)) {
-                        setIsDismissed(true);
-                    } else {
-                        setIsDismissed(false);
-                    }
                 }
             }
         } catch (e) {
@@ -56,21 +80,23 @@ export default function AppUpdateDetector() {
     }, [clientBuildTime]);
 
     useEffect(() => {
-        // Initial check after 3 seconds
+        // Jangan pasang interval jika bukan Android / Mobile
+        if (!isTargetDevice) return;
+
+        // Initial check after 4 seconds
         const initialTimer = setTimeout(() => {
             checkServerVersion();
-        }, 3000);
+        }, 4000);
 
-        // Periodic check every 3 minutes
+        // Periodic check every 5 minutes
         const intervalTimer = setInterval(() => {
             checkServerVersion();
-        }, 180000);
+        }, 300000);
 
         // Check when tab becomes visible or gains focus
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
                 checkServerVersion();
-                // Also trigger Service Worker update check
                 if ('serviceWorker' in navigator) {
                     navigator.serviceWorker.ready.then(reg => {
                         reg.update().catch(() => {});
@@ -108,12 +134,17 @@ export default function AppUpdateDetector() {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('focus', handleFocus);
         };
-    }, [checkServerVersion]);
+    }, [isTargetDevice, checkServerVersion]);
 
     const handleUpdate = async () => {
         setIsUpdating(true);
         try {
-            // 1. Clear caches
+            if (serverData?.build_time) {
+                localStorage.setItem('sikap_installed_build', String(serverData.build_time));
+                localStorage.setItem('sikap_dismissed_build', String(serverData.build_time));
+            }
+
+            // 1. Clear browser caches
             if ('caches' in window) {
                 const keys = await caches.keys();
                 await Promise.all(keys.map(k => caches.delete(k)));
@@ -130,10 +161,7 @@ export default function AppUpdateDetector() {
                 }
             }
 
-            // 3. Clear dismissed state
-            sessionStorage.removeItem('sikap_update_dismissed');
-
-            // 4. Force hard reload with timestamp cache-buster
+            // 3. Force hard reload with timestamp cache-buster
             const targetUrl = new URL(window.location.href);
             targetUrl.searchParams.set('v', Date.now().toString());
             window.location.href = targetUrl.toString();
@@ -144,36 +172,14 @@ export default function AppUpdateDetector() {
     };
 
     const handleDismiss = () => {
-        setIsDismissed(true);
+        setUpdateAvailable(false);
         if (serverData?.build_time) {
-            sessionStorage.setItem('sikap_update_dismissed', String(serverData.build_time));
+            localStorage.setItem('sikap_dismissed_build', String(serverData.build_time));
         }
     };
 
-    if (!updateAvailable) return null;
-
-    // If dismissed, show a discreet floating pill in the corner
-    if (isDismissed) {
-        return (
-            <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-[9999] animate-fade-in">
-                <button
-                    type="button"
-                    onClick={() => setIsDismissed(false)}
-                    className="group flex items-center gap-2.5 px-3.5 py-2 rounded-full bg-slate-900/95 text-white shadow-xl shadow-slate-950/40 border border-amber-400/50 hover:border-amber-400 transition-all hover:scale-105 active:scale-95 backdrop-blur-md"
-                    title="Klik untuk melihat pembaruan aplikasi"
-                >
-                    <span className="relative flex h-2.5 w-2.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
-                    </span>
-                    <span className="text-xs font-semibold tracking-wide flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                        <span>Update Tersedia</span>
-                    </span>
-                </button>
-            </div>
-        );
-    }
+    // Jika bukan perangkat Android/Mobile atau tidak ada update, jangan render apapun
+    if (!isTargetDevice || !updateAvailable) return null;
 
     return (
         <div className="fixed inset-x-4 bottom-20 sm:bottom-6 sm:left-auto sm:right-6 z-[9999] sm:max-w-md w-auto pointer-events-auto">
@@ -212,7 +218,7 @@ export default function AppUpdateDetector() {
                             type="button"
                             onClick={handleDismiss}
                             className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors"
-                            title="Tutup sementara"
+                            title="Tutup pembaruan"
                         >
                             <X className="w-4 h-4" />
                         </button>
