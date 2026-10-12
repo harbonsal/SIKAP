@@ -221,7 +221,7 @@ export default function Index({ apiKeys }) {
                         </div>
                         
                         <div id="api-doc-content" className="bg-gray-50 p-6 rounded-lg border max-h-[70vh] overflow-y-auto text-sm font-mono whitespace-pre-wrap leading-relaxed">
-{`# Dokumentasi API SIKAP ${app_settings?.app_name || 'Lembaga Anda'} (v1) - Pembaruan 01 Juni 2026
+{`# Dokumentasi API SIKAP ${app_settings?.app_name || 'Alwan'} (v1) - Pembaruan 01 Juni 2026
 
 Gunakan panduan ini untuk mengintegrasikan aplikasi pihak ketiga dengan data santri secara aman. Pembaruan ini mencakup *endpoint* tambahan khusus untuk sinkronisasi nilai Tahfidz dan Pantauan Akhlak bulanan.
 

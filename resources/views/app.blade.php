@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title inertia>SIKAP {{ \App\Models\SchoolInfo::first()?->name ?? 'Lembaga Anda' }}</title>
+    <title inertia>SIKAP {{ \App\Models\SchoolInfo::first()?->name ?? 'Alwan' }}</title>
     <link rel="icon" type="image/x-icon" href="{{ \App\Models\Setting::where('key', 'app_favicon')->value('value') ? asset('storage/' . \App\Models\Setting::where('key', 'app_favicon')->value('value')) : (\App\Models\Setting::where('key', 'app_logo')->value('value') ? asset('storage/' . \App\Models\Setting::where('key', 'app_logo')->value('value')) : '/images/logo.png') }}">
 
     <!-- Fonts -->
@@ -22,6 +22,13 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="{{ \App\Models\Setting::where('key', 'app_logo')->value('value') ? asset('storage/' . \App\Models\Setting::where('key', 'app_logo')->value('value')) : '/images/logo.png' }}">
 
+    <script>
+        // Deteksi PWA / Standalone mode sedini mungkin agar tidak muncul splash screen ganda
+        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+            document.documentElement.classList.add('is-standalone-pwa');
+        }
+    </script>
+
     <!-- Scripts -->
     @routes
     @viteReactRefresh
@@ -30,8 +37,8 @@
 </head>
 
 <body class="font-sans antialiased">
-    <!-- Custom Splash Screen -->
-    <div id="app-splash" style="position: fixed; inset: 0; z-index: 9999; background: white; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.5s ease-out; font-family: 'Figtree', sans-serif;">
+    <!-- Custom Splash Screen (Hanya tampil saat initial load browser biasa, disembunyikan di PWA karena OS sudah punya splash) -->
+    <div id="app-splash" style="position: fixed; inset: 0; z-index: 9999; background: white; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.3s ease-out; font-family: 'Figtree', sans-serif;">
         <div style="text-align: center; padding: 20px;">
             <!-- Iconic Multi-colored Text -->
             <h1 style="font-family: 'Orbitron', sans-serif; font-size: 2.5rem; font-weight: 800; margin-bottom: 30px; letter-spacing: 2px; display: flex; align-items: center; justify-content: center; gap: 8px; text-transform: uppercase;">
@@ -40,7 +47,7 @@
 
                 <!-- Dynamic School Name -->
                 <span style="margin-left: 8px; color: #3b82f6; text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);">
-                    {{ \App\Models\SchoolInfo::first()?->name ?? 'Lembaga Anda' }}
+                    {{ \App\Models\SchoolInfo::first()?->name ?? 'Alwan' }}
                 </span>
             </h1>
 
@@ -51,7 +58,7 @@
             <div style="max-width: 300px; margin: 0 auto;">
                 <p style="font-size: 0.875rem; color: #64748b; font-weight: 500; line-height: 1.5;">
                     Sistem Informasi Akademik Pesantren<br>
-                    <span style="color: #0f172a; font-weight: 700;">{{ \App\Models\SchoolInfo::first()?->name ?? 'Lembaga Anda' }}</span>
+                    <span style="color: #0f172a; font-weight: 700;">{{ \App\Models\SchoolInfo::first()?->name ?? 'Alwan' }}</span>
                 </p>
                 <div style="margin-top: 20px; display: flex; justify-content: center;">
                     <div style="width: 40px; height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden;">
@@ -63,6 +70,10 @@
     </div>
 
     <style>
+        .is-standalone-pwa #app-splash {
+            display: none !important;
+        }
+
         @keyframes loading {
             0% {
                 transform: scaleX(0);
@@ -80,17 +91,21 @@
     </style>
 
     <script>
-        // Simple Logic to Remove Splash Screen
-        window.addEventListener('load', () => {
+        // Logika penghapusan Splash Screen secara mulus & instan tanpa delay ganda
+        const hideSplash = () => {
             const splash = document.getElementById('app-splash');
-            // Ensure it stays for at least a brief moment so user sees the branding
+            if (!splash) return;
+            splash.style.opacity = '0';
             setTimeout(() => {
-                splash.style.opacity = '0';
-                setTimeout(() => {
-                    splash.remove();
-                }, 500);
-            }, 800);
-        });
+                splash.remove();
+            }, 300);
+        };
+
+        if (document.readyState === 'complete') {
+            hideSplash();
+        } else {
+            window.addEventListener('load', hideSplash);
+        }
         // PWA Global Event Capture
         window.deferredPWAInstallPrompt = null;
         window.addEventListener('beforeinstallprompt', (e) => {

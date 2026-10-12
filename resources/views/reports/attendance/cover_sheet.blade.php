@@ -108,7 +108,7 @@
     <!-- Page 1: Sampul Absensi -->
     <div class="main-title">كشف الحضور</div>
     <div class="sub-title">الفصل الدراسي {{ $semesterArab }} للعام الدراسي {{ $year }}</div>
-    <div class="sub-title">{{ \App\Models\SchoolInfo::first()?->name ?? 'Lembaga Anda' }}</div>
+    <div class="sub-title">{{ \App\Models\SchoolInfo::first()?->name ?? 'Alwan' }}</div>
     
     <div class="logo-container">
         <!-- Dynamic Logo -->
@@ -125,7 +125,7 @@
     <!-- Page 2: Sampul Jurnal -->
     <div class="main-title">كشف متابعة التدريس</div>
     <div class="sub-title">الفصل الدراسي {{ $semesterArab }} للعام الدراسي {{ $year }}</div>
-    <div class="sub-title">{{ \App\Models\SchoolInfo::first()?->name ?? 'Lembaga Anda' }}</div>
+    <div class="sub-title">{{ \App\Models\SchoolInfo::first()?->name ?? 'Alwan' }}</div>
     
     <div class="logo-container">
         <img src="{{ \App\Models\Setting::where('key', 'app_logo')->value('value') ? asset('storage/' . \App\Models\Setting::where('key', 'app_logo')->value('value')) : '/images/logo.png' }}" class="logo" alt="Logo">

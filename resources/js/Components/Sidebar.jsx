@@ -466,7 +466,7 @@ export default function Sidebar({ className }) {
             <div className="flex-shrink-0 px-7 py-4 border-b border-border">
                 <div className="flex items-center gap-2">
                     <img src={app_settings?.app_logo || "/images/logo.png"} alt="Logo" className="h-8 w-auto" />
-                    <h2 className="text-lg font-bold tracking-tight text-foreground">{app_settings?.app_name || "SIKAP Lembaga Anda"}</h2>
+                    <h2 className="text-lg font-bold tracking-tight text-foreground">{app_settings?.app_name || "SIKAP Alwan"}</h2>
                 </div>
             </div>
 

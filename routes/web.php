@@ -1976,7 +1976,7 @@ Route::get('/run-system-migration', function () {
 
 // Dynamic PWA Manifest Route
 Route::get('/manifest.json', function () {
-    $schoolName = \App\Models\SchoolInfo::first()?->name ?? 'Lembaga Anda';
+    $schoolName = \App\Models\SchoolInfo::first()?->name ?? 'Alwan';
     $appName = 'SIKAP ' . $schoolName;
     $logoSetting = \App\Models\Setting::where('key', 'app_logo')->value('value');
     
@@ -2019,9 +2019,9 @@ Route::get('/manifest.json', function () {
     return response()->json([
         'id' => '/',
         'name' => $appName,
-        'short_name' => 'SIKAP',
+        'short_name' => $appName,
         'description' => 'Sistem Informasi Akademik Pesantren ' . $schoolName,
-        'theme_color' => '#4f46e5',
+        'theme_color' => '#ffffff',
         'background_color' => '#ffffff',
         'display' => 'standalone',
         'scope' => '/',
