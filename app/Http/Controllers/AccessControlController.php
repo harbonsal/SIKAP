@@ -161,6 +161,17 @@ class AccessControlController extends Controller
                 'default_for' => ['Musrif', 'Kepala Sekolah', 'Administrator'],
             ],
             [
+                'key' => 'shortcut_permission_personal',
+                'alias' => 'permission_personal',
+                'label' => 'Izin Personal Santri',
+                'description' => 'Beri izin keluar/pulang santri perorangan langsung',
+                'category' => 'Kesiswaan & Pengasuhan',
+                'icon' => 'UserCheck',
+                'required_permission' => 'create_permissions',
+                'parent_menu' => 'menu_care',
+                'default_for' => ['Musrif', 'Kepala Sekolah', 'Administrator'],
+            ],
+            [
                 'key' => 'shortcut_health',
                 'alias' => 'health',
                 'label' => 'Kesehatan Santri (UKS)',

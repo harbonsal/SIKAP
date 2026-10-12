@@ -13,7 +13,7 @@ import {
     Users, GraduationCap, Clock, CalendarDays, BookOpen, FilePenLine, User, Calendar,
     Bot, Book, ChevronRight, Sparkles, BarChart2, CalendarRange, Download,
     SlidersHorizontal, Check, FileText, RotateCcw, X, Layers,
-    HeartPulse, Key, BookOpenCheck, Wallet
+    HeartPulse, Key, BookOpenCheck, Wallet, UserCheck
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { cn } from '@/lib/utils';
@@ -112,12 +112,23 @@ const ALL_SHORTCUTS = [
         id: 'permissions',
         label: 'Perizinan',
         icon: Key,
-        route: () => route('rfid.scan'),
+        route: () => route('permissions.index'),
         category: 'daily',
         categoryLabel: 'Pengasuhan',
         color: 'from-amber-600 to-red-600',
         textColor: 'group-hover:text-amber-600',
         visible: (can) => can('view_permissions'),
+    },
+    {
+        id: 'permission_personal',
+        label: 'Izin Personal',
+        icon: UserCheck,
+        route: () => route('permissions.create', { type: 'personal' }),
+        category: 'daily',
+        categoryLabel: 'Pengasuhan',
+        color: 'from-emerald-600 to-teal-600',
+        textColor: 'group-hover:text-emerald-600',
+        visible: (can) => can('create_permissions') || can('view_permissions'),
     },
     {
         id: 'silabus',

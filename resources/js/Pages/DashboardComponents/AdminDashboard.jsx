@@ -5,7 +5,7 @@ import {
     Users, GraduationCap, School, Activity, CalendarDays, User, Calendar, 
     Heart, Stethoscope, FileText, Search, ClipboardCheck, Book, BookOpen, 
     HeartPulse, BarChart2, CalendarRange, Sparkles, Bot, BookOpenCheck, Key, Plus,
-    Wallet, Download
+    Wallet, Download, UserCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -273,12 +273,28 @@ export default function AdminDashboard({ stats, allowedWidgets = {}, activities 
             alias: 'permissions',
             title: 'Perizinan Santri',
             subtitle: 'Surat Izin & RFID',
-            href: route('rfid.scan'),
+            href: route('permissions.index'),
+            secondaryHref: route('permissions.create', { type: 'personal' }),
+            secondaryLabel: '+ Izin Personal',
             icon: Key,
             gradient: 'from-amber-600 to-red-600',
             borderHover: 'hover:border-amber-200',
             textHover: 'group-hover:text-amber-700',
             shadow: 'shadow-amber-500/30 ring-amber-50',
+            default: false,
+        },
+        // 18b. Izin Personal Santri
+        {
+            id: 'shortcut_permission_personal',
+            alias: 'permission_personal',
+            title: 'Izin Personal Santri',
+            subtitle: 'Beri Izin 1 Santri Langsung',
+            href: route('permissions.create', { type: 'personal' }),
+            icon: UserCheck,
+            gradient: 'from-emerald-600 to-teal-600',
+            borderHover: 'hover:border-emerald-200',
+            textHover: 'group-hover:text-emerald-700',
+            shadow: 'shadow-emerald-500/30 ring-emerald-50',
             default: false,
         },
         // 19. Keuangan & Tagihan
