@@ -180,6 +180,29 @@ class User extends Authenticatable
         return $this->getAllPermissions()->values()->toArray();
     }
 
+    /**
+     * Get merged dashboard widgets across all user levels (Main + Additional).
+     */
+    public function getAllWidgets(): array
+    {
+        $allLevels = collect([$this->userLevel])->merge($this->additionalLevels)->filter()->unique('id');
+        $mergedWidgets = [];
+
+        foreach ($allLevels as $level) {
+            if (!empty($level->widgets) && is_array($level->widgets)) {
+                foreach ($level->widgets as $key => $isEnabled) {
+                    if ((bool) $isEnabled) {
+                        $mergedWidgets[$key] = true;
+                    } elseif (!isset($mergedWidgets[$key])) {
+                        $mergedWidgets[$key] = false;
+                    }
+                }
+            }
+        }
+
+        return $mergedWidgets;
+    }
+
     public function getRoleNames(): array
     {
         $roles = [];

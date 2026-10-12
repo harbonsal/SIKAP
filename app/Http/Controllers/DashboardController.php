@@ -422,8 +422,33 @@ class DashboardController extends Controller
             ];
         }
 
-        $hasCustomWidgets = !empty($user->userLevel?->widgets) && is_array($user->userLevel->widgets);
-        $userWidgets = $hasCustomWidgets ? $user->userLevel->widgets : $defaultWidgets;
+        // Merge widgets across ALL user levels (Level Utama + Level Tambahan)
+        $allUserLevels = collect([$user->userLevel])->merge($user->additionalLevels)->filter()->unique('id');
+
+        $mergedWidgets = [];
+        $hasCustomWidgets = false;
+
+        foreach ($allUserLevels as $lvl) {
+            if (!empty($lvl->widgets) && is_array($lvl->widgets)) {
+                $hasCustomWidgets = true;
+                foreach ($lvl->widgets as $key => $isEnabled) {
+                    if ((bool) $isEnabled) {
+                        $mergedWidgets[$key] = true;
+                    } elseif (!isset($mergedWidgets[$key])) {
+                        $mergedWidgets[$key] = false;
+                    }
+                }
+            }
+        }
+
+        if ($hasCustomWidgets) {
+            $userWidgets = $mergedWidgets;
+            $userWidgets['welcome_card'] = $userWidgets['welcome_card'] ?? true;
+            $userWidgets['quick_actions'] = $userWidgets['quick_actions'] ?? true;
+            $userWidgets['shortcut_profile'] = $userWidgets['shortcut_profile'] ?? true;
+        } else {
+            $userWidgets = $defaultWidgets;
+        }
 
         // [Feature] Manager Tahfidz Widget Injection
         // If user has 'Manager Tahfidz' role (either primary or additional), inject specific shortcuts if not custom configured

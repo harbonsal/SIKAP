@@ -342,7 +342,7 @@ export default function AdminDashboard({ stats, allowedWidgets = {}, activities 
                     <CardContent className="p-8 md:p-10 relative z-10">
                         <div className="flex flex-col gap-3">
                             <h2 className="text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-tight text-white drop-shadow-sm">
-                                Selamat datang, {auth.user.name} <span className="text-indigo-200 font-medium text-xl md:text-2xl ml-2">({auth.user.user_level?.name || 'Administrator'})</span> 👋
+                                Selamat datang, {auth.user.name} <span className="text-indigo-200 font-medium text-xl md:text-2xl ml-2">({(auth.user.roles && auth.user.roles.length > 0) ? auth.user.roles.join(', ') : (auth.user.user_level?.name || 'Administrator')})</span> 👋
                             </h2>
                             <p className="text-slate-300 text-lg max-w-2xl hidden md:block mt-1">
                                 Berikut adalah ringkasan aktivitas dan statistik terkini di satuan pendidikan Anda hari ini.
