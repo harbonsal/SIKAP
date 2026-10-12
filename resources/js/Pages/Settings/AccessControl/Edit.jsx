@@ -447,7 +447,7 @@ export default function Edit({ userLevel, allUserLevels = [], features = [], act
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-3 border-b border-border">
                     <div className="flex items-center gap-3">
                         <Link
-                            href={route('settings.access-control.index', { tab: 'permissions' })}
+                            href={route('settings.access-control.index', { tab: 'roles' })}
                             className="p-2.5 rounded-xl border border-border bg-card hover:bg-muted text-foreground transition-all shadow-xs"
                             title="Kembali ke Manajemen Akses"
                         >
@@ -468,31 +468,43 @@ export default function Edit({ userLevel, allUserLevels = [], features = [], act
                         </div>
                     </div>
 
-                    {/* Quick Role Switcher Tabs */}
-                    {allUserLevels.length > 0 && (
-                        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar bg-muted/60 p-1.5 rounded-2xl border border-border">
-                            <span className="text-[11px] font-bold text-muted-foreground px-2 whitespace-nowrap">
-                                Ganti Role:
-                            </span>
-                            {allUserLevels.map((lvl) => {
-                                const isCurrent = lvl.id === userLevel.id;
-                                return (
-                                    <Link
-                                        key={lvl.id}
-                                        href={route('settings.access-control.edit', lvl.id)}
-                                        className={cn(
-                                            "px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap active:scale-95",
-                                            isCurrent
-                                                ? "bg-indigo-600 text-white shadow-xs"
-                                                : "bg-background/80 text-muted-foreground hover:text-foreground hover:bg-background border border-border/50"
-                                        )}
-                                    >
-                                        {lvl.name}
-                                    </Link>
-                                );
-                            })}
-                        </div>
-                    )}
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {/* Shortcut to Dashboard Shortcuts for this role */}
+                        <Link
+                            href={route('settings.access-control.index', { tab: 'quick-access', role_id: userLevel.id })}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 text-xs font-bold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900 transition shadow-2xs whitespace-nowrap active:scale-95"
+                            title="Atur Pintasan Dashboard untuk Role Ini"
+                        >
+                            <LayoutDashboard className="w-3.5 h-3.5" />
+                            <span>Pintasan Dashboard</span>
+                        </Link>
+
+                        {/* Quick Role Switcher Tabs */}
+                        {allUserLevels.length > 0 && (
+                            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar bg-muted/60 p-1.5 rounded-2xl border border-border">
+                                <span className="text-[11px] font-bold text-muted-foreground px-2 whitespace-nowrap">
+                                    Ganti Role:
+                                </span>
+                                {allUserLevels.map((lvl) => {
+                                    const isCurrent = lvl.id === userLevel.id;
+                                    return (
+                                        <Link
+                                            key={lvl.id}
+                                            href={route('settings.access-control.edit', lvl.id)}
+                                            className={cn(
+                                                "px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap active:scale-95",
+                                                isCurrent
+                                                    ? "bg-indigo-600 text-white shadow-xs"
+                                                    : "bg-background/80 text-muted-foreground hover:text-foreground hover:bg-background border border-border/50"
+                                            )}
+                                        >
+                                            {lvl.name}
+                                        </Link>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Control Toolbar */}

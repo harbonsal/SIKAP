@@ -297,25 +297,36 @@ class AccessControlController extends Controller
             'userLevels' => $userLevels,
             'features' => self::getFeaturesRegistry(),
             'currentTab' => $request->query('tab', 'roles'),
+            'initialRoleId' => $request->query('role_id') ? (int) $request->query('role_id') : null,
         ]);
     }
 
     public function updateQuickAccessMatrix(Request $request)
     {
         $request->validate([
-            'matrix' => 'required|array',
+            'matrix' => 'nullable|array',
+            'user_level_id' => 'nullable|exists:user_levels,id',
+            'widgets' => 'nullable|array',
             'auto_sync_permissions' => 'nullable|boolean',
         ]);
 
         $matrix = $request->input('matrix', []);
+        $singleUserLevelId = $request->input('user_level_id');
+        $singleWidgets = $request->input('widgets');
         $autoSync = $request->boolean('auto_sync_permissions', false);
+
+        if ($singleUserLevelId && is_array($singleWidgets)) {
+            $matrix = [$singleUserLevelId => $singleWidgets];
+        }
 
         $features = self::getFeaturesRegistry();
         $featureMap = collect($features)->keyBy('key');
 
+        $singleRoleName = null;
         foreach ($matrix as $userLevelId => $widgets) {
             $userLevel = UserLevel::find($userLevelId);
             if (!$userLevel) continue;
+            $singleRoleName = $userLevel->name;
 
             $cleanWidgets = [];
             foreach ($widgets as $k => $v) {
@@ -355,7 +366,11 @@ class AccessControlController extends Controller
             }
         }
 
-        return redirect()->back()->with('success', 'Matriks pengaturan akses cepat & widget berhasil disimpan.');
+        $message = ($singleUserLevelId && $singleRoleName)
+            ? "Pintasan dashboard untuk role '{$singleRoleName}' berhasil disimpan."
+            : "Pengaturan pintasan dashboard berhasil disimpan.";
+
+        return redirect()->back()->with('success', $message);
     }
 
     public function edit(UserLevel $userLevel)
@@ -382,6 +397,7 @@ class AccessControlController extends Controller
             'allUserLevels' => $allUserLevels,
             'features' => $features,
             'activePermissions' => $activePermissions,
+            'quickAccessFeatures' => self::getFeaturesRegistry(),
         ]);
     }
 
