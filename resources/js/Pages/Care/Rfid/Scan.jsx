@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { Loader2, Zap, AlertTriangle, CheckCircle, Clock, Settings, X, MapPin } from 'lucide-react';
 import MainLayout from '@/Layouts/MainLayout';
+import PermissionTabs from '@/Components/PermissionTabs';
 
 export default function Scan({ autoConfirm, autoConfirmSeconds, autoClose = true, defaultScanMode = 'OUT' }) {
     const [rfid, setRfid] = useState('');
@@ -198,28 +199,7 @@ export default function Scan({ autoConfirm, autoConfirmSeconds, autoClose = true
                 </div>
 
                 {/* Tabs / Navigation */}
-                <div className="flex space-x-1 bg-muted/50 p-1 rounded-lg w-max">
-                    <Link
-                        href={route('rfid.scan')}
-                        className="px-4 py-2 text-sm font-medium rounded-md bg-background shadow-sm text-foreground transition-all"
-                    >
-                        Pos Scanner
-                    </Link>
-                    {canManagePermissions && (
-                        <Link
-                            href={route('permissions.index')}
-                            className="px-4 py-2 text-sm font-medium rounded-md hover:bg-background/50 text-muted-foreground transition-all"
-                        >
-                            Daftar Perizinan
-                        </Link>
-                    )}
-                    <Link
-                        href={route('permissions.monitor')}
-                        className="px-4 py-2 text-sm font-medium rounded-md hover:bg-background/50 text-muted-foreground transition-all"
-                    >
-                        Pantauan Real-time
-                    </Link>
-                </div>
+                <PermissionTabs activeTab="scan" />
 
                 <div className="bg-neutral-950 flex flex-col items-center justify-center p-8 rounded-xl min-h-[500px]">
                     

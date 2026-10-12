@@ -1,4 +1,5 @@
 import MainLayout from '@/Layouts/MainLayout';
+import PermissionTabs from '@/Components/PermissionTabs';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Plus, Search, Eye, Trash2, Edit } from 'lucide-react';
 import { useState } from 'react';
@@ -85,28 +86,7 @@ export default function Index({ kamars, permissions, filters }) {
                 </div>
 
                 {/* Tabs / Navigation */}
-                <div className="flex space-x-1 bg-muted/50 p-1 rounded-lg w-max mb-6">
-                    <Link
-                        href={route('rfid.scan')}
-                        className="px-4 py-2 text-sm font-medium rounded-md hover:bg-background/50 text-muted-foreground transition-all"
-                    >
-                        Pos Scanner
-                    </Link>
-                    {canManagePermissions && (
-                        <Link
-                            href={route('permissions.index')}
-                            className="px-4 py-2 text-sm font-medium rounded-md bg-background shadow-sm text-foreground transition-all"
-                        >
-                            Daftar Perizinan
-                        </Link>
-                    )}
-                    <Link
-                        href={route('permissions.monitor')}
-                        className="px-4 py-2 text-sm font-medium rounded-md hover:bg-background/50 text-muted-foreground transition-all"
-                    >
-                        Pantauan Real-time
-                    </Link>
-                </div>
+                <PermissionTabs activeTab="index" />
 
                 {/* Filter Section */}
                 <div className="bg-card rounded-xl border shadow-sm p-4 flex justify-between items-end">

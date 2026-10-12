@@ -1,4 +1,5 @@
 import MainLayout from '@/Layouts/MainLayout';
+import PermissionTabs from '@/Components/PermissionTabs';
 import { Head, Link, usePage, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import { AlertCircle, Clock, ShieldCheck, Activity, CheckCircle, Wallet, Package, FileText, Search, Edit } from 'lucide-react';
@@ -94,28 +95,7 @@ export default function Monitor({ pending_permissions = [], active_permissions =
                 </div>
 
                 {/* Tabs / Navigation */}
-                <div className="flex space-x-1 bg-muted/50 p-1 rounded-lg w-max mb-6">
-                    <Link
-                        href={route('rfid.scan')}
-                        className="px-4 py-2 text-sm font-medium rounded-md hover:bg-background/50 text-muted-foreground transition-all"
-                    >
-                        Pos Scanner
-                    </Link>
-                    {canManagePermissions && (
-                        <Link
-                            href={route('permissions.index')}
-                            className="px-4 py-2 text-sm font-medium rounded-md hover:bg-background/50 text-muted-foreground transition-all"
-                        >
-                            Daftar Perizinan
-                        </Link>
-                    )}
-                    <Link
-                        href={route('permissions.monitor')}
-                        className="px-4 py-2 text-sm font-medium rounded-md bg-background shadow-sm text-foreground transition-all"
-                    >
-                        Pantauan Real-time
-                    </Link>
-                </div>
+                <PermissionTabs activeTab="monitor" />
 
                 <div className="relative max-w-md w-full mb-6">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
