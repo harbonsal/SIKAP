@@ -3,6 +3,7 @@ import { Head, useForm, Link } from '@inertiajs/react';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import InputLabel from '@/Components/InputLabel';
+import { Shield, SlidersHorizontal } from 'lucide-react';
 
 export default function Edit({ userLevel }) {
     const { data, setData, put, processing, errors } = useForm({
@@ -22,14 +23,26 @@ export default function Edit({ userLevel }) {
             <Head title="Edit User Level" />
 
             <div className="max-w-2xl mx-auto">
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold tracking-tight">Edit User Level</h2>
-                    <Link
-                        href={route('user-levels.index')}
-                        className="text-sm text-muted-foreground hover:text-primary"
-                    >
-                        Kembali
-                    </Link>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h2 className="text-2xl font-bold tracking-tight">Edit User Level</h2>
+                        <p className="text-xs text-muted-foreground mt-0.5">ID Level: #{userLevel.id}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Link
+                            href={route('settings.access-control.edit', userLevel.id)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-xs"
+                        >
+                            <Shield className="w-3.5 h-3.5" />
+                            <span>Atur Hak Akses Role</span>
+                        </Link>
+                        <Link
+                            href={route('user-levels.index')}
+                            className="text-xs text-muted-foreground hover:text-foreground px-2 py-1.5"
+                        >
+                            Kembali
+                        </Link>
+                    </div>
                 </div>
 
                 <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">

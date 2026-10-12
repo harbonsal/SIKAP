@@ -38,10 +38,10 @@ class UserLevelController extends Controller
             'widgets' => 'nullable|array',
         ]);
 
-        UserLevel::create($request->all());
+        $userLevel = UserLevel::create($request->all());
 
-        return redirect()->route('user-levels.index')
-            ->with('success', 'User Level berhasil ditambahkan.');
+        return redirect()->route('settings.access-control.edit', $userLevel->id)
+            ->with('success', "Level '{$userLevel->name}' berhasil dibuat! Silakan tentukan checklist hak akses fiturnya di bawah ini.");
     }
 
     public function edit(UserLevel $userLevel)

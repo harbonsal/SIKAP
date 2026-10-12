@@ -3,6 +3,7 @@ import { Head, useForm, Link } from '@inertiajs/react';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import InputLabel from '@/Components/InputLabel';
+import { Shield, ArrowRight, Sparkles } from 'lucide-react';
 
 export default function Create() {
     const { data, setData, post, processing, errors } = useForm({
@@ -34,6 +35,13 @@ export default function Create() {
 
                 <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
                     <form onSubmit={submit} className="space-y-6">
+                        <div className="rounded-xl border border-indigo-200 dark:border-indigo-900 bg-gradient-to-r from-indigo-50/80 to-purple-50/50 dark:from-indigo-950/30 dark:to-purple-950/20 p-4 flex items-start gap-3">
+                            <Shield className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                            <div className="text-xs leading-relaxed text-foreground">
+                                <span className="font-bold text-indigo-700 dark:text-indigo-300">Alur Pengaturan Role:</span> Setelah mengisi nama dan tipe dashboard lalu klik <strong>"Simpan & Lanjut Atur Hak Akses"</strong>, Anda akan langsung dialihkan ke halaman checklist hak akses untuk menentukan menu & fitur apa saja yang boleh dibuka peran ini.
+                            </div>
+                        </div>
+
                         <div className="space-y-2">
                             <InputLabel htmlFor="name" value="Nama Level" />
                             <TextInput
@@ -196,9 +204,16 @@ export default function Create() {
                             </div>
                         </div>
 
-                        <div className="flex justify-end">
-                            <PrimaryButton disabled={processing}>
-                                {processing ? 'Menyimpan...' : 'Simpan'}
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t">
+                            <Link
+                                href={route('user-levels.index')}
+                                className="text-xs sm:text-sm font-semibold text-muted-foreground hover:text-foreground order-2 sm:order-1"
+                            >
+                                Batal
+                            </Link>
+                            <PrimaryButton disabled={processing} className="w-full sm:w-auto inline-flex items-center justify-center gap-2 order-1 sm:order-2">
+                                <span>{processing ? 'Menyimpan...' : 'Simpan & Lanjut Atur Hak Akses'}</span>
+                                <ArrowRight className="w-4 h-4" />
                             </PrimaryButton>
                         </div>
                     </form>

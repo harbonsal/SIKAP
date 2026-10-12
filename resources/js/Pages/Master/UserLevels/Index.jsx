@@ -2,7 +2,7 @@ import MasterSekolahLayout from '@/Layouts/MasterSekolahLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import Pagination from '@/Components/Pagination';
 import { useState, useEffect } from 'react';
-import { Search, Plus, Pencil, Trash2, SlidersHorizontal } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, SlidersHorizontal, Shield } from 'lucide-react';
 import { useDebounce } from 'use-debounce';
 
 export default function Index({ userLevels, filters }) {
@@ -90,13 +90,22 @@ export default function Index({ userLevels, filters }) {
                                             <td className="p-4 align-middle text-right">
                                                 <div className="flex justify-end gap-2">
                                                     <Link
+                                                        href={route('settings.access-control.edit', level.id)}
+                                                        title="Atur Hak Akses & Fitur"
+                                                        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900 h-8 w-8 shadow-2xs"
+                                                    >
+                                                        <Shield className="h-4 w-4" />
+                                                    </Link>
+                                                    <Link
                                                         href={route('user-levels.edit', level.id)}
+                                                        title="Edit User Level"
                                                         className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-8 w-8"
                                                     >
                                                         <Pencil className="h-4 w-4" />
                                                     </Link>
                                                     <button
                                                         onClick={() => handleDelete(level.id)}
+                                                        title="Hapus User Level"
                                                         className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-destructive hover:text-destructive-foreground h-8 w-8"
                                                     >
                                                         <Trash2 className="h-4 w-4" />
@@ -107,7 +116,7 @@ export default function Index({ userLevels, filters }) {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="2" className="p-4 text-center text-muted-foreground">
+                                        <td colSpan="3" className="p-4 text-center text-muted-foreground">
                                             Tidak ada data User Level.
                                         </td>
                                     </tr>
