@@ -139,7 +139,7 @@ export default function StudentDashboard({ stats, schedule, allowedWidgets = {} 
 
                 {/* 3. Skrining Hafalan */}
                 {(allowedWidgets.shortcut_skrining ?? true) && (
-                    <Link href={route('tahfidz.pantau-skrining')} className="block h-full">
+                    <Link href={route('quran.skrining')} className="block h-full">
                     <Card className={`border-none shadow-md hover:shadow-lg transition-all relative overflow-hidden group cursor-pointer h-full flex flex-col hover:-translate-y-1 duration-300 ${
                         hasPendingSkrining
                             ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-white'

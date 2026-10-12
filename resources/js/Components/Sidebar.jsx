@@ -86,7 +86,7 @@ const navItems = [
             { title: "Rekap Nilai", href: "tahfidz.recap.index", permission: 'menu_tahfidz_recap' }, // Controlled Permission
             { title: "Analisa Tahfidz", href: "tahfidz.analysis.index", permission: 'view_tahfidz_analysis' },
             { title: "Pantauan halaqoh", href: "tahfidz.monitoring.index", roles: ['Administrator', 'Manager Tahfidz', 'Wali Kelas'] }, // Adjust roles if needed
-            { title: "Pantauan Skrining", href: "tahfidz.pantau-skrining", roles: ['Administrator', 'Manager Tahfidz'] },
+            { title: "Pantauan Skrining", href: "tahfidz.pantau-skrining", roles: ['Administrator', 'Manager Tahfidz', 'Musrif', 'Musyrif', 'Musrif Asrama', 'Guru'] },
             {
                 title: "Pengaturan Tahfidz",
                 roles: ['Administrator', 'Manager Tahfidz'],

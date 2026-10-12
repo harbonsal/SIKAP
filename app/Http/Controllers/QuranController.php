@@ -32,7 +32,7 @@ class QuranController extends Controller
         $allowedJuz = null;
         $user = auth()->user();
 
-        if ($user && $user->userLevel && in_array($user->userLevel->name, ['Santri', 'Siswa'])) {
+        if ($user && $user->hasRole(['Santri', 'Siswa'])) {
             $student = \App\Models\Student::where('user_id', $user->id)->first();
             if ($student) {
                 $allowedJuz = \App\Models\TahfidzMemorization::where('student_id', $student->id)
