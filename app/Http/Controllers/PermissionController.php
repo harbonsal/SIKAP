@@ -82,7 +82,7 @@ class PermissionController extends Controller
         });
 
         // Permissions List
-        $permissionsQuery = PermissionGroup::with(['activeKamar.kamar', 'creator'])
+        $permissionsQuery = PermissionGroup::with(['activeKamar.kamar', 'creator', 'studentPermissions.student'])
             ->where(function ($query) use ($academicYear) {
                 $query->whereHas('activeKamar', function ($q) use ($academicYear) {
                     $q->where('academic_year_id', $academicYear->id);
@@ -99,14 +99,19 @@ class PermissionController extends Controller
 
         $permissions = $permissionsQuery->paginate(20)
             ->through(function ($p) {
+                $isPersonal = $p->studentPermissions->count() === 1 && (str_contains($p->name, 'Izin Personal') || str_starts_with($p->name, 'Personal:'));
+                $firstStudent = $isPersonal ? $p->studentPermissions->first()?->student : null;
+
                 return [
                     'id' => $p->id,
                     'name' => $p->name,
-                    'kamar' => $p->activeKamar->kamar->name,
+                    'kamar' => $p->activeKamar?->kamar?->name ?? ($isPersonal ? 'Personal' : '-'),
+                    'is_personal' => $isPersonal,
+                    'student_name' => $firstStudent?->name,
                     'start_time' => $p->start_time->format('d M Y H:i'),
                     'end_time' => $p->end_time->format('d M Y H:i'),
-                    'student_count' => $p->studentPermissions()->count(),
-                    'creator' => $p->creator->name,
+                    'student_count' => $p->studentPermissions->count(),
+                    'creator' => $p->creator?->name ?? 'Petugas',
                 ];
             });
 
@@ -275,7 +280,8 @@ class PermissionController extends Controller
         ]);
 
         return Inertia::render('Care/Permission/Create', [
-            'kamars' => $kamars
+            'kamars' => $kamars,
+            'initialType' => $request->query('type', 'personal'),
         ]);
     }
 
@@ -294,6 +300,51 @@ class PermissionController extends Controller
         return response()->json($students);
     }
 
+    // Search students for Personal Permission dropdown
+    public function searchStudents(Request $request)
+    {
+        $search = $request->query('query');
+
+        $query = \App\Models\Student::query();
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('user', function ($u) use ($search) {
+                    $u->where('name', 'like', "%{$search}%")
+                      ->orWhere('nomor_induk', 'like', "%{$search}%");
+                })->orWhere('nisn', 'like', "%{$search}%");
+            });
+        }
+
+        $students = $query->with([
+            'user',
+            'latestClassMember.activeClass.kelas',
+            'latestClassMember.activeClass.kelasParalel',
+            'latestKamarMember.activeKamar.kamar'
+        ])
+        ->whereHas('user', function ($u) {
+            $u->where('status', 'Aktif');
+        })
+        ->limit(20)
+        ->get()
+        ->map(function ($s) {
+            $kelasName = $s->latestClassMember?->activeClass?->kelas?->name ?? '';
+            $paralel = $s->latestClassMember?->activeClass?->kelasParalel?->name ?? '';
+            $kamarName = $s->latestKamarMember?->activeKamar?->kamar?->name ?? '-';
+
+            return [
+                'id' => $s->id,
+                'name' => $s->name,
+                'nis' => $s->nomor_induk ?? $s->user?->nomor_induk ?? '-',
+                'kelas' => trim("$kelasName $paralel") ?: '-',
+                'kamar' => $kamarName,
+                'active_kamar_id' => $s->latestKamarMember?->active_kamar_id,
+            ];
+        });
+
+        return response()->json($students);
+    }
+
     public function store(Request $request)
     {
         $user = auth()->user()->load(['userLevel', 'additionalLevels']);
@@ -302,6 +353,64 @@ class PermissionController extends Controller
             abort(403, 'Anda tidak memiliki hak akses untuk menyimpan perizinan.');
         }
 
+        // 1. Handle Izin Personal (Perorangan / 1 Santri)
+        if ($request->input('permission_type') === 'personal' || $request->boolean('is_personal')) {
+            $request->validate([
+                'student_id' => 'required|exists:students,id',
+                'name' => 'required|string|max:255',
+                'start_time' => 'required|date',
+                'end_time' => 'required|date|after:start_time',
+                'description' => 'nullable|string',
+                'initial_status' => 'nullable|in:Pending,Out',
+                'uang_saku' => 'nullable|string|max:255',
+                'barang_titipan' => 'nullable|string|max:255',
+            ]);
+
+            DB::beginTransaction();
+            try {
+                $student = \App\Models\Student::with(['user', 'latestKamarMember.activeKamar'])->findOrFail($request->student_id);
+                $academicYear = \App\Services\AcademicStateService::currentAcademicYear();
+
+                $activeKamarId = $student->latestKamarMember?->active_kamar_id
+                    ?? \App\Models\ActiveKamar::where('academic_year_id', $academicYear?->id)->first()?->id
+                    ?? \App\Models\ActiveKamar::first()?->id;
+
+                $cleanReason = trim($request->name);
+                $groupName = str_starts_with($cleanReason, 'Izin Personal')
+                    ? $cleanReason
+                    : ('Izin Personal: ' . $student->name . ' - ' . $cleanReason);
+
+                $group = PermissionGroup::create([
+                    'name' => $groupName,
+                    'active_kamar_id' => $activeKamarId,
+                    'start_time' => $request->start_time,
+                    'end_time' => $request->end_time,
+                    'description' => $request->description,
+                    'created_by' => auth()->id(),
+                ]);
+
+                $initialStatus = $request->input('initial_status', 'Pending');
+                $exitAt = ($initialStatus === 'Out') ? \Carbon\Carbon::now() : null;
+
+                StudentPermission::create([
+                    'permission_group_id' => $group->id,
+                    'student_id' => $student->id,
+                    'status' => $initialStatus,
+                    'exit_at' => $exitAt,
+                    'keterangan' => $request->description ?: $cleanReason,
+                    'uang_saku' => $request->uang_saku,
+                    'barang_titipan' => $request->barang_titipan,
+                ]);
+
+                DB::commit();
+                return redirect()->route('permissions.index')->with('success', 'Izin Personal untuk ' . $student->name . ' berhasil dibuat.');
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return back()->withErrors(['error' => 'Gagal membuat izin personal: ' . $e->getMessage()]);
+            }
+        }
+
+        // 2. Handle Izin Rombongan / Kamar
         $request->validate([
             'name' => 'required|string|max:255',
             'active_kamar_id' => 'required', // Can be 'all'
@@ -489,7 +598,7 @@ class PermissionController extends Controller
             'permission' => [
                 'id' => $permission->id,
                 'name' => $permission->name,
-                'kamar' => $permission->activeKamar->kamar->name,
+                'kamar' => $permission->activeKamar?->kamar?->name ?? 'Personal',
                 'time_range' => $permission->start_time->format('d M H:i') . ' - ' . $permission->end_time->format('d M H:i'),
                 'raw_end_time' => $permission->end_time->format('Y-m-d\TH:i'),
                 'description' => $permission->description

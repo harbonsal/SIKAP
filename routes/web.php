@@ -801,6 +801,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/permissions/{permission}/time', [App\Http\Controllers\PermissionController::class, 'updateTime'])->name('permissions.updateTime');
     Route::post('/permissions/bulk-update-time', [App\Http\Controllers\PermissionController::class, 'bulkUpdateTime'])->name('permissions.bulk-update-time');
     Route::post('/permissions/bulk-destroy', [App\Http\Controllers\PermissionController::class, 'bulkDestroy'])->name('permissions.bulk-destroy');
+    Route::get('permissions/students/search', [App\Http\Controllers\PermissionController::class, 'searchStudents'])->name('permissions.students.search');
     Route::resource('permissions', App\Http\Controllers\PermissionController::class);
     Route::get('permissions/kamar/{activeKamar}/students', [App\Http\Controllers\PermissionController::class, 'getStudents'])->name('permissions.students');
 

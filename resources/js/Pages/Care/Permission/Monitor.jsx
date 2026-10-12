@@ -2,7 +2,7 @@ import MainLayout from '@/Layouts/MainLayout';
 import PermissionTabs from '@/Components/PermissionTabs';
 import { Head, Link, usePage, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
-import { AlertCircle, Clock, ShieldCheck, Activity, CheckCircle, Wallet, Package, FileText, Search, Edit } from 'lucide-react';
+import { AlertCircle, Clock, ShieldCheck, Activity, CheckCircle, Wallet, Package, FileText, Search, Edit, Plus, UserPlus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import Modal from '@/Components/Modal';
 import PrimaryButton from '@/Components/PrimaryButton';
@@ -91,6 +91,22 @@ export default function Monitor({ pending_permissions = [], active_permissions =
                     <div>
                         <h2 className="text-3xl font-bold tracking-tight text-foreground">Pantauan & Analisa Perizinan</h2>
                         <p className="text-muted-foreground">Monitor santri yang sedang di luar dan riwayat keterlambatan.</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <Link
+                            href={route('permissions.create', { type: 'personal' })}
+                            className="inline-flex items-center justify-center rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 text-sm font-semibold shadow-sm transition-colors"
+                        >
+                            <UserPlus className="mr-1.5 h-4 w-4" />
+                            + Izin Personal (1 Santri)
+                        </Link>
+                        <Link
+                            href={route('permissions.create', { type: 'group' })}
+                            className="inline-flex items-center justify-center rounded-lg border border-input bg-background hover:bg-accent px-3.5 py-2 text-sm font-medium transition-colors"
+                        >
+                            <Plus className="mr-1.5 h-4 w-4" />
+                            + Izin Kamar
+                        </Link>
                     </div>
                 </div>
 

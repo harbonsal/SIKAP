@@ -178,11 +178,19 @@ class JournalController extends Controller
                 $q->where('start_time', '<=', $endOfDay)
                   ->where('end_time', '>=', $startOfDay);
             })
-            ->where(function ($q) {
+            ->where(function ($q) use ($startOfDay, $endOfDay) {
                 $q->whereIn('status', ['Pending', 'Out'])
-                  ->orWhereNull('return_at');
+                  ->orWhereNull('return_at')
+                  ->orWhere(function ($sub) use ($startOfDay, $endOfDay) {
+                      $sub->where('status', 'Returned')
+                          ->whereHas('permissionGroup', function($pg) use ($startOfDay, $endOfDay) {
+                              $pg->where('start_time', '<=', $endOfDay)
+                                 ->where('end_time', '>=', $startOfDay);
+                          });
+                  });
             })
             ->with('permissionGroup')
+            ->orderByRaw("CASE WHEN status = 'Out' THEN 1 WHEN status = 'Pending' THEN 2 ELSE 3 END")
             ->orderBy('id', 'desc')
             ->get()
             ->groupBy('student_id');
@@ -568,11 +576,19 @@ class JournalController extends Controller
                 $q->where('start_time', '<=', $endOfDay)
                   ->where('end_time', '>=', $startOfDay);
             })
-            ->where(function ($q) {
+            ->where(function ($q) use ($startOfDay, $endOfDay) {
                 $q->whereIn('status', ['Pending', 'Out'])
-                  ->orWhereNull('return_at');
+                  ->orWhereNull('return_at')
+                  ->orWhere(function ($sub) use ($startOfDay, $endOfDay) {
+                      $sub->where('status', 'Returned')
+                          ->whereHas('permissionGroup', function($pg) use ($startOfDay, $endOfDay) {
+                              $pg->where('start_time', '<=', $endOfDay)
+                                 ->where('end_time', '>=', $startOfDay);
+                          });
+                  });
             })
             ->with('permissionGroup')
+            ->orderByRaw("CASE WHEN status = 'Out' THEN 1 WHEN status = 'Pending' THEN 2 ELSE 3 END")
             ->orderBy('id', 'desc')
             ->get()
             ->groupBy('student_id');

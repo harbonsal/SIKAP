@@ -74,15 +74,24 @@ export default function Index({ kamars, permissions, filters }) {
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <h2 className="text-3xl font-bold tracking-tight text-foreground">Manajemen Perizinan</h2>
-                        <p className="text-muted-foreground">Kelola perizinan keluar/masuk santri (Pesiar, Izin Sakit, dll).</p>
+                        <p className="text-muted-foreground">Kelola perizinan keluar/masuk santri (Izin Personal, Pesiar, Izin Sakit, dll).</p>
                     </div>
-                    <Link
-                        href={route('permissions.create')}
-                        className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Buat Izin Baru
-                    </Link>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <Link
+                            href={route('permissions.create', { type: 'personal' })}
+                            className="inline-flex items-center justify-center rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 text-sm font-semibold shadow-sm transition-colors"
+                        >
+                            <Plus className="mr-1.5 h-4 w-4" />
+                            + Izin Personal (1 Santri)
+                        </Link>
+                        <Link
+                            href={route('permissions.create', { type: 'group' })}
+                            className="inline-flex items-center justify-center rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground px-3.5 py-2 text-sm font-semibold shadow-sm transition-colors"
+                        >
+                            <Plus className="mr-1.5 h-4 w-4" />
+                            Buat Izin Rombongan
+                        </Link>
+                    </div>
                 </div>
 
                 {/* Tabs / Navigation */}
@@ -159,8 +168,27 @@ export default function Index({ kamars, permissions, filters }) {
                                                     onChange={() => handleSelectRow(permission.id)}
                                                 />
                                             </td>
-                                            <td className="px-6 py-4 font-medium">{permission.name}</td>
-                                            <td className="px-6 py-4">{permission.kamar}</td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center gap-2">
+                                                        {permission.is_personal ? (
+                                                            <span className="inline-flex items-center rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5 text-xs font-semibold">
+                                                                Personal
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center rounded-md bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 px-2 py-0.5 text-xs font-semibold">
+                                                                Rombongan
+                                                            </span>
+                                                        )}
+                                                        <span className="font-semibold text-foreground">
+                                                            {permission.is_personal && permission.student_name ? permission.student_name : permission.name}
+                                                        </span>
+                                                    </div>
+                                                    {permission.is_personal && (
+                                                        <span className="text-xs text-muted-foreground">{permission.name}</span>
+                                                    )}
+                                                </div>
+                                            </td>
                                             <td className="px-6 py-4">{permission.start_time}</td>
                                             <td className="px-6 py-4">{permission.end_time}</td>
                                             <td className="px-6 py-4 text-center">
