@@ -1,6 +1,10 @@
 import { Link, usePage } from '@inertiajs/react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
-import { Clock, CalendarDays, BookOpen, GraduationCap, School, User, Wallet, Calendar, Home, AlertTriangle, Check, BookOpenCheck, ClipboardCheck, Book, HeartPulse, Activity } from 'lucide-react';
+import { 
+    Clock, CalendarDays, BookOpen, GraduationCap, School, User, Wallet, Calendar, 
+    Home, AlertTriangle, Check, BookOpenCheck, ClipboardCheck, Book, HeartPulse, 
+    Activity, CalendarRange, Bot, Sparkles, Key, Download 
+} from 'lucide-react';
 
 export default function StudentDashboard({ stats, schedule, allowedWidgets = {} }) {
     const { auth } = usePage().props;
@@ -347,6 +351,89 @@ export default function StudentDashboard({ stats, schedule, allowedWidgets = {} 
                     </Link>
                 )}
 
+                {/* 8. Al-Qur'an Digital */}
+                {allowedWidgets.shortcut_quran && (
+                    <Link href={route('quran.index')} className="block h-full">
+                        <Card className="border-none shadow-md hover:shadow-lg transition-all relative overflow-hidden group bg-gradient-to-br from-emerald-500 to-teal-600 text-white cursor-pointer h-full flex flex-col hover:-translate-y-1 duration-300">
+                            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                                <BookOpenCheck className="w-20 h-20 -mr-4 -mt-4 text-white" />
+                            </div>
+                            <CardHeader className="pb-2 relative z-10">
+                                <CardTitle className="text-sm font-medium text-white/90 flex items-center gap-2">
+                                    <BookOpenCheck className="h-4 w-4 text-white" />
+                                    Al-Qur'an Digital
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="relative z-10 flex-1 flex flex-col justify-end">
+                                <div className="text-xl font-bold text-white drop-shadow-sm">Mushaf Online</div>
+                                <div className="text-xs text-emerald-100 mt-1">Tilawah & Murajaah Harian.</div>
+                            </CardContent>
+                        </Card>
+                    </Link>
+                )}
+
+                {/* 9. Tes Mandiri AI (Ikhtabir) */}
+                {allowedWidgets.shortcut_ikhtabir && (
+                    <Link href={route('ikhtabir-nafsi.index')} className="block h-full">
+                        <Card className="border-none shadow-md hover:shadow-lg transition-all relative overflow-hidden group bg-gradient-to-br from-cyan-500 to-blue-600 text-white cursor-pointer h-full flex flex-col hover:-translate-y-1 duration-300">
+                            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                                <Bot className="w-20 h-20 -mr-4 -mt-4 text-white" />
+                            </div>
+                            <CardHeader className="pb-2 relative z-10">
+                                <CardTitle className="text-sm font-medium text-white/90 flex items-center gap-2">
+                                    <Bot className="h-4 w-4 text-white" />
+                                    Tes Mandiri AI
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="relative z-10 flex-1 flex flex-col justify-end">
+                                <div className="text-xl font-bold text-white drop-shadow-sm">Ikhtabir Pintar</div>
+                                <div className="text-xs text-cyan-100 mt-1">Uji Sambung Ayat AI.</div>
+                            </CardContent>
+                        </Card>
+                    </Link>
+                )}
+
+                {/* 10. Kalender Akademik */}
+                {allowedWidgets.shortcut_calendar && (
+                    <Link href={route('academic-calendar.index')} className="block h-full">
+                        <Card className="border-none shadow-md hover:shadow-lg transition-all relative overflow-hidden group bg-gradient-to-br from-indigo-500 to-indigo-600 text-white cursor-pointer h-full flex flex-col hover:-translate-y-1 duration-300">
+                            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                                <CalendarRange className="w-20 h-20 -mr-4 -mt-4 text-white" />
+                            </div>
+                            <CardHeader className="pb-2 relative z-10">
+                                <CardTitle className="text-sm font-medium text-white/90 flex items-center gap-2">
+                                    <CalendarRange className="h-4 w-4 text-white" />
+                                    Kalender Akademik
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="relative z-10 flex-1 flex flex-col justify-end">
+                                <div className="text-xl font-bold text-white drop-shadow-sm">Agenda & Libur</div>
+                                <div className="text-xs text-indigo-100 mt-1">Jadwal penting semester ini.</div>
+                            </CardContent>
+                        </Card>
+                    </Link>
+                )}
+
+                {/* 11. Perizinan Santri */}
+                {allowedWidgets.shortcut_permissions && (
+                    <Link href={route('rfid.scan')} className="block h-full">
+                        <Card className="border-none shadow-md hover:shadow-lg transition-all relative overflow-hidden group bg-gradient-to-br from-amber-600 to-red-600 text-white cursor-pointer h-full flex flex-col hover:-translate-y-1 duration-300">
+                            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                                <Key className="w-20 h-20 -mr-4 -mt-4 text-white" />
+                            </div>
+                            <CardHeader className="pb-2 relative z-10">
+                                <CardTitle className="text-sm font-medium text-white/90 flex items-center gap-2">
+                                    <Key className="h-4 w-4 text-white" />
+                                    Perizinan Santri
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="relative z-10 flex-1 flex flex-col justify-end">
+                                <div className="text-xl font-bold text-white drop-shadow-sm">Surat Izin</div>
+                                <div className="text-xs text-amber-100 mt-1">Status kepulangan & izin keluar.</div>
+                            </CardContent>
+                        </Card>
+                    </Link>
+                )}
                 {/* 8. Angket (Hanya Muncul Jika Ada Yg Aktif) */}
                 {stats.active_angket_count > 0 && (
                     <Link href={route('student.supervisions.index')} className="block h-full">

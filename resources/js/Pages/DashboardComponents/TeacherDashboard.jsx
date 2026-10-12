@@ -12,12 +12,13 @@ import {
 import {
     Users, GraduationCap, Clock, CalendarDays, BookOpen, FilePenLine, User, Calendar,
     Bot, Book, ChevronRight, Sparkles, BarChart2, CalendarRange, Download,
-    SlidersHorizontal, Check, FileText, RotateCcw, X, Layers
+    SlidersHorizontal, Check, FileText, RotateCcw, X, Layers,
+    HeartPulse, Key, BookOpenCheck, Wallet
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { cn } from '@/lib/utils';
 
-// Registry Seluruh Pintasan KBM Tersedia
+// Registry Seluruh Pintasan KBM & Sistem Tersedia
 const ALL_SHORTCUTS = [
     {
         id: 'students',
@@ -29,6 +30,28 @@ const ALL_SHORTCUTS = [
         color: 'from-purple-500 to-indigo-600',
         textColor: 'group-hover:text-purple-600',
         visible: (can, canViewAcademic) => can('view_students') && canViewAcademic,
+    },
+    {
+        id: 'journals',
+        label: 'Jurnal KBM',
+        icon: CalendarDays,
+        route: () => route('journals.index'),
+        category: 'daily',
+        categoryLabel: 'Harian',
+        color: 'from-amber-500 to-amber-600',
+        textColor: 'group-hover:text-amber-600',
+        visible: (can) => can('view_journals'),
+    },
+    {
+        id: 'schedule',
+        label: 'Jadwal KBM',
+        icon: Clock,
+        route: () => route('academic.schedules.index'),
+        category: 'daily',
+        categoryLabel: 'Harian',
+        color: 'from-cyan-500 to-blue-600',
+        textColor: 'group-hover:text-cyan-600',
+        visible: (can) => can('view_academic_schedules'),
     },
     {
         id: 'tahfidz',
@@ -62,6 +85,39 @@ const ALL_SHORTCUTS = [
         color: 'from-rose-500 to-pink-600',
         textColor: 'group-hover:text-rose-600',
         visible: () => true,
+    },
+    {
+        id: 'quran',
+        label: "Al-Qur'an",
+        icon: BookOpenCheck,
+        route: () => route('quran.index'),
+        category: 'daily',
+        categoryLabel: 'Tahfidz',
+        color: 'from-emerald-500 to-teal-600',
+        textColor: 'group-hover:text-emerald-600',
+        visible: () => true,
+    },
+    {
+        id: 'health',
+        label: 'Kesehatan',
+        icon: HeartPulse,
+        route: () => route('health.records.index'),
+        category: 'daily',
+        categoryLabel: 'Pengasuhan',
+        color: 'from-rose-500 to-pink-600',
+        textColor: 'group-hover:text-rose-600',
+        visible: (can) => can('view_health_records') || can('view_health_stats') || can('create_health_record'),
+    },
+    {
+        id: 'permissions',
+        label: 'Perizinan',
+        icon: Key,
+        route: () => route('rfid.scan'),
+        category: 'daily',
+        categoryLabel: 'Pengasuhan',
+        color: 'from-amber-600 to-red-600',
+        textColor: 'group-hover:text-amber-600',
+        visible: (can) => can('view_permissions'),
     },
     {
         id: 'silabus',
@@ -119,6 +175,28 @@ const ALL_SHORTCUTS = [
         visible: () => true,
     },
     {
+        id: 'profile',
+        label: 'Profil Saya',
+        icon: User,
+        route: () => route('profile.edit'),
+        category: 'utility',
+        categoryLabel: 'Akun',
+        color: 'from-purple-500 to-indigo-600',
+        textColor: 'group-hover:text-purple-600',
+        visible: () => true,
+    },
+    {
+        id: 'finance',
+        label: 'Keuangan',
+        icon: Wallet,
+        route: () => '#',
+        category: 'utility',
+        categoryLabel: 'Akun',
+        color: 'from-emerald-600 to-teal-700',
+        textColor: 'group-hover:text-emerald-600',
+        visible: (can) => can('menu_finance') || can('view_payments'),
+    },
+    {
         id: 'install_app',
         label: 'Pasang App',
         icon: Download,
@@ -131,7 +209,7 @@ const ALL_SHORTCUTS = [
     },
 ];
 
-const DEFAULT_ENABLED = ['students', 'tahfidz', 'skrining', 'ikhtabir', 'silabus', 'grades', 'recap', 'calendar'];
+const DEFAULT_ENABLED = ['students', 'journals', 'schedule', 'tahfidz', 'skrining', 'ikhtabir', 'silabus', 'grades', 'recap', 'calendar'];
 
 export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} }) {
     const { auth } = usePage().props;
@@ -156,6 +234,7 @@ export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} 
     );
 
     // Helper to check whether admin explicitly enabled or disabled this shortcut for this role
+    const hasConfiguredWidgets = Object.keys(allowedWidgets).length > 0;
     const isAllowedByAdmin = (shortcutId) => {
         if (allowedWidgets[`shortcut_${shortcutId}`] !== undefined) {
             return Boolean(allowedWidgets[`shortcut_${shortcutId}`]);
@@ -163,7 +242,7 @@ export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} 
         if (allowedWidgets[shortcutId] !== undefined) {
             return Boolean(allowedWidgets[shortcutId]);
         }
-        return true;
+        return !hasConfiguredWidgets;
     };
 
     // Filter Mode: 'daily' | 'period' | 'all'

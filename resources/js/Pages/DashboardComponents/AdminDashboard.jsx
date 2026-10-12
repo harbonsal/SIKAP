@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Com
 import { 
     Users, GraduationCap, School, Activity, CalendarDays, User, Calendar, 
     Heart, Stethoscope, FileText, Search, ClipboardCheck, Book, BookOpen, 
-    HeartPulse, BarChart2, CalendarRange, Sparkles, Bot, BookOpenCheck, Key, Plus 
+    HeartPulse, BarChart2, CalendarRange, Sparkles, Bot, BookOpenCheck, Key, Plus,
+    Wallet, Download
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -118,7 +119,7 @@ export default function AdminDashboard({ stats, allowedWidgets = {}, activities 
             alias: 'recap',
             title: 'Rekap Nilai Kelas',
             subtitle: 'Capaian Per Rombel',
-            href: route('assessments.index'),
+            href: route('recap.class.index'),
             icon: BarChart2,
             gradient: 'from-indigo-500 to-indigo-600',
             borderHover: 'hover:border-indigo-200',
@@ -216,7 +217,7 @@ export default function AdminDashboard({ stats, allowedWidgets = {}, activities 
             alias: 'ikhtabir',
             title: 'Tes Mandiri AI (Ikhtabir)',
             subtitle: 'Uji Sambung Ayat AI',
-            href: route('quran.index'),
+            href: route('ikhtabir-nafsi.index'),
             icon: Bot,
             gradient: 'from-cyan-500 to-blue-600',
             borderHover: 'hover:border-cyan-200',
@@ -278,6 +279,34 @@ export default function AdminDashboard({ stats, allowedWidgets = {}, activities 
             borderHover: 'hover:border-amber-200',
             textHover: 'group-hover:text-amber-700',
             shadow: 'shadow-amber-500/30 ring-amber-50',
+            default: false,
+        },
+        // 19. Keuangan & Tagihan
+        {
+            id: 'shortcut_finance',
+            alias: 'finance',
+            title: 'Keuangan & SPP',
+            subtitle: 'Tagihan & Informasi',
+            href: '#',
+            icon: Wallet,
+            gradient: 'from-emerald-600 to-teal-700',
+            borderHover: 'hover:border-emerald-200',
+            textHover: 'group-hover:text-emerald-700',
+            shadow: 'shadow-emerald-500/30 ring-emerald-50',
+            default: false,
+        },
+        // 20. Pasang Aplikasi PWA
+        {
+            id: 'shortcut_install_app',
+            alias: 'install_app',
+            title: 'Pasang Aplikasi',
+            subtitle: 'PWA Mobile & Desktop',
+            href: '#install-pwa',
+            icon: Download,
+            gradient: 'from-slate-700 to-indigo-800',
+            borderHover: 'hover:border-indigo-200',
+            textHover: 'group-hover:text-indigo-700',
+            shadow: 'shadow-indigo-500/30 ring-indigo-50',
             default: false,
         },
     ];
