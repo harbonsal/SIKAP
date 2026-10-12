@@ -137,6 +137,20 @@ class HandleInertiaRequests extends Middleware
                         ])));
                     }
 
+                    // Dynamic Permission Injection for Bagian Kesehatan
+                    if (in_array('Bagian Kesehatan', $roles)) {
+                        $healthPermissions = [
+                            'menu_care',
+                            'create_health_record',
+                            'view_health_stats',
+                            'view_health_records',
+                            'edit_health_records',
+                            'delete_health_records',
+                            'view_students',
+                        ];
+                        $permissions = array_values(array_unique(array_merge($permissions, $healthPermissions)));
+                    }
+
                     if ($isCurrentHomeroomTeacher) {
                         $permissions = array_values(array_unique(array_merge($permissions, [
                             'menu_dashboard',

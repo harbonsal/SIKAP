@@ -328,6 +328,13 @@ class AccessControlController extends Controller
                             $parentP = Permission::firstOrCreate(['name' => $feat['parent_menu']]);
                             $permsToAttach[] = $parentP->id;
                         }
+
+                        if ($featKey === 'shortcut_health') {
+                            $permsToAttach[] = Permission::firstOrCreate(['name' => 'create_health_record'])->id;
+                            $permsToAttach[] = Permission::firstOrCreate(['name' => 'view_health_stats'])->id;
+                            $permsToAttach[] = Permission::firstOrCreate(['name' => 'view_health_records'])->id;
+                            $permsToAttach[] = Permission::firstOrCreate(['name' => 'menu_care'])->id;
+                        }
                     }
                 }
 

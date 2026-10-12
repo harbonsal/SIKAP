@@ -422,13 +422,14 @@ class DashboardController extends Controller
             ];
         }
 
-        $userWidgets = $user->userLevel?->widgets ?? $defaultWidgets;
+        $hasCustomWidgets = !empty($user->userLevel?->widgets) && is_array($user->userLevel->widgets);
+        $userWidgets = $hasCustomWidgets ? $user->userLevel->widgets : $defaultWidgets;
 
         // [Feature] Manager Tahfidz Widget Injection
-        // If user has 'Manager Tahfidz' role (either primary or additional), inject specific shortcuts
+        // If user has 'Manager Tahfidz' role (either primary or additional), inject specific shortcuts if not custom configured
         $isManagerTahfidz = ($user->userLevel?->name === 'Manager Tahfidz') || $user->additionalLevels->contains('name', 'Manager Tahfidz');
 
-        if (($dashboardType === 'Admin' || $dashboardType === 'Teacher') && $isManagerTahfidz) {
+        if (($dashboardType === 'Admin' || $dashboardType === 'Teacher') && $isManagerTahfidz && !$hasCustomWidgets) {
             $userWidgets = array_merge($userWidgets, [
                 'shortcut_tahfidz_grades' => true,
                 'shortcut_tahfidz_recap' => true,
@@ -437,20 +438,22 @@ class DashboardController extends Controller
         }
 
         // [Feature] Generic Academic Shortcuts based on Permission
-        // Allows any role (e.g. Manager Tahfidz) to access academic tools if they have permission
-        if ($dashboardType !== 'Teacher') {
-            if ($user->hasPermission('view_journals')) {
-                $userWidgets['shortcut_journals'] = true;
+        // Only inject fallback academic shortcuts if the role DOES NOT have custom configured widgets
+        if (!$hasCustomWidgets) {
+            if ($dashboardType !== 'Teacher') {
+                if ($user->hasPermission('view_journals')) {
+                    $userWidgets['shortcut_journals'] = true;
+                }
+                if ($user->hasPermission('view_assessments')) {
+                    $userWidgets['shortcut_grades'] = true;
+                }
+                if ($user->hasPermission('view_silabus')) {
+                    $userWidgets['shortcut_silabus'] = true;
+                }
+            } else {
+                // Force enable these for teachers if they are somehow missing from default widgets but valid for role
+                $userWidgets['shortcut_tahfidz'] = $isTahfidzExamPeriod;
             }
-            if ($user->hasPermission('view_assessments')) {
-                $userWidgets['shortcut_grades'] = true;
-            }
-            if ($user->hasPermission('view_silabus')) {
-                $userWidgets['shortcut_silabus'] = true;
-            }
-        } else {
-            // Force enable these for teachers if they are somehow missing from default widgets but valid for role
-            $userWidgets['shortcut_tahfidz'] = $isTahfidzExamPeriod;
         }
 
         // [Feature] "Bagian Kesehatan" Widget Injection
@@ -470,11 +473,13 @@ class DashboardController extends Controller
                 ->limit(1)
                 ->value('name') ?? '-';
 
-            $userWidgets = array_merge($userWidgets, [
-                'health_stats_widget' => true,
-                'shortcut_health_search' => true,
-                'shortcut_health_biodata' => true,
-            ]);
+            // Ensure health shortcuts are enabled for Bagian Kesehatan unless explicitly disabled as false
+            if (!isset($userWidgets['shortcut_health']) || $userWidgets['shortcut_health'] === true) {
+                $userWidgets['shortcut_health'] = true;
+            }
+            if (!isset($userWidgets['health_stats_widget'])) {
+                $userWidgets['health_stats_widget'] = true;
+            }
         }
 
         return Inertia::render('Dashboard', [

@@ -1,7 +1,11 @@
 
 import { Link, usePage } from '@inertiajs/react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
-import { Users, GraduationCap, School, Activity, CalendarDays, User, Calendar, Heart, Stethoscope, FileText, Search, ClipboardCheck, Book, BookOpen } from 'lucide-react';
+import { 
+    Users, GraduationCap, School, Activity, CalendarDays, User, Calendar, 
+    Heart, Stethoscope, FileText, Search, ClipboardCheck, Book, BookOpen, 
+    HeartPulse, BarChart2, CalendarRange, Sparkles, Bot, BookOpenCheck, Key, Plus 
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function AdminDashboard({ stats, allowedWidgets = {}, activities = [] }) {
@@ -11,6 +15,276 @@ export default function AdminDashboard({ stats, allowedWidgets = {}, activities 
     const showWelcome = allowedWidgets.welcome_card ?? true;
     const showStats = allowedWidgets.stats_cards ?? true;
     const showActivity = allowedWidgets.activity_feed ?? true;
+
+    // Helper to check if shortcut is enabled
+    const hasConfiguredWidgets = Object.keys(allowedWidgets).length > 0;
+    const isAllowed = (key, alias = null, defaultVal = false) => {
+        if (allowedWidgets[key] !== undefined) return Boolean(allowedWidgets[key]);
+        if (alias && allowedWidgets[alias] !== undefined) return Boolean(allowedWidgets[alias]);
+        // If the role has custom widgets saved in the matrix, items not explicitly true are false
+        return hasConfiguredWidgets ? false : defaultVal;
+    };
+
+    const shortcutDefinitions = [
+        // 1. Profil Saya & Sandi
+        {
+            id: 'shortcut_profile',
+            alias: 'profile',
+            title: 'Profil Saya',
+            subtitle: 'Edit Akun & Password',
+            href: route('profile.edit'),
+            icon: User,
+            gradient: 'from-purple-500 to-purple-600',
+            borderHover: 'hover:border-purple-200',
+            textHover: 'group-hover:text-purple-700',
+            shadow: 'shadow-purple-500/30 ring-purple-50',
+            default: true,
+        },
+        // 2. Kesehatan Santri (UKS) - Prioritas untuk Bagian Kesehatan & UKS
+        {
+            id: 'shortcut_health',
+            alias: 'health',
+            title: 'Kesehatan Santri (UKS)',
+            subtitle: 'Catatan Sakit & Berobat',
+            href: route('health.records.index'),
+            secondaryHref: route('health.records.create'),
+            secondaryLabel: '+ Input Sakit',
+            icon: HeartPulse,
+            gradient: 'from-rose-500 to-rose-600',
+            borderHover: 'hover:border-rose-200',
+            textHover: 'group-hover:text-rose-700',
+            shadow: 'shadow-rose-500/30 ring-rose-50',
+            default: false,
+        },
+        // 3. Jadwal KBM & Guru
+        {
+            id: 'shortcut_schedule',
+            alias: 'schedule',
+            title: 'Jadwal Pelajaran',
+            subtitle: 'Jadwal KBM & Guru',
+            href: route('academic.schedules.index'),
+            icon: Calendar,
+            gradient: 'from-cyan-500 to-cyan-600',
+            borderHover: 'hover:border-cyan-200',
+            textHover: 'group-hover:text-cyan-700',
+            shadow: 'shadow-cyan-500/30 ring-cyan-50',
+            default: false,
+        },
+        // 4. Absensi & Jurnal
+        {
+            id: 'shortcut_journals',
+            alias: 'journals',
+            title: 'Absensi & Jurnal',
+            subtitle: 'Absensi & Materi',
+            href: route('journals.index'),
+            icon: CalendarDays,
+            gradient: 'from-amber-500 to-amber-600',
+            borderHover: 'hover:border-amber-200',
+            textHover: 'group-hover:text-amber-700',
+            shadow: 'shadow-amber-500/30 ring-amber-50',
+            default: false,
+        },
+        // 5. Input Nilai Siswa
+        {
+            id: 'shortcut_grades',
+            alias: 'grades',
+            title: 'Input Nilai',
+            subtitle: 'Akademik & Ujian',
+            href: route('assessments.index'),
+            icon: GraduationCap,
+            gradient: 'from-emerald-500 to-emerald-600',
+            borderHover: 'hover:border-emerald-200',
+            textHover: 'group-hover:text-emerald-700',
+            shadow: 'shadow-emerald-500/30 ring-emerald-50',
+            default: false,
+        },
+        // 6. Silabus & RPP / Modul
+        {
+            id: 'shortcut_silabus',
+            alias: 'silabus',
+            title: 'Silabus',
+            subtitle: 'Rencana Pembelajaran',
+            href: route('silabus.index'),
+            icon: Activity,
+            gradient: 'from-blue-500 to-blue-600',
+            borderHover: 'hover:border-blue-200',
+            textHover: 'group-hover:text-blue-700',
+            shadow: 'shadow-blue-500/30 ring-blue-50',
+            default: false,
+        },
+        // 7. Rekap Nilai Kelas
+        {
+            id: 'shortcut_recap',
+            alias: 'recap',
+            title: 'Rekap Nilai Kelas',
+            subtitle: 'Capaian Per Rombel',
+            href: route('assessments.index'),
+            icon: BarChart2,
+            gradient: 'from-indigo-500 to-indigo-600',
+            borderHover: 'hover:border-indigo-200',
+            textHover: 'group-hover:text-indigo-700',
+            shadow: 'shadow-indigo-500/30 ring-indigo-50',
+            default: false,
+        },
+        // 8. Cetak & Pantau Rapor
+        {
+            id: 'shortcut_reports',
+            alias: 'reports',
+            title: 'Cetak & Pantau Rapor',
+            subtitle: 'Buku Rapor Santri',
+            href: route('reports.index'),
+            icon: FileText,
+            gradient: 'from-violet-500 to-violet-600',
+            borderHover: 'hover:border-violet-200',
+            textHover: 'group-hover:text-violet-700',
+            shadow: 'shadow-violet-500/30 ring-violet-50',
+            default: false,
+        },
+        // 9. Penilaian Tahfidz
+        {
+            id: 'shortcut_tahfidz',
+            alias: 'shortcut_tahfidz_grades',
+            title: 'Penilaian Tahfidz',
+            subtitle: 'Akses Semua Kelas',
+            href: route('tahfidz.assessments.index'),
+            icon: School,
+            gradient: 'from-teal-500 to-teal-600',
+            borderHover: 'hover:border-teal-200',
+            textHover: 'group-hover:text-teal-700',
+            shadow: 'shadow-teal-500/30 ring-teal-50',
+            default: false,
+        },
+        // 10. Rekap Tahfidz
+        {
+            id: 'shortcut_tahfidz_recap',
+            alias: 'tahfidz_recap',
+            title: 'Rekap Tahfidz',
+            subtitle: 'Laporan & Progress',
+            href: route('tahfidz.recap.index'),
+            icon: Activity,
+            gradient: 'from-lime-500 to-lime-600',
+            borderHover: 'hover:border-lime-200',
+            textHover: 'group-hover:text-lime-700',
+            shadow: 'shadow-lime-500/30 ring-lime-50',
+            default: false,
+        },
+        // 11. Plotting Penguji Tahfidz
+        {
+            id: 'shortcut_tahfidz_testers',
+            alias: 'tahfidz_testers',
+            title: 'Plotting Penguji',
+            subtitle: 'Atur Penguji Tahfidz',
+            href: route('settings.tahfidz.index'),
+            icon: Users,
+            gradient: 'from-orange-500 to-orange-600',
+            borderHover: 'hover:border-orange-200',
+            textHover: 'group-hover:text-orange-700',
+            shadow: 'shadow-orange-500/30 ring-orange-50',
+            default: false,
+        },
+        // 12. Pantauan Halaqoh
+        {
+            id: 'shortcut_tahfidz_monitoring',
+            alias: 'tahfidz_monitoring',
+            title: 'Pantauan halaqoh',
+            subtitle: 'Lembar Pantauan',
+            href: route('tahfidz.monitoring.index'),
+            icon: ClipboardCheck,
+            gradient: 'from-pink-500 to-pink-600',
+            borderHover: 'hover:border-pink-200',
+            textHover: 'group-hover:text-pink-700',
+            shadow: 'shadow-pink-500/30 ring-pink-50',
+            default: false,
+        },
+        // 13. Skrining Hafalan Santri
+        {
+            id: 'shortcut_skrining',
+            alias: 'skrining',
+            title: 'Skrining Hafalan Santri',
+            subtitle: 'Verifikasi & Uji Juz',
+            href: route('tahfidz.pantau-skrining'),
+            icon: Sparkles,
+            gradient: 'from-amber-500 to-yellow-600',
+            borderHover: 'hover:border-yellow-200',
+            textHover: 'group-hover:text-yellow-700',
+            shadow: 'shadow-amber-500/30 ring-amber-50',
+            default: false,
+        },
+        // 14. Tes Mandiri AI (Ikhtabir)
+        {
+            id: 'shortcut_ikhtabir',
+            alias: 'ikhtabir',
+            title: 'Tes Mandiri AI (Ikhtabir)',
+            subtitle: 'Uji Sambung Ayat AI',
+            href: route('quran.index'),
+            icon: Bot,
+            gradient: 'from-cyan-500 to-blue-600',
+            borderHover: 'hover:border-cyan-200',
+            textHover: 'group-hover:text-cyan-700',
+            shadow: 'shadow-cyan-500/30 ring-cyan-50',
+            default: false,
+        },
+        // 15. Al-Qur'an Digital
+        {
+            id: 'shortcut_quran',
+            alias: 'quran',
+            title: "Al-Qur'an Digital",
+            subtitle: 'Mushaf & Murajaah',
+            href: route('quran.index'),
+            icon: BookOpenCheck,
+            gradient: 'from-emerald-500 to-teal-600',
+            borderHover: 'hover:border-emerald-200',
+            textHover: 'group-hover:text-emerald-700',
+            shadow: 'shadow-emerald-500/30 ring-emerald-50',
+            default: false,
+        },
+        // 16. Kalender Akademik
+        {
+            id: 'shortcut_calendar',
+            alias: 'calendar',
+            title: 'Kalender Pendidikan',
+            subtitle: 'Agenda & KBM',
+            href: route('academic-calendar.index'),
+            icon: CalendarRange,
+            gradient: 'from-indigo-500 to-indigo-600',
+            borderHover: 'hover:border-indigo-200',
+            textHover: 'group-hover:text-indigo-700',
+            shadow: 'shadow-indigo-500/30 ring-indigo-50',
+            default: true,
+        },
+        // 17. Direktori & Biodata Santri
+        {
+            id: 'shortcut_students',
+            alias: 'shortcut_health_biodata',
+            title: 'Cari & Biodata Santri',
+            subtitle: 'Data & Pencarian',
+            href: route('students.index'),
+            icon: Users,
+            gradient: 'from-blue-500 to-blue-600',
+            borderHover: 'hover:border-blue-200',
+            textHover: 'group-hover:text-blue-700',
+            shadow: 'shadow-blue-500/30 ring-blue-50',
+            default: false,
+        },
+        // 18. Perizinan Santri
+        {
+            id: 'shortcut_permissions',
+            alias: 'permissions',
+            title: 'Perizinan Santri',
+            subtitle: 'Surat Izin & RFID',
+            href: route('rfid.scan'),
+            icon: Key,
+            gradient: 'from-amber-600 to-red-600',
+            borderHover: 'hover:border-amber-200',
+            textHover: 'group-hover:text-amber-700',
+            shadow: 'shadow-amber-500/30 ring-amber-50',
+            default: false,
+        },
+    ];
+
+    const activeShortcuts = shortcutDefinitions.filter(item => 
+        isAllowed(item.id, item.alias, item.default)
+    );
 
     return (
         <div className="space-y-8">
@@ -51,149 +325,52 @@ export default function AdminDashboard({ stats, allowedWidgets = {}, activities 
                             </div>
                         </CardHeader>
                         <CardContent className="p-6">
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                                {/* 1. Profil Saya */}
-                                {allowedWidgets.shortcut_profile && (
-                                    <Link href={route('profile.edit')}>
-                                        <div className="group flex flex-col items-center justify-center p-6 bg-white rounded-2xl border border-slate-100 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-purple-200 h-full relative overflow-hidden">
-                                            <div className="bg-gradient-to-br from-purple-400 to-purple-600 text-white p-4 rounded-xl mb-4 shadow-lg shadow-purple-500/30 ring-4 ring-purple-50 group-hover:scale-110 transition-transform duration-300 relative z-10">
-                                                <User className="h-7 w-7 drop-shadow-sm" />
+                            {activeShortcuts.length > 0 ? (
+                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                                    {activeShortcuts.map((sc) => {
+                                        const Icon = sc.icon;
+                                        return (
+                                            <div key={sc.id} className="relative group flex flex-col">
+                                                <Link href={sc.href} className="block flex-1">
+                                                    <div className={cn(
+                                                        "group flex flex-col items-center justify-center p-6 bg-white rounded-2xl border border-slate-100 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 h-full relative overflow-hidden",
+                                                        sc.borderHover
+                                                    )}>
+                                                        <div className={cn(
+                                                            "bg-gradient-to-br text-white p-4 rounded-xl mb-4 shadow-lg ring-4 group-hover:scale-110 transition-transform duration-300 relative z-10",
+                                                            sc.gradient,
+                                                            sc.shadow
+                                                        )}>
+                                                            <Icon className="h-7 w-7 drop-shadow-sm" />
+                                                        </div>
+                                                        <h4 className={cn("font-bold text-slate-800 transition-colors relative z-10 text-center line-clamp-1", sc.textHover)}>
+                                                            {sc.title}
+                                                        </h4>
+                                                        <p className="text-xs text-center text-slate-500 mt-1 relative z-10 line-clamp-1">
+                                                            {sc.subtitle}
+                                                        </p>
+                                                    </div>
+                                                </Link>
+                                                {sc.secondaryHref && (
+                                                    <div className="mt-2 text-center">
+                                                        <Link
+                                                            href={sc.secondaryHref}
+                                                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 px-3 py-1 rounded-full border border-rose-200 transition-colors shadow-sm"
+                                                        >
+                                                            <Plus className="w-3.5 h-3.5" />
+                                                            {sc.secondaryLabel || 'Input Baru'}
+                                                        </Link>
+                                                    </div>
+                                                )}
                                             </div>
-                                            <h4 className="font-bold text-slate-800 group-hover:text-purple-700 transition-colors relative z-10">Profil Saya</h4>
-                                            <p className="text-xs text-center text-slate-500 mt-1 relative z-10">Edit Akun & Password</p>
-                                        </div>
-                                    </Link>
-                                )}
-
-                                {/* 2. Jadwal Pelajaran (Hide for Bagian Kesehatan) */}
-                                {(!allowedWidgets.health_stats_widget) && (
-                                    <Link href={route('academic.schedules.index')}>
-                                        <div className="group flex flex-col items-center justify-center p-6 bg-white rounded-2xl border border-slate-100 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-cyan-200 h-full relative overflow-hidden">
-                                            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-cyan-100/40 to-transparent rounded-bl-full -z-10 group-hover:scale-110 transition-transform duration-500"></div>
-                                            <div className="p-4 bg-gradient-to-br from-cyan-400 to-cyan-600 rounded-xl mb-4 text-white shadow-lg shadow-cyan-200 group-hover:shadow-cyan-300 group-hover:-translate-y-1 transition-all duration-300 relative z-10">
-                                                <Calendar className="h-7 w-7 drop-shadow-sm" />
-                                            </div>
-                                            <h4 className="font-bold text-slate-800 group-hover:text-cyan-700 transition-colors relative z-10">Jadwal Pelajaran</h4>
-                                            <p className="text-xs text-center text-slate-500 mt-1 relative z-10">Jadwal KBM & Guru</p>
-                                        </div>
-                                    </Link>
-                                )}
-
-                                {/* 3. Absensi & Jurnal */}
-                                {(allowedWidgets.shortcut_journals ?? false) && (
-                                    <Link href={route('journals.index')}>
-                                        <div className="group flex flex-col items-center justify-center p-6 bg-white rounded-2xl border border-slate-100 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-amber-200 h-full relative overflow-hidden">
-                                            <div className="bg-gradient-to-br from-amber-400 to-amber-600 text-white p-4 rounded-xl mb-4 shadow-lg shadow-amber-500/30 ring-4 ring-amber-50 group-hover:scale-110 transition-transform duration-300 relative z-10">
-                                                <CalendarDays className="h-7 w-7 drop-shadow-sm" />
-                                            </div>
-                                            <h4 className="font-bold text-slate-800 group-hover:text-amber-700 transition-colors relative z-10">Absensi & Jurnal</h4>
-                                            <p className="text-xs text-center text-slate-500 mt-1 relative z-10">Absensi & Materi</p>
-                                        </div>
-                                    </Link>
-                                )}
-
-                                {/* 4. Input Nilai */}
-                                {(allowedWidgets.shortcut_grades ?? false) && (
-                                    <Link href={route('assessments.index')}>
-                                        <div className="group flex flex-col items-center justify-center p-6 bg-white rounded-2xl border border-slate-100 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-emerald-200 h-full relative overflow-hidden">
-                                            <div className="bg-gradient-to-br from-emerald-400 to-emerald-600 text-white p-4 rounded-xl mb-4 shadow-lg shadow-emerald-500/30 ring-4 ring-emerald-50 group-hover:scale-110 transition-transform duration-300 relative z-10">
-                                                <GraduationCap className="h-7 w-7 drop-shadow-sm" />
-                                            </div>
-                                            <h4 className="font-bold text-slate-800 group-hover:text-emerald-700 transition-colors relative z-10">Input Nilai</h4>
-                                            <p className="text-xs text-center text-slate-500 mt-1 relative z-10">Akademik & Ujian</p>
-                                        </div>
-                                    </Link>
-                                )}
-
-                                {/* 4b. Silabus */}
-                                {(allowedWidgets.shortcut_silabus ?? false) && (
-                                    <Link href={route('silabus.index')}>
-                                        <div className="group flex flex-col items-center justify-center p-6 bg-white rounded-2xl border border-slate-100 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-blue-200 h-full relative overflow-hidden">
-                                            <div className="bg-gradient-to-br from-blue-400 to-blue-600 text-white p-4 rounded-xl mb-4 shadow-lg shadow-blue-500/30 ring-4 ring-blue-50 group-hover:scale-110 transition-transform duration-300 relative z-10">
-                                                <Activity className="h-7 w-7 drop-shadow-sm" />
-                                            </div>
-                                            <h4 className="font-bold text-slate-800 group-hover:text-blue-700 transition-colors relative z-10">Silabus</h4>
-                                            <p className="text-xs text-center text-slate-500 mt-1 relative z-10">Rencana Pembelajaran</p>
-                                        </div>
-                                    </Link>
-                                )}
-
-                                {/* [Manager Tahfidz] 5. Penilaian Tahfidz */}
-                                {(allowedWidgets.shortcut_tahfidz_grades ?? false) && (
-                                    <Link href={route('tahfidz.assessments.index')}>
-                                        <div className="group flex flex-col items-center justify-center p-6 bg-white rounded-2xl border border-slate-100 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-teal-200 h-full relative overflow-hidden">
-                                            <div className="bg-gradient-to-br from-teal-400 to-teal-600 text-white p-4 rounded-xl mb-4 shadow-lg shadow-teal-500/30 ring-4 ring-teal-50 group-hover:scale-110 transition-transform duration-300 relative z-10">
-                                                <School className="h-7 w-7 drop-shadow-sm" />
-                                            </div>
-                                            <h4 className="font-bold text-slate-800 group-hover:text-teal-700 transition-colors relative z-10">Nilai Tahfidz</h4>
-                                            <p className="text-xs text-center text-slate-500 mt-1 relative z-10">Akses Semua Kelas</p>
-                                        </div>
-                                    </Link>
-                                )}
-
-                                {/* [Manager Tahfidz] 6. Rekap Tahfidz */}
-                                {(allowedWidgets.shortcut_tahfidz_recap ?? false) && (
-                                    <Link href={route('tahfidz.recap.index')}>
-                                        <div className="group flex flex-col items-center justify-center p-6 bg-white rounded-2xl border border-slate-100 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-lime-200 h-full relative overflow-hidden">
-                                            <div className="bg-gradient-to-br from-lime-400 to-lime-600 text-white p-4 rounded-xl mb-4 shadow-lg shadow-lime-500/30 ring-4 ring-lime-50 group-hover:scale-110 transition-transform duration-300 relative z-10">
-                                                <Activity className="h-7 w-7 drop-shadow-sm" />
-                                            </div>
-                                            <h4 className="font-bold text-slate-800 group-hover:text-lime-700 transition-colors relative z-10">Rekap Tahfidz</h4>
-                                            <p className="text-xs text-center text-slate-500 mt-1 relative z-10">Laporan & Progress</p>
-                                        </div>
-                                    </Link>
-                                )}
-
-                                {/* [Manager Tahfidz] 7. Plotting Penguji */}
-                                {(allowedWidgets.shortcut_tahfidz_testers ?? false) && (
-                                    <Link href={route('settings.tahfidz.index')}>
-                                        <div className="group flex flex-col items-center justify-center p-6 bg-white rounded-2xl border border-slate-100 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-orange-200 h-full relative overflow-hidden">
-                                            <div className="bg-gradient-to-br from-orange-400 to-orange-600 text-white p-4 rounded-xl mb-4 shadow-lg shadow-orange-500/30 ring-4 ring-orange-50 group-hover:scale-110 transition-transform duration-300 relative z-10">
-                                                <Users className="h-7 w-7 drop-shadow-sm" />
-                                            </div>
-                                            <h4 className="font-bold text-slate-800 group-hover:text-orange-700 transition-colors relative z-10">Plotting Penguji</h4>
-                                            <p className="text-xs text-center text-slate-500 mt-1 relative z-10">Atur Penguji</p>
-                                        </div>
-                                    </Link>
-                                )}
-
-                                {/* [Manager Tahfidz] 7b. Pantauan Halaqoh */}
-                                {(allowedWidgets.shortcut_tahfidz_monitoring ?? true) && (
-                                    <Link href={route('tahfidz.monitoring.index')}>
-                                        <div className="group flex flex-col items-center justify-center p-6 bg-white rounded-2xl border border-slate-100 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-pink-200 h-full relative overflow-hidden">
-                                            <div className="bg-gradient-to-br from-pink-400 to-pink-600 text-white p-4 rounded-xl mb-4 shadow-lg shadow-pink-500/30 ring-4 ring-pink-50 group-hover:scale-110 transition-transform duration-300 relative z-10">
-                                                <ClipboardCheck className="h-7 w-7 drop-shadow-sm" />
-                                            </div>
-                                            <h4 className="font-bold text-slate-800 group-hover:text-pink-700 transition-colors relative z-10">Pantauan halaqoh</h4>
-                                            <p className="text-xs text-center text-slate-500 mt-1 relative z-10">Lembar Pantauan</p>
-                                        </div>
-                                    </Link>
-                                )}
-
-                                {/* 8. Kalender Pendidikan (Kaldik) */}
-                                <Link href={route('academic-calendar.index')}>
-                                    <div className="group flex flex-col items-center justify-center p-6 bg-white rounded-2xl border border-slate-100 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-indigo-200 h-full relative overflow-hidden">
-                                        <div className="bg-gradient-to-br from-indigo-400 to-indigo-600 text-white p-4 rounded-xl mb-4 shadow-lg shadow-indigo-500/30 ring-4 ring-indigo-50 group-hover:scale-110 transition-transform duration-300 relative z-10">
-                                            <Calendar className="h-7 w-7 drop-shadow-sm" />
-                                        </div>
-                                        <h4 className="font-bold text-slate-800 group-hover:text-indigo-700 transition-colors relative z-10">Kalender Pendidikan</h4>
-                                        <p className="text-xs text-center text-slate-500 mt-1 relative z-10">Agenda & KBM</p>
-                                    </div>
-                                </Link>
-
-                                {/* 9. Cari & Biodata Santri */}
-                                {(allowedWidgets.shortcut_health_biodata ?? true) && (
-                                    <Link href={route('students.index')}>
-                                        <div className="group flex flex-col items-center justify-center p-6 bg-white rounded-2xl border border-slate-100 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-blue-200 h-full relative overflow-hidden">
-                                            <div className="bg-gradient-to-br from-blue-400 to-blue-600 text-white p-4 rounded-xl mb-4 shadow-lg shadow-blue-500/30 ring-4 ring-blue-50 group-hover:scale-110 transition-transform duration-300 relative z-10">
-                                                <Users className="h-7 w-7 drop-shadow-sm" />
-                                            </div>
-                                            <h4 className="font-bold text-slate-800 group-hover:text-blue-700 transition-colors relative z-10">Cari & Biodata Santri</h4>
-                                            <p className="text-xs text-center text-slate-500 mt-1 relative z-10">Data & Pencarian</p>
-                                        </div>
-                                    </Link>
-                                )}
-                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="p-8 text-center text-slate-400 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                                    <p className="text-sm">Tidak ada pintasan aktif. Anda dapat mengaktifkannya di Pengaturan Hak Akses.</p>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
