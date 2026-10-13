@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 const ALL_SHORTCUTS = [
     {
         id: 'students',
+        alias: 'students',
         label: 'Santri',
         icon: Users,
         route: () => route('students.index', { my_students: 1, status: 'Aktif' }),
@@ -29,10 +30,10 @@ const ALL_SHORTCUTS = [
         categoryLabel: 'Harian',
         color: 'from-purple-500 to-indigo-600',
         textColor: 'group-hover:text-purple-600',
-        visible: (can, canViewAcademic) => can('view_students') && canViewAcademic,
     },
     {
         id: 'journals',
+        alias: 'journals',
         label: 'Jurnal KBM',
         icon: CalendarDays,
         route: () => route('journals.index'),
@@ -40,10 +41,10 @@ const ALL_SHORTCUTS = [
         categoryLabel: 'Harian',
         color: 'from-amber-500 to-amber-600',
         textColor: 'group-hover:text-amber-600',
-        visible: (can) => can('view_journals'),
     },
     {
         id: 'schedule',
+        alias: 'schedule',
         label: 'Jadwal KBM',
         icon: Clock,
         route: () => route('academic.schedules.index'),
@@ -51,10 +52,10 @@ const ALL_SHORTCUTS = [
         categoryLabel: 'Harian',
         color: 'from-cyan-500 to-blue-600',
         textColor: 'group-hover:text-cyan-600',
-        visible: (can) => can('view_academic_schedules'),
     },
     {
         id: 'tahfidz',
+        alias: 'tahfidz',
         label: 'Tahfidz',
         icon: Book,
         route: () => route('tahfidz.assessments.index'),
@@ -62,10 +63,10 @@ const ALL_SHORTCUTS = [
         categoryLabel: 'Harian',
         color: 'from-teal-500 to-emerald-600',
         textColor: 'group-hover:text-teal-600',
-        visible: (can) => can('menu_tahfidz'),
     },
     {
         id: 'skrining',
+        alias: 'skrining',
         label: 'Skrining',
         icon: Sparkles,
         route: () => route('tahfidz.pantau-skrining'),
@@ -73,10 +74,10 @@ const ALL_SHORTCUTS = [
         categoryLabel: 'Harian',
         color: 'from-violet-600 to-purple-700',
         textColor: 'group-hover:text-violet-600',
-        visible: () => true,
     },
     {
         id: 'ikhtabir',
+        alias: 'ikhtabir',
         label: 'Tes AI',
         icon: Bot,
         route: () => route('ikhtabir-nafsi.index'),
@@ -84,10 +85,10 @@ const ALL_SHORTCUTS = [
         categoryLabel: 'Harian',
         color: 'from-rose-500 to-pink-600',
         textColor: 'group-hover:text-rose-600',
-        visible: () => true,
     },
     {
         id: 'quran',
+        alias: 'quran',
         label: "Al-Qur'an",
         icon: BookOpenCheck,
         route: () => route('quran.index'),
@@ -95,10 +96,10 @@ const ALL_SHORTCUTS = [
         categoryLabel: 'Tahfidz',
         color: 'from-emerald-500 to-teal-600',
         textColor: 'group-hover:text-emerald-600',
-        visible: () => true,
     },
     {
         id: 'health',
+        alias: 'health',
         label: 'Kesehatan',
         icon: HeartPulse,
         route: () => route('health.records.index'),
@@ -106,10 +107,10 @@ const ALL_SHORTCUTS = [
         categoryLabel: 'Pengasuhan',
         color: 'from-rose-500 to-pink-600',
         textColor: 'group-hover:text-rose-600',
-        visible: (can) => can('view_health_records') || can('view_health_stats') || can('create_health_record'),
     },
     {
         id: 'permissions',
+        alias: 'permissions',
         label: 'Perizinan',
         icon: Key,
         route: () => route('permissions.index'),
@@ -117,10 +118,10 @@ const ALL_SHORTCUTS = [
         categoryLabel: 'Pengasuhan',
         color: 'from-amber-600 to-red-600',
         textColor: 'group-hover:text-amber-600',
-        visible: (can) => can('view_permissions'),
     },
     {
         id: 'permission_personal',
+        alias: 'permission_personal',
         label: 'Izin Personal',
         icon: UserCheck,
         route: () => route('permissions.create', { type: 'personal' }),
@@ -128,10 +129,10 @@ const ALL_SHORTCUTS = [
         categoryLabel: 'Pengasuhan',
         color: 'from-emerald-600 to-teal-600',
         textColor: 'group-hover:text-emerald-600',
-        visible: (can) => can('create_permissions') || can('view_permissions'),
     },
     {
         id: 'silabus',
+        alias: 'silabus',
         label: 'Silabus',
         icon: BookOpen,
         route: () => route('silabus.index'),
@@ -139,10 +140,10 @@ const ALL_SHORTCUTS = [
         categoryLabel: 'Awal Semester',
         color: 'from-cyan-500 to-blue-600',
         textColor: 'group-hover:text-cyan-600',
-        visible: (can, canViewAcademic) => can('view_silabus') && canViewAcademic,
     },
     {
         id: 'grades',
+        alias: 'grades',
         label: 'Nilai',
         icon: GraduationCap,
         route: () => route('assessments.index'),
@@ -150,10 +151,10 @@ const ALL_SHORTCUTS = [
         categoryLabel: 'Periode Ujian',
         color: 'from-emerald-500 to-teal-600',
         textColor: 'group-hover:text-emerald-600',
-        visible: (can, canViewAcademic) => can('view_assessments') && canViewAcademic,
     },
     {
         id: 'recap',
+        alias: 'recap',
         label: 'Rekap',
         icon: BarChart2,
         route: () => route('recap.class.index'),
@@ -161,10 +162,10 @@ const ALL_SHORTCUTS = [
         categoryLabel: 'Periode Ujian',
         color: 'from-amber-500 to-orange-600',
         textColor: 'group-hover:text-amber-600',
-        visible: (can, canViewAcademic) => can('view_assessments') && canViewAcademic,
     },
     {
         id: 'reports',
+        alias: 'reports',
         label: 'Rapor',
         icon: FileText,
         route: () => route('reports.index'),
@@ -172,10 +173,10 @@ const ALL_SHORTCUTS = [
         categoryLabel: 'Akhir Semester',
         color: 'from-fuchsia-500 to-pink-600',
         textColor: 'group-hover:text-fuchsia-600',
-        visible: (can) => can('view_reports'),
     },
     {
         id: 'calendar',
+        alias: 'calendar',
         label: 'Kalender',
         icon: CalendarRange,
         route: () => route('academic-calendar.index'),
@@ -183,44 +184,41 @@ const ALL_SHORTCUTS = [
         categoryLabel: 'Akademik',
         color: 'from-blue-500 to-sky-600',
         textColor: 'group-hover:text-blue-600',
-        visible: () => true,
     },
     {
         id: 'profile',
+        alias: 'profile',
         label: 'Profil Saya',
         icon: User,
         route: () => route('profile.edit'),
-        category: 'utility',
+        category: 'daily',
         categoryLabel: 'Akun',
         color: 'from-purple-500 to-indigo-600',
         textColor: 'group-hover:text-purple-600',
-        visible: () => true,
     },
     {
         id: 'finance',
+        alias: 'finance',
         label: 'Keuangan',
         icon: Wallet,
         route: () => '#',
-        category: 'utility',
+        category: 'period',
         categoryLabel: 'Akun',
         color: 'from-emerald-600 to-teal-700',
         textColor: 'group-hover:text-emerald-600',
-        visible: (can) => can('menu_finance') || can('view_payments'),
     },
     {
         id: 'install_app',
+        alias: 'install_app',
         label: 'Pasang App',
         icon: Download,
         isAction: true,
-        category: 'utility',
+        category: 'daily',
         categoryLabel: 'PWA',
         color: 'from-slate-600 to-indigo-700',
         textColor: 'group-hover:text-indigo-600',
-        visible: (can, canViewAcademic, isStandalone) => !isStandalone,
     },
 ];
-
-const DEFAULT_ENABLED = ['students', 'journals', 'schedule', 'tahfidz', 'skrining', 'ikhtabir', 'silabus', 'grades', 'recap', 'calendar'];
 
 export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} }) {
     const { auth } = usePage().props;
@@ -244,51 +242,87 @@ export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} 
         navigator.standalone === true
     );
 
-    // Helper to check whether admin explicitly enabled or disabled this shortcut for this role
+    // Cek apakah Admin mengizinkan pintasan ini untuk role Guru
     const hasConfiguredWidgets = Object.keys(allowedWidgets).length > 0;
-    const isAllowedByAdmin = (shortcutId) => {
+    const isAllowedByAdmin = (shortcutId, alias = null) => {
         if (allowedWidgets[`shortcut_${shortcutId}`] !== undefined) {
             return Boolean(allowedWidgets[`shortcut_${shortcutId}`]);
         }
         if (allowedWidgets[shortcutId] !== undefined) {
             return Boolean(allowedWidgets[shortcutId]);
         }
-        return !hasConfiguredWidgets;
+        if (alias && allowedWidgets[`shortcut_${alias}`] !== undefined) {
+            return Boolean(allowedWidgets[`shortcut_${alias}`]);
+        }
+        if (alias && allowedWidgets[alias] !== undefined) {
+            return Boolean(allowedWidgets[alias]);
+        }
+        // Fallback default jika role belum dikonfigurasi sama sekali di admin
+        if (!hasConfiguredWidgets) {
+            const defaultRecommended = [
+                'students', 'journals', 'schedule', 'tahfidz', 'skrining', 
+                'ikhtabir', 'quran', 'silabus', 'grades', 'recap', 'calendar', 'profile'
+            ];
+            return defaultRecommended.includes(shortcutId) || (alias && defaultRecommended.includes(alias));
+        }
+        return false;
     };
+
+    // Seluruh pintasan yang diizinkan Admin untuk peran ini
+    const adminAllowedShortcuts = ALL_SHORTCUTS.filter(s => {
+        if (s.id === 'install_app' && isStandalone) return false;
+        return isAllowedByAdmin(s.id, s.alias);
+    });
 
     // Filter Mode: 'daily' | 'period' | 'all'
     const [filterMode, setFilterMode] = useState(() => {
         if (typeof window !== 'undefined' && user?.id) {
-            return localStorage.getItem(`sikap_shortcut_tab_${user.id}`) || 'daily';
+            return localStorage.getItem(`sikap_shortcut_tab_${user.id}`) || 'all';
         }
-        return 'daily';
+        return 'all';
     });
 
-    // Enabled Shortcut IDs
-    const [enabledShortcuts, setEnabledShortcuts] = useState(() => {
+    // Hidden Shortcut IDs (kustomisasi personal Guru jika sengaja ingin menyembunyikan item)
+    // Default: [] (semua pintasan yang diaktifkan Admin langsung tampil otomatis)
+    const [hiddenShortcuts, setHiddenShortcuts] = useState(() => {
         if (typeof window !== 'undefined' && user?.id) {
-            const saved = localStorage.getItem(`sikap_shortcuts_${user.id}`);
-            if (saved) {
+            // Bersihkan legacy whitelist lama jika ada
+            const legacyKey = `sikap_shortcuts_${user.id}`;
+            const legacySaved = localStorage.getItem(legacyKey);
+            if (legacySaved) {
                 try {
-                    return JSON.parse(saved);
+                    const parsed = JSON.parse(legacySaved);
+                    if (Array.isArray(parsed) && parsed.length === 0) {
+                        localStorage.removeItem(legacyKey);
+                    }
+                } catch (e) {
+                    localStorage.removeItem(legacyKey);
+                }
+            }
+
+            const savedHidden = localStorage.getItem(`sikap_hidden_shortcuts_${user.id}`);
+            if (savedHidden) {
+                try {
+                    const parsed = JSON.parse(savedHidden);
+                    if (Array.isArray(parsed)) return parsed;
                 } catch (e) {
                     // fallback
                 }
             }
         }
-        return DEFAULT_ENABLED;
+        return [];
     });
 
     // Dialog state & temporary selection
     const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
-    const [tempEnabled, setTempEnabled] = useState(enabledShortcuts);
+    const [tempHidden, setTempHidden] = useState(hiddenShortcuts);
 
     // Sync temp state when opening dialog
     useEffect(() => {
         if (isCustomizeOpen) {
-            setTempEnabled(enabledShortcuts);
+            setTempHidden(hiddenShortcuts);
         }
-    }, [isCustomizeOpen, enabledShortcuts]);
+    }, [isCustomizeOpen, hiddenShortcuts]);
 
     const handleFilterChange = (mode) => {
         setFilterMode(mode);
@@ -298,33 +332,35 @@ export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} 
     };
 
     const toggleShortcut = (id) => {
-        setTempEnabled((prev) =>
+        setTempHidden((prev) =>
             prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
         );
     };
 
     const applyPreset = (presetName) => {
-        let newSelection = [];
-        if (presetName === 'daily') {
-            newSelection = ['students', 'tahfidz', 'skrining', 'ikhtabir'];
+        if (presetName === 'all') {
+            setTempHidden([]);
+            setFilterMode('all');
+        } else if (presetName === 'daily') {
+            const nonDailyIds = adminAllowedShortcuts.filter(s => s.category !== 'daily').map(s => s.id);
+            setTempHidden(nonDailyIds);
             setFilterMode('daily');
         } else if (presetName === 'exams') {
-            newSelection = ['students', 'tahfidz', 'skrining', 'grades', 'recap', 'reports'];
+            const nonExamIds = adminAllowedShortcuts.filter(s => !['grades', 'recap', 'reports', 'tahfidz', 'skrining'].includes(s.id)).map(s => s.id);
+            setTempHidden(nonExamIds);
             setFilterMode('period');
         } else if (presetName === 'semester_start') {
-            newSelection = ['students', 'silabus', 'calendar', 'ikhtabir', 'skrining'];
+            const nonStartIds = adminAllowedShortcuts.filter(s => !['silabus', 'calendar', 'students', 'schedule'].includes(s.id)).map(s => s.id);
+            setTempHidden(nonStartIds);
             setFilterMode('period');
-        } else if (presetName === 'all') {
-            newSelection = ALL_SHORTCUTS.filter(s => isAllowedByAdmin(s.id) && s.visible(can, canViewAcademic, isStandalone)).map((s) => s.id);
-            setFilterMode('all');
         }
-        setTempEnabled(newSelection);
     };
 
     const saveCustomization = () => {
-        setEnabledShortcuts(tempEnabled);
+        setHiddenShortcuts(tempHidden);
         if (typeof window !== 'undefined' && user?.id) {
-            localStorage.setItem(`sikap_shortcuts_${user.id}`, JSON.stringify(tempEnabled));
+            localStorage.setItem(`sikap_hidden_shortcuts_${user.id}`, JSON.stringify(tempHidden));
+            localStorage.removeItem(`sikap_shortcuts_${user.id}`);
         }
         setIsCustomizeOpen(false);
         Swal.fire({
@@ -339,14 +375,16 @@ export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} 
     };
 
     const resetToDefault = () => {
-        setTempEnabled(DEFAULT_ENABLED.filter(id => isAllowedByAdmin(id)));
+        setTempHidden([]);
+        if (typeof window !== 'undefined' && user?.id) {
+            localStorage.removeItem(`sikap_hidden_shortcuts_${user.id}`);
+            localStorage.removeItem(`sikap_shortcuts_${user.id}`);
+        }
     };
 
-    // Filter visible shortcuts according to active tab, admin allowance, and enabled list
-    const visibleShortcuts = ALL_SHORTCUTS.filter((s) => {
-        if (!isAllowedByAdmin(s.id)) return false;
-        if (!s.visible(can, canViewAcademic, isStandalone)) return false;
-        if (!enabledShortcuts.includes(s.id)) return false;
+    // Filter visible shortcuts according to active tab, admin allowance, and hidden list
+    const visibleShortcuts = adminAllowedShortcuts.filter((s) => {
+        if (hiddenShortcuts.includes(s.id)) return false;
         if (filterMode === 'daily') return s.category === 'daily';
         if (filterMode === 'period') return s.category === 'period';
         return true; // 'all'
@@ -642,17 +680,28 @@ export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} 
                                 })}
                             </div>
                         ) : (
-                            <div className="p-6 text-center space-y-2">
+                            <div className="p-6 text-center space-y-2.5">
                                 <p className="text-xs text-muted-foreground font-medium">
                                     Tidak ada pintasan yang aktif di kategori ini.
                                 </p>
-                                <button
-                                    type="button"
-                                    onClick={() => setIsCustomizeOpen(true)}
-                                    className="text-xs font-bold text-primary hover:underline"
-                                >
-                                    Atur atau aktifkan pintasan di sini →
-                                </button>
+                                <div className="flex items-center justify-center gap-2 flex-wrap">
+                                    {filterMode !== 'all' && adminAllowedShortcuts.length > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleFilterChange('all')}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-bold text-xs hover:bg-indigo-100 dark:hover:bg-indigo-900 transition active:scale-95 border border-indigo-200 dark:border-indigo-800"
+                                        >
+                                            <span>Tampilkan Semua Pintasan ({adminAllowedShortcuts.length})</span>
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsCustomizeOpen(true)}
+                                        className="text-xs font-bold text-primary hover:underline px-2 py-1"
+                                    >
+                                        Atur atau sesuaikan pintasan →
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -735,8 +784,8 @@ export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} 
                             Kustomisasi Tiap Menu
                         </span>
                         <div className="divide-y divide-border/50 rounded-xl border border-border/80 bg-muted/10 overflow-hidden">
-                            {ALL_SHORTCUTS.filter(s => isAllowedByAdmin(s.id) && s.visible(can, canViewAcademic, isStandalone)).map((shortcut) => {
-                                const isChecked = tempEnabled.includes(shortcut.id);
+                            {adminAllowedShortcuts.map((shortcut) => {
+                                const isChecked = !tempHidden.includes(shortcut.id);
                                 const IconComp = shortcut.icon;
                                 return (
                                     <label
