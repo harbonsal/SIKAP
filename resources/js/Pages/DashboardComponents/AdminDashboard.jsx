@@ -256,7 +256,7 @@ export default function AdminDashboard({ stats, allowedWidgets = {}, activities 
         // 17. Direktori & Biodata Santri
         {
             id: 'shortcut_students',
-            alias: 'shortcut_health_biodata',
+            alias: 'students',
             title: 'Cari & Biodata Santri',
             subtitle: 'Data & Pencarian',
             href: route('students.index'),
