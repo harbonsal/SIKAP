@@ -1,6 +1,6 @@
 import PenilaianLayout from '@/Layouts/PenilaianLayout';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Search, BookOpen, Filter, ClipboardList, GraduationCap, Download, Clock, Eye } from 'lucide-react';
+import { Search, BookOpen, Filter, ClipboardList, GraduationCap, Download, Clock } from 'lucide-react';
 import Pagination from '@/Components/Pagination';
 import { useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
@@ -211,33 +211,18 @@ export default function Index({ activeSubjects, filters, academicYear, semester,
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-center pr-6">
-                                                {auth.user?.id === subject.teacher_id || auth.user?.user_level?.name === 'Administrator' ? (
-                                                    <Button size="sm" asChild className="shadow-sm">
-                                                        <Link
-                                                            href={route('assessments.show', {
-                                                                 id: subject.id,
-                                                                 ...filters,
-                                                                 page: activeSubjects.current_page
-                                                            })}
-                                                        >
-                                                            <ClipboardList className="mr-2 h-3.5 w-3.5" />
-                                                            Input Nilai
-                                                        </Link>
-                                                    </Button>
-                                                ) : (
-                                                    <Button size="sm" variant="outline" asChild className="shadow-xs border-amber-300 bg-amber-50/50 hover:bg-amber-100/50 text-amber-900 dark:bg-amber-950/20 dark:text-amber-300">
-                                                        <Link
-                                                            href={route('assessments.show', {
-                                                                 id: subject.id,
-                                                                 ...filters,
-                                                                 page: activeSubjects.current_page
-                                                            })}
-                                                        >
-                                                            <Eye className="mr-2 h-3.5 w-3.5 text-amber-600" />
-                                                            Pantau Nilai
-                                                        </Link>
-                                                    </Button>
-                                                )}
+                                                <Button size="sm" asChild className="shadow-sm">
+                                                    <Link
+                                                        href={route('assessments.show', {
+                                                            id: subject.id,
+                                                            ...filters,
+                                                            page: activeSubjects.current_page
+                                                        })}
+                                                    >
+                                                        <ClipboardList className="mr-2 h-3.5 w-3.5" />
+                                                        Input Nilai
+                                                    </Link>
+                                                </Button>
                                             </TableCell>
                                         </TableRow>
                                     ))

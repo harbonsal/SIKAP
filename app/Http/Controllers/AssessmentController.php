@@ -32,28 +32,10 @@ class AssessmentController extends Controller
                 $q->where('academic_year_id', $activeYear->id);
             });
 
-        // Determine Homeroom Classes for Wali Kelas
-        $homeroomClassIds = \App\Models\ActiveClass::where('academic_year_id', $activeYear->id)
-            ->where(function ($q) use ($user, $activeSemester) {
-                $q->where('teacher_id', $user->id);
-                if ($activeSemester) {
-                    $q->orWhereHas('semesterHomeroomTeachers', function ($subQ) use ($user, $activeSemester) {
-                        $subQ->where('semester_id', $activeSemester->id)
-                            ->where('teacher_id', $user->id);
-                    });
-                }
-            })
-            ->pluck('id');
-
         $canViewAll = $user->hasRole(['Administrator', 'Manager', 'Manager Tahfidz']) || $user->hasPermission('view_all_assessments');
         if (!$canViewAll) {
-            // Teacher sees subjects they teach, Wali Kelas can ALSO see all subjects in their homeroom classes
-            $query->where(function ($q) use ($user, $homeroomClassIds) {
-                $q->where('active_subjects.teacher_id', $user->id);
-                if ($homeroomClassIds->isNotEmpty()) {
-                    $q->orWhereIn('active_subjects.active_class_id', $homeroomClassIds);
-                }
-            });
+            // Hanya guru pengampu yang dapat melihat & menginput mapel miliknya
+            $query->where('active_subjects.teacher_id', $user->id);
         }
 
         // Filter by Active Class (Specific Class + Parallel)
@@ -118,25 +100,15 @@ class AssessmentController extends Controller
         $teachers = [];
 
         if (!$canViewAll) {
-            // Teacher sees their own classes and homeroom classes
-            $classesQuery->where(function ($q) use ($user, $homeroomClassIds) {
-                $q->whereHas('activeSubjects', function ($sub) use ($user) {
-                    $sub->forUser($user);
-                });
-                if ($homeroomClassIds->isNotEmpty()) {
-                    $q->orWhereIn('id', $homeroomClassIds);
-                }
+            // Guru hanya melihat filter kelas dan mapel yang benar-benar diampunya
+            $classesQuery->whereHas('activeSubjects', function ($sub) use ($user) {
+                $sub->where('teacher_id', $user->id);
             });
 
-            $mapelsQuery->whereHas('activeSubjects', function ($q) use ($activeYear, $user, $homeroomClassIds) {
+            $mapelsQuery->whereHas('activeSubjects', function ($q) use ($activeYear, $user) {
                 $q->whereHas('activeClass', function ($subQ) use ($activeYear) {
                     $subQ->where('academic_year_id', $activeYear->id);
-                })->where(function ($sq) use ($user, $homeroomClassIds) {
-                    $sq->where('teacher_id', $user->id);
-                    if ($homeroomClassIds->isNotEmpty()) {
-                        $sq->orWhereIn('active_class_id', $homeroomClassIds);
-                    }
-                });
+                })->where('teacher_id', $user->id);
             });
         } else {
             // Admin can see all, fetch Teachers list for filter
@@ -185,26 +157,9 @@ class AssessmentController extends Controller
                 $q->where('academic_year_id', $activeYear->id);
             });
 
-        $homeroomClassIds = \App\Models\ActiveClass::where('academic_year_id', $activeYear->id)
-            ->where(function ($q) use ($user, $activeSemester) {
-                $q->where('teacher_id', $user->id);
-                if ($activeSemester) {
-                    $q->orWhereHas('semesterHomeroomTeachers', function ($subQ) use ($user, $activeSemester) {
-                        $subQ->where('semester_id', $activeSemester->id)
-                            ->where('teacher_id', $user->id);
-                    });
-                }
-            })
-            ->pluck('id');
-
         $canViewAll = $user->hasRole(['Administrator', 'Manager', 'Manager Tahfidz']) || $user->hasPermission('view_all_assessments');
         if (!$canViewAll) {
-            $query->where(function ($q) use ($user, $homeroomClassIds) {
-                $q->where('active_subjects.teacher_id', $user->id);
-                if ($homeroomClassIds->isNotEmpty()) {
-                    $q->orWhereIn('active_subjects.active_class_id', $homeroomClassIds);
-                }
-            });
+            $query->where('active_subjects.teacher_id', $user->id);
         }
 
         if ($request->active_class_id) {
@@ -295,22 +250,11 @@ class AssessmentController extends Controller
         $isSuper = $currentUser->hasRole(['Administrator', 'Manager', 'Manager Tahfidz']) || $currentUser->hasPermission('view_all_assessments');
         $isTeacher = $activeSubject->teacher_id == $currentUser->id;
 
-        // Check if user is Homeroom Teacher (Wali Kelas) for this class
-        $isHomeroom = false;
-        if ($activeSubject->activeClass) {
-            if ($activeSubject->activeClass->teacher_id == $currentUser->id) {
-                $isHomeroom = true;
-            } elseif ($activeSemester && $activeSubject->activeClass->semesterHomeroomTeachers()->where('semester_id', $activeSemester->id)->where('teacher_id', $currentUser->id)->exists()) {
-                $isHomeroom = true;
-            }
+        if (!$isSuper && !$isTeacher) {
+            abort(403, 'Akses ditolak: Hanya guru pengampu mata pelajaran yang bersangkutan atau Administrator yang berhak mengakses halaman input nilai ini.');
         }
 
-        if (!$isSuper && !$isTeacher && !$isHomeroom) {
-            abort(403, 'Anda tidak memiliki hak akses untuk melihat atau menginput nilai mata pelajaran ini.');
-        }
-
-        // Wali Kelas has READ-ONLY access to subjects taught by other teachers
-        $isReadOnly = !$isSuper && !$isTeacher && $isHomeroom;
+        $isReadOnly = false;
 
         // Sort Class Members by User Nomor Induk (NIS)
         if ($activeSubject->activeClass && $activeSubject->activeClass->classMembers) {
@@ -369,6 +313,14 @@ class AssessmentController extends Controller
                     ->where('semester_id', $activeSemester->id);
             }
         ])->findOrFail($id);
+
+        $currentUser = Auth::user();
+        $isSuper = $currentUser->hasRole(['Administrator', 'Manager', 'Manager Tahfidz']) || $currentUser->hasPermission('view_all_assessments');
+        $isTeacher = $activeSubject->teacher_id == $currentUser->id;
+
+        if (!$isSuper && !$isTeacher) {
+            abort(403, 'Akses ditolak: Hanya guru pengampu mata pelajaran atau Administrator yang berhak mengunduh data nilai mata pelajaran ini.');
+        }
 
         if ($activeSubject->activeClass && $activeSubject->activeClass->classMembers) {
             $sortedMembers = $activeSubject->activeClass->classMembers->sortBy(function ($member) {
@@ -502,6 +454,14 @@ class AssessmentController extends Controller
                     ->where('semester_id', $activeSemester->id);
             }
         ])->findOrFail($id);
+
+        $currentUser = Auth::user();
+        $isSuper = $currentUser->hasRole(['Administrator', 'Manager', 'Manager Tahfidz']) || $currentUser->hasPermission('view_all_assessments');
+        $isTeacher = $activeSubject->teacher_id == $currentUser->id;
+
+        if (!$isSuper && !$isTeacher) {
+            abort(403, 'Akses ditolak: Hanya guru pengampu mata pelajaran yang berhak mengunduh template input nilai.');
+        }
 
         // Sort Class Members by User Nomor Induk (NIS)
         if ($activeSubject->activeClass && $activeSubject->activeClass->classMembers) {
