@@ -176,7 +176,7 @@ export default function Login({ status, canResetPassword }) {
             {/* Clean Subtle Last Update */}
             <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
                 <span className="text-[11px] font-mono text-slate-400 dark:text-slate-500">
-                    ⚡ Last Update: 13 Okt 2026 16:42 WIB
+                    ⚡ Last Update: 13 Okt 2026 16:57 WIB
                 </span>
             </div>
         </GuestLayout>

@@ -35,12 +35,53 @@ class UhAssessmentController extends Controller
             $activeSubject->activeClass->setRelation('classMembers', $sortedMembers);
         }
 
+        $upperType = strtoupper($type);
         $session = UhSession::with(['quizScores', 'participationScores'])
             ->firstOrCreate([
                 'active_subject_id' => $id,
                 'semester_id' => $activeSemester->id,
-                'type' => strtoupper($type)
+                'type' => $upperType
             ]);
+
+        // Pulihkan / sinkronkan nilai manual yang pernah diinput ke Penilaian Pemahaman 1 (Kuis 1)
+        $gradeWeight = GradeWeight::where('academic_year_id', $activeYear->id)
+            ->where('category', 'pengetahuan')
+            ->whereIn('semester', ['all', 'semua', 'All', $activeSemester->name, strtolower($activeSemester->name)])
+            ->where(function($q) use ($upperType) {
+                if ($upperType === 'UH1') {
+                    $q->where('name', 'like', 'UH1%')->orWhere('name', 'like', 'UH 1%')->orWhere('name', 'UH1');
+                } else {
+                    $q->where('name', 'like', 'UH2%')->orWhere('name', 'like', 'UH 2%')->orWhere('name', 'UH2');
+                }
+            })
+            ->first();
+
+        if ($gradeWeight) {
+            $existingGrades = StudentGrade::where('active_subject_id', $id)
+                ->where('grade_weight_id', $gradeWeight->id)
+                ->where('semester_id', $activeSemester->id)
+                ->whereNotNull('score')
+                ->get();
+
+            $existingQuiz1Map = $session->quizScores->where('quiz_number', 1)->keyBy('student_id');
+
+            $hasNewQuiz1 = false;
+            foreach ($existingGrades as $eg) {
+                if (!$existingQuiz1Map->has($eg->student_id)) {
+                    UhQuizScore::create([
+                        'uh_session_id' => $session->id,
+                        'student_id' => $eg->student_id,
+                        'quiz_number' => 1,
+                        'score' => $eg->score,
+                    ]);
+                    $hasNewQuiz1 = true;
+                }
+            }
+
+            if ($hasNewQuiz1) {
+                $session->load('quizScores');
+            }
+        }
 
         // Map data to easy array for frontend
         $quizScores = [];

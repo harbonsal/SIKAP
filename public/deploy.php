@@ -64,6 +64,9 @@ try {
 
         \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
         echo "Database migration berhasil disinkronkan.\n";
+
+        \Illuminate\Support\Facades\Artisan::call('uh:migrate-manual');
+        echo "Migrasi nilai manual UH ke Quiz 1 berhasil disinkronkan.\n";
     }
 } catch (\Throwable $e) {
     echo "Peringatan Cache: " . $e->getMessage() . "\n";
