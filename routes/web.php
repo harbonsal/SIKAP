@@ -46,40 +46,6 @@ Route::get('/run-migrate-rfid', function () {
     }
 });
 
-// --- SYNC ROLE SHORTCUTS DATABASE ---
-Route::get('/sync-role-shortcuts', function () {
-    $features = \App\Http\Controllers\AccessControlController::getFeaturesRegistry();
-    $guruLevel = \App\Models\UserLevel::find(11); // Guru
-    $waliKelasLevel = \App\Models\UserLevel::find(3); // Wali Kelas
-
-    $updated = [];
-
-    foreach ([$guruLevel, $waliKelasLevel] as $lvl) {
-        if (!$lvl) continue;
-        $currentWidgets = is_array($lvl->widgets) ? $lvl->widgets : [];
-        $newWidgets = [];
-        foreach ($features as $f) {
-            $k = $f['key'];
-            // Jika sudah ada nilai eksplisit di database, pertahankan
-            if (isset($currentWidgets[$k])) {
-                $newWidgets[$k] = (bool) $currentWidgets[$k];
-            } else {
-                // Gunakan default_for
-                $newWidgets[$k] = is_array($f['default_for'] ?? null) && in_array($lvl->name, $f['default_for']);
-            }
-        }
-        $lvl->widgets = $newWidgets;
-        $lvl->save();
-        $updated[$lvl->name] = $newWidgets;
-    }
-
-    return response()->json([
-        'status' => 'success',
-        'message' => 'Role shortcuts successfully synchronized to database.',
-        'updated' => $updated,
-    ]);
-});
-// -------------------------------
 Route::get('/', function () {
     return redirect()->route('login');
 });
