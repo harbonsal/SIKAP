@@ -46,20 +46,26 @@ Route::get('/run-migrate-rfid', function () {
     }
 });
 
-// --- CPANEL SETUP ROUTE ---
-Route::get('/setup-database', function () {
-    try {
-        set_time_limit(300);
-        // Jalankan migrate:fresh agar bersih (jika belum ada data) dan jalankan seeder bawaan
-        $exitCode = Artisan::call('migrate:fresh', ['--seed' => true, '--force' => true]);
-        
-        $output = Artisan::output();
-        return "<h1>Setup Database cPanel: " . ($exitCode === 0 ? "Sukses" : "Selesai dengan peringatan") . "</h1>" .
-            "<pre style='background:#111;color:#0f0;padding:10px;'>" . htmlspecialchars($output) . "</pre>" .
-            "<a href='/'>Buka Aplikasi</a>";
-    } catch (\Exception $e) {
-        return "<h1>Gagal!</h1><pre>" . $e->getMessage() . "</pre>";
-    }
+// --- DEBUG ROUTE USER UR ---
+Route::get('/debug-user-ur', function () {
+    $levels = \App\Models\UserLevel::all(['id', 'name', 'category', 'dashboard_type', 'widgets']);
+    // Cari user yang mengajar mapel Sharaf atau inisial U / UR
+    $teachers = \App\Models\User::whereHas('activeSubjects')
+        ->orWhere('name', 'like', 'U%')
+        ->with(['userLevel', 'additionalLevels'])
+        ->get(['id', 'name', 'user_level_id']);
+
+    return response()->json([
+        'levels' => $levels,
+        'teachers' => $teachers->map(function ($u) {
+            return [
+                'id' => $u->id,
+                'name' => $u->name,
+                'level' => $u->userLevel?->name,
+                'additional_levels' => $u->additionalLevels->pluck('name')->toArray(),
+            ];
+        }),
+    ]);
 });
 // -------------------------------
 Route::get('/', function () {
