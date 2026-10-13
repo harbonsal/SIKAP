@@ -222,19 +222,8 @@ class UhAssessmentController extends Controller
                 $partScore = $participationGroups[$studentId]->score;
             }
 
-            // If either quiz or participation is missing, the grade is incomplete.
-            // Do not sync, and remove existing synchronized grade if any.
+            // Jika kuis atau partisipasi belum lengkap, lewati tanpa menghapus nilai yang sudah ada sebelumnya
             if (!$quizGroups->has($studentId) || !$participationGroups->has($studentId)) {
-                $existingGrade = StudentGrade::where([
-                    'active_subject_id' => $activeSubjectId,
-                    'student_id' => $studentId,
-                    'grade_weight_id' => $gradeWeight->id,
-                    'semester_id' => $activeSemester->id,
-                ])->first();
-
-                if ($existingGrade) {
-                    $existingGrade->delete();
-                }
                 continue;
             }
 

@@ -313,16 +313,15 @@ export default function Show({ activeSubject, gradeWeights, semester, previousPa
                                                     {gradeWeights.map(weight => (
                                                         <th key={weight.id} className="px-2 py-3 font-bold text-center min-w-[100px] border-b border-r border-gray-300 bg-gray-50">
                                                             <div className="flex flex-col items-center gap-1">
-                                                                <div className={`flex items-center gap-1.5 mb-1 bg-white border border-gray-200 px-2 py-1 rounded shadow-sm ${getDisplayName(weight.name).toUpperCase().includes('UH') ? 'opacity-50' : ''}`}>
+                                                                <div className="flex items-center gap-1.5 mb-1 bg-white border border-gray-200 px-2 py-1 rounded shadow-sm">
                                                                     <input
                                                                         type="checkbox"
-                                                                        className="rounded border-gray-400 text-primary focus:ring-primary h-3.5 w-3.5 disabled:opacity-50"
+                                                                        className="rounded border-gray-400 text-primary focus:ring-primary h-3.5 w-3.5 cursor-pointer"
                                                                         checked={!!activeColumns[weight.id]}
                                                                         onChange={() => toggleColumn(weight.id)}
                                                                         id={`toggle-${weight.id}`}
-                                                                        disabled={getDisplayName(weight.name).toUpperCase().includes('UH')}
                                                                     />
-                                                                    <label htmlFor={`toggle-${weight.id}`} className="text-[10px] cursor-pointer font-bold uppercase tracking-wider select-none text-gray-700" title={getDisplayName(weight.name).toUpperCase().includes('UH') ? "Gunakan tombol Input di bawah" : ""}>
+                                                                    <label htmlFor={`toggle-${weight.id}`} className="text-[10px] cursor-pointer font-bold uppercase tracking-wider select-none text-gray-700">
                                                                         Input
                                                                     </label>
                                                                 </div>
@@ -331,16 +330,16 @@ export default function Show({ activeSubject, gradeWeights, semester, previousPa
                                                                     {weight.weight}%
                                                                 </Badge>
                                                                 {(getDisplayName(weight.name).toUpperCase().includes('UH1') || getDisplayName(weight.name).toUpperCase().includes('UH 1') || getDisplayName(weight.name).toUpperCase() === 'UH1') && (
-                                                                    <Link href={route('uh.show', [activeSubject.id, 'UH1'])} className="mt-1 text-[10px] text-blue-600 hover:text-blue-800 hover:underline flex items-center justify-center gap-1 font-semibold w-full bg-blue-50 py-0.5 rounded border border-blue-100">
-                                                                        <span>Input UH1</span>
+                                                                    <Link href={route('uh.show', [activeSubject.id, 'UH1'])} className="mt-1 text-[10px] text-blue-600 hover:text-blue-800 hover:underline flex items-center justify-center gap-1 font-semibold w-full bg-blue-50 py-0.5 rounded border border-blue-100" title="Bantu hitung akumulasi kuis & partisipasi">
+                                                                        <span>Rincian UH1</span>
                                                                     </Link>
                                                                 )}
                                                                 {(getDisplayName(weight.name).toUpperCase().includes('UH2') || getDisplayName(weight.name).toUpperCase().includes('UH 2') || getDisplayName(weight.name).toUpperCase() === 'UH2') && (
-                                                                    <Link href={route('uh.show', [activeSubject.id, 'UH2'])} className="mt-1 text-[10px] text-blue-600 hover:text-blue-800 hover:underline flex items-center justify-center gap-1 font-semibold w-full bg-blue-50 py-0.5 rounded border border-blue-100">
-                                                                        <span>Input UH2</span>
+                                                                    <Link href={route('uh.show', [activeSubject.id, 'UH2'])} className="mt-1 text-[10px] text-blue-600 hover:text-blue-800 hover:underline flex items-center justify-center gap-1 font-semibold w-full bg-blue-50 py-0.5 rounded border border-blue-100" title="Bantu hitung akumulasi kuis & partisipasi">
+                                                                        <span>Rincian UH2</span>
                                                                     </Link>
                                                                 )}
-                              </div>
+                                                            </div>
                                                         </th>
                                                     ))}
                                                     <th className="px-4 py-3 font-bold text-center w-24 bg-blue-50 text-blue-800 border-b border-l border-gray-300">
