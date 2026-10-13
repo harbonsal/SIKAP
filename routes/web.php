@@ -46,25 +46,37 @@ Route::get('/run-migrate-rfid', function () {
     }
 });
 
-// --- DEBUG ROUTE USER UR ---
-Route::get('/debug-user-ur', function () {
-    $levels = \App\Models\UserLevel::all(['id', 'name', 'category', 'dashboard_type', 'widgets']);
-    // Cari user yang mengajar mapel Sharaf atau inisial U / UR
-    $teachers = \App\Models\User::whereHas('activeSubjects')
-        ->orWhere('name', 'like', 'U%')
-        ->with(['userLevel', 'additionalLevels'])
-        ->get(['id', 'name', 'user_level_id']);
+// --- SYNC ROLE SHORTCUTS DATABASE ---
+Route::get('/sync-role-shortcuts', function () {
+    $features = \App\Http\Controllers\AccessControlController::getFeaturesRegistry();
+    $guruLevel = \App\Models\UserLevel::find(11); // Guru
+    $waliKelasLevel = \App\Models\UserLevel::find(3); // Wali Kelas
+
+    $updated = [];
+
+    foreach ([$guruLevel, $waliKelasLevel] as $lvl) {
+        if (!$lvl) continue;
+        $currentWidgets = is_array($lvl->widgets) ? $lvl->widgets : [];
+        $newWidgets = [];
+        foreach ($features as $f) {
+            $k = $f['key'];
+            // Jika sudah ada nilai eksplisit di database, pertahankan
+            if (isset($currentWidgets[$k])) {
+                $newWidgets[$k] = (bool) $currentWidgets[$k];
+            } else {
+                // Gunakan default_for
+                $newWidgets[$k] = is_array($f['default_for'] ?? null) && in_array($lvl->name, $f['default_for']);
+            }
+        }
+        $lvl->widgets = $newWidgets;
+        $lvl->save();
+        $updated[$lvl->name] = $newWidgets;
+    }
 
     return response()->json([
-        'levels' => $levels,
-        'teachers' => $teachers->map(function ($u) {
-            return [
-                'id' => $u->id,
-                'name' => $u->name,
-                'level' => $u->userLevel?->name,
-                'additional_levels' => $u->additionalLevels->pluck('name')->toArray(),
-            ];
-        }),
+        'status' => 'success',
+        'message' => 'Role shortcuts successfully synchronized to database.',
+        'updated' => $updated,
     ]);
 });
 // -------------------------------

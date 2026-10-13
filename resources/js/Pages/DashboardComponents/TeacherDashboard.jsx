@@ -243,7 +243,6 @@ export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} 
     );
 
     // Cek apakah Admin mengizinkan pintasan ini untuk role Guru
-    const hasConfiguredWidgets = Object.keys(allowedWidgets).length > 0;
     const isAllowedByAdmin = (shortcutId, alias = null) => {
         if (allowedWidgets[`shortcut_${shortcutId}`] !== undefined) {
             return Boolean(allowedWidgets[`shortcut_${shortcutId}`]);
@@ -257,15 +256,12 @@ export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} 
         if (alias && allowedWidgets[alias] !== undefined) {
             return Boolean(allowedWidgets[alias]);
         }
-        // Fallback default jika role belum dikonfigurasi sama sekali di admin
-        if (!hasConfiguredWidgets) {
-            const defaultRecommended = [
-                'students', 'journals', 'schedule', 'tahfidz', 'skrining', 
-                'ikhtabir', 'quran', 'silabus', 'grades', 'recap', 'calendar', 'profile'
-            ];
-            return defaultRecommended.includes(shortcutId) || (alias && defaultRecommended.includes(alias));
-        }
-        return false;
+        // Fallback default rekomendasi jika kunci ini belum diset eksplisit oleh admin
+        const defaultRecommended = [
+            'students', 'journals', 'schedule', 'tahfidz', 'skrining', 
+            'ikhtabir', 'quran', 'silabus', 'grades', 'recap', 'calendar', 'profile', 'install_app'
+        ];
+        return defaultRecommended.includes(shortcutId) || (alias && defaultRecommended.includes(alias));
     };
 
     // Seluruh pintasan yang diizinkan Admin untuk peran ini
