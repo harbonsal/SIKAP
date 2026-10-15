@@ -308,7 +308,10 @@ export default function Show({ activeSubject, gradeWeights, semester, previousPa
                                                         NIS
                                                     </th>
                                                     <th className="px-3 md:px-4 py-3 font-bold min-w-[140px] md:min-w-[220px] sticky left-[40px] md:left-[170px] z-40 bg-gray-100 border-b border-r border-gray-300 shadow-[4px_0_4px_-2px_rgba(0,0,0,0.1)]">
-                                                        Nama Siswa
+                                                        <div>Nama Siswa</div>
+                                                        <div className="text-[10px] font-normal text-muted-foreground md:hidden normal-case font-mono">
+                                                            (No Induk / NIS)
+                                                        </div>
                                                     </th>
                                                     {gradeWeights.map(weight => (
                                                         <th key={weight.id} className="px-2 py-3 font-bold text-center min-w-[100px] border-b border-r border-gray-300 bg-gray-50">
@@ -358,7 +361,11 @@ export default function Show({ activeSubject, gradeWeights, semester, previousPa
                                                             <span className="font-bold text-gray-800 font-mono text-[15px]">{member.student.nomor_induk || member.student.nis || '-'}</span>
                                                         </td>
                                                         <td className="px-3 md:px-4 py-3 sticky left-[40px] md:left-[170px] z-20 bg-background group-hover:bg-blue-50/50 group-even:bg-gray-50/50 border-r border-gray-300 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
-                                                            <span className="font-bold text-gray-800 text-xs md:text-sm">{member.student.name}</span>
+                                                            <div className="font-bold text-gray-800 text-xs md:text-sm leading-snug">{member.student.name}</div>
+                                                            <div className="text-[11px] font-mono font-bold text-blue-600 md:hidden mt-0.5 tracking-tight flex items-center gap-1">
+                                                                <span className="text-[9px] uppercase font-semibold text-muted-foreground">NIS:</span>
+                                                                <span>{member.student.nomor_induk || member.student.nis || member.student.user?.nomor_induk || '-'}</span>
+                                                            </div>
                                                         </td>
                                                         {gradeWeights.map(weight => (
                                                             <td key={weight.id} className="p-2 text-center border-r border-gray-300 relative">

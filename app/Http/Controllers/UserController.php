@@ -40,8 +40,24 @@ class UserController extends Controller
         }
 
         $status = $request->input('status', 'Aktif');
-        if ($status !== 'Semua') {
+
+        // If exit_year or inactive_reason is specified and status is Aktif, switch to looking for keluar users
+        if (($request->filled('exit_year') || $request->filled('inactive_reason')) && $status === 'Aktif') {
+            $status = 'Tidak Aktif';
+        }
+
+        if ($status === 'Tidak Aktif' || $status === 'Keluar') {
+            $query->where('status', 'Tidak Aktif');
+        } elseif ($status !== 'Semua') {
             $query->where('status', $status);
+        }
+
+        if ($request->filled('exit_year')) {
+            $query->whereYear('inactive_date', $request->exit_year);
+        }
+
+        if ($request->filled('inactive_reason')) {
+            $query->where('inactive_reason', $request->inactive_reason);
         }
 
         if ($request->filled('category')) {
@@ -67,11 +83,39 @@ class UserController extends Controller
 
         $users = $query->orderBy('nomor_induk', 'asc')->paginate(20)->withQueryString();
 
+        // Get exit years from DB
+        $exitYears = User::whereNotNull('inactive_date')
+            ->selectRaw('DISTINCT YEAR(inactive_date) as year')
+            ->pluck('year')
+            ->filter()
+            ->sortDesc()
+            ->values()
+            ->all();
+
+        $currentYear = (int) date('Y');
+        $defaultYears = range($currentYear, $currentYear - 4);
+        $exitYears = array_values(array_unique(array_merge($exitYears, $defaultYears)));
+        rsort($exitYears);
+
+        // Get exit reasons from DB
+        $dbReasons = User::whereNotNull('inactive_reason')
+            ->where('inactive_reason', '!=', '')
+            ->distinct()
+            ->pluck('inactive_reason')
+            ->filter()
+            ->values()
+            ->all();
+
+        $standardReasons = ['Lulus', 'Pindah', 'Dikembalikan', 'Melanjutkan di Tempat Lain', 'Lanjut Study', 'Pensiun', 'Meninggal', 'Lainnya'];
+        $exitReasons = array_values(array_unique(array_merge($dbReasons, $standardReasons)));
+
         return Inertia::render('Users/Index', [
             'users' => $users,
             'total_count' => User::count(),
-            'filters' => array_merge($request->only(['search', 'user_level_id', 'category', 'biodata_status']), ['status' => $status]),
+            'filters' => array_merge($request->only(['search', 'user_level_id', 'category', 'biodata_status', 'exit_year', 'inactive_reason']), ['status' => $status]),
             'userLevels' => \App\Models\UserLevel::all(),
+            'exitYears' => $exitYears,
+            'exitReasons' => $exitReasons,
         ]);
     }
 

@@ -10,15 +10,41 @@ import Dropdown from '@/Components/Dropdown';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/ui/table';
 import { Card, CardContent } from '@/Components/ui/card';
 
-export default function Index({ users, filters, userLevels, total_count }) {
+export default function Index({ users, filters, userLevels, total_count, exitYears = [], exitReasons = [] }) {
     const [params, setParams] = useState({
         search: filters.search || '',
         user_level_id: filters.user_level_id || '',
         status: filters.status || 'Aktif',
+        exit_year: filters.exit_year || '',
+        inactive_reason: filters.inactive_reason || '',
         category: filters.category || '',
         biodata_status: filters.biodata_status || '',
     });
     const [debouncedSearch] = useDebounce(params.search, 300);
+
+    const handleFilterChange = (key, value) => {
+        let newParams = { ...params, [key]: value };
+        // Otomatis arahkan status ke 'Tidak Aktif' jika filter tahun/alasan keluar dipilih saat status masih 'Aktif'
+        if ((key === 'exit_year' || key === 'inactive_reason') && value && params.status === 'Aktif') {
+            newParams.status = 'Tidak Aktif';
+        }
+        setParams(newParams);
+        router.get(route('users.index'), newParams, { preserveState: true, replace: true });
+    };
+
+    const handleResetFilter = () => {
+        const resetParams = {
+            search: '',
+            user_level_id: '',
+            status: 'Aktif',
+            exit_year: '',
+            inactive_reason: '',
+            category: '',
+            biodata_status: '',
+        };
+        setParams(resetParams);
+        router.get(route('users.index'), resetParams, { preserveState: true, replace: true });
+    };
 
     useEffect(() => {
         if (debouncedSearch !== (filters.search || '')) {
@@ -184,8 +210,9 @@ export default function Index({ users, filters, userLevels, total_count }) {
 
                 {/* Filters Section */}
                 <Card className="border-none shadow-none bg-accent/20">
-                    <CardContent className="p-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <CardContent className="p-4 space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                            {/* Search */}
                             <div className="relative">
                                 <Search className="absolute left-2.5 top-3 h-4 w-4 text-muted-foreground" />
                                 <input
@@ -196,56 +223,125 @@ export default function Index({ users, filters, userLevels, total_count }) {
                                     onChange={(e) => updateParams('search', e.target.value)}
                                 />
                             </div>
+
+                            {/* Status User (Aktif / Keluar / Semua) */}
+                            <select
+                                className={`flex h-10 w-full rounded-md border px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 font-medium ${
+                                    params.status === 'Tidak Aktif' 
+                                        ? 'border-rose-300 bg-rose-50 text-rose-800 dark:bg-rose-950/30 dark:text-rose-300' 
+                                        : 'border-input bg-background'
+                                }`}
+                                value={params.status}
+                                onChange={(e) => handleFilterChange('status', e.target.value)}
+                            >
+                                <option value="Aktif">Status: Aktif</option>
+                                <option value="Tidak Aktif">Status: User Keluar (Non-Aktif)</option>
+                                <option value="Semua">Semua Status (Aktif & Keluar)</option>
+                            </select>
+
+                            {/* Filter Tahun Keluar */}
+                            <select
+                                className={`flex h-10 w-full rounded-md border px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                                    params.exit_year 
+                                        ? 'border-rose-300 bg-rose-50 text-rose-800 font-semibold dark:bg-rose-950/30 dark:text-rose-300' 
+                                        : 'border-input bg-background'
+                                }`}
+                                value={params.exit_year}
+                                onChange={(e) => handleFilterChange('exit_year', e.target.value)}
+                            >
+                                <option value="">Semua Tahun Keluar</option>
+                                {exitYears.map((yr) => (
+                                    <option key={yr} value={yr}>Tahun Keluar: {yr}</option>
+                                ))}
+                            </select>
+
+                            {/* Filter Alasan Keluar */}
+                            <select
+                                className={`flex h-10 w-full rounded-md border px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                                    params.inactive_reason 
+                                        ? 'border-rose-300 bg-rose-50 text-rose-800 font-semibold dark:bg-rose-950/30 dark:text-rose-300' 
+                                        : 'border-input bg-background'
+                                }`}
+                                value={params.inactive_reason}
+                                onChange={(e) => handleFilterChange('inactive_reason', e.target.value)}
+                            >
+                                <option value="">Semua Alasan Keluar</option>
+                                {exitReasons.map((reason) => (
+                                    <option key={reason} value={reason}>{reason}</option>
+                                ))}
+                            </select>
+
+                            {/* Level / Role */}
                             <select
                                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                 value={params.user_level_id}
-                                onChange={(e) => {
-                                    updateParams('user_level_id', e.target.value);
-                                    router.get(route('users.index'), { ...params, user_level_id: e.target.value }, { preserveState: true, replace: true });
-                                }}
+                                onChange={(e) => handleFilterChange('user_level_id', e.target.value)}
                             >
                                 <option value="">Semua Level</option>
                                 {userLevels.map((level) => (
                                     <option key={level.id} value={level.id}>{level.name}</option>
                                 ))}
                             </select>
+
+                            {/* Kategori (Siswa / Pegawai) */}
                             <select
                                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                 value={params.category}
-                                onChange={(e) => {
-                                    updateParams('category', e.target.value);
-                                    router.get(route('users.index'), { ...params, category: e.target.value }, { preserveState: true, replace: true });
-                                }}
+                                onChange={(e) => handleFilterChange('category', e.target.value)}
                             >
                                 <option value="">Semua Kategori</option>
                                 <option value="Siswa">Siswa</option>
                                 <option value="Askar">Askar (Pegawai)</option>
                             </select>
+
+                            {/* Status Biodata */}
                             <select
                                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                 value={params.biodata_status}
-                                onChange={(e) => {
-                                    updateParams('biodata_status', e.target.value);
-                                    router.get(route('users.index'), { ...params, biodata_status: e.target.value }, { preserveState: true, replace: true });
-                                }}
+                                onChange={(e) => handleFilterChange('biodata_status', e.target.value)}
                             >
                                 <option value="">Status Biodata...</option>
                                 <option value="completed">Sudah Lengkap</option>
                                 <option value="incomplete">Belum Lengkap</option>
                             </select>
-                            <select
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                value={params.status}
-                                onChange={(e) => {
-                                    updateParams('status', e.target.value);
-                                    router.get(route('users.index'), { ...params, status: e.target.value }, { preserveState: true, replace: true });
-                                }}
-                            >
-                                <option value="Aktif">Status Aktif</option>
-                                <option value="Tidak Aktif">Non-Aktif</option>
-                                <option value="Semua">Semua Status</option>
-                            </select>
+
+                            {/* Reset Button */}
+                            {(params.search || params.user_level_id || params.status !== 'Aktif' || params.exit_year || params.inactive_reason || params.category || params.biodata_status) && (
+                                <button
+                                    type="button"
+                                    onClick={handleResetFilter}
+                                    className="flex h-10 items-center justify-center rounded-md border border-dashed border-gray-300 bg-background px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                                >
+                                    Reset Filter
+                                </button>
+                            )}
                         </div>
+
+                        {/* Active Filter Indicator for Keluar / Non-Aktif */}
+                        {(params.status === 'Tidak Aktif' || params.exit_year || params.inactive_reason) && (
+                            <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-800 dark:bg-rose-950/20 dark:border-rose-900 dark:text-rose-300">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="font-bold">⚠️ Mode Filter: User Keluar (Non-Aktif)</span>
+                                    {params.exit_year && (
+                                        <span className="bg-white dark:bg-slate-900 px-2 py-0.5 rounded border border-rose-200 dark:border-rose-800 font-medium">
+                                            Tahun: {params.exit_year}
+                                        </span>
+                                    )}
+                                    {params.inactive_reason && (
+                                        <span className="bg-white dark:bg-slate-900 px-2 py-0.5 rounded border border-rose-200 dark:border-rose-800 font-medium">
+                                            Alasan: {params.inactive_reason}
+                                        </span>
+                                    )}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleResetFilter}
+                                    className="underline font-semibold hover:text-rose-950 dark:hover:text-rose-100"
+                                >
+                                    Kembali ke User Aktif
+                                </button>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -308,11 +404,26 @@ export default function Index({ users, filters, userLevels, total_count }) {
 
                                                     {/* Status Badge */}
                                                     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border ${user.status === 'Aktif'
-                                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                                        : 'bg-rose-50 text-rose-700 border-rose-200'
+                                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800'
+                                                        : 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-800'
                                                         }`}>
-                                                        {user.status}
+                                                        {user.status === 'Tidak Aktif' ? 'Keluar' : user.status}
                                                     </span>
+
+                                                    {user.status === 'Tidak Aktif' && (
+                                                        <div className="w-full text-[11px] leading-tight text-muted-foreground mt-1 space-y-0.5">
+                                                            {user.inactive_reason && (
+                                                                <div className="font-semibold text-rose-600 dark:text-rose-400">
+                                                                    Alasan: {user.inactive_reason}
+                                                                </div>
+                                                            )}
+                                                            {user.inactive_date && (
+                                                                <div className="text-[10px] text-gray-500">
+                                                                    Keluar: {new Date(user.inactive_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-right pr-4">
