@@ -1,8 +1,24 @@
 import MainLayout from '@/Layouts/MainLayout';
 import { Head, useForm, Link } from '@inertiajs/react';
 import { Save, Calendar, Clock, BookOpen, UserCheck, AlertCircle, HeartPulse, FileText, Lock } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
+
+// Helper normalisasi teks untuk pencocokan materi Arab dan Latin
+const cleanArabicText = (str) => {
+    if (!str) return '';
+    return str
+        .replace(/KD:[^\n]*\n?/gi, '')
+        .replace(/Materi:\s*/gi, '')
+        .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED]/g, '') // Harakat
+        .replace(/[أإآٱ]/g, 'ا')
+        .replace(/[ىئ]/g, 'ي')
+        .replace(/ة/g, 'ه')
+        .replace(/[()（）\[\]{}\-–—.,:;\u060C\u061B\u061F«»“”"'`~]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+};
 
 export default function Create({ 
     academicYear, 
@@ -31,6 +47,75 @@ export default function Create({
     const [isLoadingStudents, setIsLoadingStudents] = useState(false);
     const [silabuses, setSilabuses] = useState([]);
     const [settings] = useState(attendanceSettings);
+
+    const enrichedSilabuses = useMemo(() => {
+        if (!silabuses || silabuses.length === 0) return [];
+
+        const hasServerMarking = silabuses.some(s => s.is_last_delivered || s.is_next_material);
+        if (hasServerMarking) {
+            return silabuses;
+        }
+
+        if (!data.last_topic) return silabuses;
+
+        const cleanLast = cleanArabicText(data.last_topic);
+        if (!cleanLast) return silabuses;
+
+        let matchedId = null;
+        let bestScore = 0;
+
+        silabuses.forEach(s => {
+            const cleanM = cleanArabicText(s.materi);
+            if (!cleanM) return;
+
+            if (cleanM === cleanLast) {
+                matchedId = s.id;
+                bestScore = 99999;
+                return;
+            }
+
+            if (cleanLast.includes(cleanM) || cleanM.includes(cleanLast)) {
+                const score = Math.min(cleanM.length, cleanLast.length) * 10;
+                if (score > bestScore) {
+                    bestScore = score;
+                    matchedId = s.id;
+                }
+            } else {
+                const wordsLast = cleanLast.split(' ').filter(w => w.length >= 2);
+                const wordsM = cleanM.split(' ').filter(w => w.length >= 2);
+                if (wordsLast.length > 0 && wordsM.length > 0) {
+                    const overlap = wordsM.filter(w => wordsLast.includes(w)).length;
+                    const ratio = overlap / Math.max(1, Math.min(wordsLast.length, wordsM.length));
+                    const score = (ratio * 100) + (overlap * 10);
+                    if (score > 40 && score > bestScore) {
+                        bestScore = score;
+                        matchedId = s.id;
+                    }
+                }
+            }
+        });
+
+        const lastIdx = silabuses.findIndex(s => s.id === matchedId);
+        return silabuses.map((s, idx) => {
+            const isLast = idx === lastIdx;
+            const isNext = lastIdx !== -1 && idx === lastIdx + 1;
+            const isPrev = lastIdx !== -1 && idx <= lastIdx;
+            return {
+                ...s,
+                is_last_delivered: isLast,
+                is_next_material: isNext,
+                is_previously_taught: isPrev || s.is_previously_taught,
+            };
+        });
+    }, [silabuses, data.last_topic]);
+
+    const nextMaterial = useMemo(() => {
+        return enrichedSilabuses.find(s => s.is_next_material);
+    }, [enrichedSilabuses]);
+
+    const lastDeliveredMaterial = useMemo(() => {
+        return enrichedSilabuses.find(s => s.is_last_delivered);
+    }, [enrichedSilabuses]);
 
     // Fetch students and silabus when Subject or Date is selected
     useEffect(() => {
@@ -204,28 +289,70 @@ export default function Create({
                             <div className="space-y-2 sm:col-span-2">
                                 <label className="text-sm font-medium">Materi Pembelajaran (Topik)</label>
                                 {data.last_topic && (
-                                    <div className="mb-2 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
-                                        <div className="font-semibold flex items-center gap-1 mb-1">
-                                            <AlertCircle className="w-4 h-4" /> Materi Terakhir Disampaikan:
+                                    <div className="mb-2 p-3 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/80 rounded-lg text-sm text-blue-900 dark:text-blue-200">
+                                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                                            <div className="font-semibold flex items-center gap-1.5 text-blue-800 dark:text-blue-300">
+                                                <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" /> 
+                                                <span>Materi Terakhir Disampaikan:</span>
+                                            </div>
+                                            {lastDeliveredMaterial && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const text = (lastDeliveredMaterial.kompetensi ? "KD: " + lastDeliveredMaterial.kompetensi + "\n" : "") + "Materi: " + lastDeliveredMaterial.materi;
+                                                        setData('topic', text);
+                                                    }}
+                                                    className="text-xs font-semibold text-blue-700 dark:text-blue-300 hover:underline inline-flex items-center gap-1 shrink-0"
+                                                >
+                                                    <span>Ulangi materi ini</span>
+                                                </button>
+                                            )}
                                         </div>
-                                        <div className="whitespace-pre-wrap">{data.last_topic}</div>
+                                        <div className="whitespace-pre-wrap font-medium text-blue-950 dark:text-blue-100 bg-white/70 dark:bg-blue-900/30 p-2.5 rounded border border-blue-200/60 dark:border-blue-800/50">
+                                            {data.last_topic}
+                                        </div>
                                         
                                         {data.last_description && (
-                                            <div className="mt-3 pt-3 border-t border-blue-200/60">
-                                                <div className="font-semibold flex items-center gap-1 mb-1">
+                                            <div className="mt-2.5 pt-2.5 border-t border-blue-200/60 dark:border-blue-800/60">
+                                                <div className="font-semibold flex items-center gap-1 mb-1 text-xs text-blue-700 dark:text-blue-300">
                                                     Catatan Tambahan Terakhir:
                                                 </div>
-                                                <div className="whitespace-pre-wrap">{data.last_description}</div>
+                                                <div className="whitespace-pre-wrap text-xs text-blue-800 dark:text-blue-200">{data.last_description}</div>
                                             </div>
                                         )}
                                     </div>
                                 )}
-                                {silabuses.length > 0 && (
+
+                                {nextMaterial && (
+                                    <div className="mb-2 p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs">
+                                        <div className="flex items-center gap-2 overflow-hidden text-xs sm:text-sm">
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-600 text-white shrink-0">
+                                                👉 Lanjutan Materi Berikutnya
+                                            </span>
+                                            <span className="font-semibold truncate">
+                                                Pekan {nextMaterial.pekan || '-'}: {nextMaterial.materi}
+                                            </span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const text = (nextMaterial.kompetensi ? "KD: " + nextMaterial.kompetensi + "\n" : "") + "Materi: " + nextMaterial.materi;
+                                                setData('topic', text);
+                                            }}
+                                            className="shrink-0 inline-flex items-center justify-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-medium rounded-md text-xs shadow-xs transition"
+                                        >
+                                            <span>Gunakan Materi Ini</span>
+                                            <span>→</span>
+                                        </button>
+                                    </div>
+                                )}
+
+                                {enrichedSilabuses.length > 0 && (
                                     <div className="mb-2">
                                         <select
-                                            className="flex h-10 w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-muted-foreground"
+                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring text-foreground font-medium"
                                             onChange={e => {
-                                                const match = silabuses.find(s => s.id.toString() === e.target.value);
+                                                const match = enrichedSilabuses.find(s => s.id.toString() === e.target.value);
                                                 if (match) {
                                                     const text = (match.kompetensi ? "KD: " + match.kompetensi + "\n" : "") + "Materi: " + match.materi;
                                                     setData('topic', text);
@@ -234,11 +361,38 @@ export default function Create({
                                             defaultValue=""
                                         >
                                             <option value="" disabled>💡 Pilih dari Silabus...</option>
-                                            {silabuses.map(s => (
-                                                <option key={s.id} value={s.id}>
-                                                    Pekan {s.pekan || '-'}: {s.materi}
-                                                </option>
-                                            ))}
+                                            {enrichedSilabuses.map(s => {
+                                                let badge = '';
+                                                let suffix = '';
+                                                if (s.is_last_delivered) {
+                                                    badge = '📍 [TERAKHIR DISAMPAIKAN] ';
+                                                    suffix = ' ◄── Terakhir';
+                                                } else if (s.is_next_material) {
+                                                    badge = '👉 [MATERI BERIKUTNYA] ';
+                                                    suffix = ' ◄── Disarankan';
+                                                } else if (s.is_previously_taught) {
+                                                    badge = '✓ ';
+                                                    suffix = ' (Sudah lewat)';
+                                                }
+
+                                                return (
+                                                    <option 
+                                                        key={s.id} 
+                                                        value={s.id}
+                                                        className={
+                                                            s.is_last_delivered 
+                                                                ? 'font-bold bg-amber-100 text-amber-900' 
+                                                                : s.is_next_material 
+                                                                ? 'font-bold bg-emerald-100 text-emerald-900' 
+                                                                : s.is_previously_taught 
+                                                                ? 'text-muted-foreground' 
+                                                                : ''
+                                                        }
+                                                    >
+                                                        {badge}Pekan {s.pekan || '-'}: {s.materi}{suffix}
+                                                    </option>
+                                                );
+                                            })}
                                         </select>
                                     </div>
                                 )}

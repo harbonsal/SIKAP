@@ -337,6 +337,104 @@ class JournalController extends Controller
                 ->get();
         }
 
+        // Ambil riwayat jurnal untuk mata pelajaran ini guna mendeteksi materi terakhir & materi yang sudah disampaikan
+        $journals = ClassJournal::where('active_subject_id', $activeSubject->id)
+            ->orderBy('date', 'desc')
+            ->orderBy('id', 'desc')
+            ->get(['id', 'topic', 'date']);
+
+        $lastJournal = $journals->first();
+        $lastTopicText = $lastJournal?->topic ?? '';
+
+        // Helper normalisasi teks untuk pencocokan materi bahasa Indonesia maupun Arab
+        // Helper normalisasi teks untuk pencocokan materi bahasa Indonesia maupun Arab
+        $cleanString = function($str) {
+            if (!$str) return '';
+            $clean = preg_replace('/KD:[^\n]*\n?/iu', '', $str);
+            $clean = preg_replace('/Materi:\s*/iu', '', $clean);
+            // Hapus harakat Arab
+            $clean = preg_replace('/[\x{064B}-\x{065F}\x{0670}\x{06D6}-\x{06ED}]/u', '', $clean);
+            // Normalisasi variasi huruf Arab
+            $clean = preg_replace('/[أإآٱ]/u', 'ا', $clean);
+            $clean = preg_replace('/[ىئ]/u', 'ي', $clean);
+            $clean = preg_replace('/ة/u', 'ه', $clean);
+            // Hapus tanda baca umum dan tanda baca Arab (koma Arab \x{060C}, titik koma Arab \x{061B}, tanda tanya Arab \x{061F}, dll)
+            $clean = preg_replace('/[()（）\[\]{}\-–—.,:;\x{060C}\x{061B}\x{061F}«»“”"\'_`~]/u', ' ', $clean);
+            $clean = preg_replace('/\s+/', ' ', $clean);
+            return trim(mb_strtolower($clean, 'UTF-8'));
+        };
+
+        $cleanLastTopic = $cleanString($lastTopicText);
+
+        $matchedLastId = null;
+        $bestMatchScore = 0;
+
+        foreach ($silabuses as $s) {
+            $cleanMateri = $cleanString($s->materi);
+            if (!$cleanMateri || !$cleanLastTopic) continue;
+
+            // 1. Exact match
+            if ($cleanMateri === $cleanLastTopic) {
+                $matchedLastId = $s->id;
+                $bestMatchScore = 99999;
+                break;
+            }
+
+            // 2. Substring match
+            if (mb_strpos($cleanLastTopic, $cleanMateri) !== false || mb_strpos($cleanMateri, $cleanLastTopic) !== false) {
+                $score = min(mb_strlen($cleanMateri), mb_strlen($cleanLastTopic)) * 10;
+                if ($score > $bestMatchScore) {
+                    $bestMatchScore = $score;
+                    $matchedLastId = $s->id;
+                }
+            } else {
+                // 3. Word token matching (mendukung kata 2 huruf seperti kata depan Arab)
+                $wordsLast = array_filter(explode(' ', $cleanLastTopic), fn($w) => mb_strlen($w) >= 2);
+                $wordsMateri = array_filter(explode(' ', $cleanMateri), fn($w) => mb_strlen($w) >= 2);
+                if (!empty($wordsLast) && !empty($wordsMateri)) {
+                    $overlap = count(array_intersect($wordsLast, $wordsMateri));
+                    $ratio = $overlap / max(1, min(count($wordsLast), count($wordsMateri)));
+                    $score = ($ratio * 100) + ($overlap * 10);
+                    if ($score > 40 && $score > $bestMatchScore) {
+                        $bestMatchScore = $score;
+                        $matchedLastId = $s->id;
+                    }
+                }
+            }
+        }
+
+        // Cek juga materi yang sudah pernah diajarkan sebelumnya
+        $allTaughtClean = $journals->pluck('topic')->map(fn($t) => $cleanString($t))->filter()->values()->all();
+
+        $lastIndex = null;
+        foreach ($silabuses as $idx => $s) {
+            $isLast = ($s->id === $matchedLastId);
+            $s->is_last_delivered = $isLast;
+            if ($isLast) {
+                $lastIndex = $idx;
+            }
+
+            $cleanMateri = $cleanString($s->materi);
+            $isTaught = false;
+            foreach ($allTaughtClean as $tClean) {
+                if ($cleanMateri === $tClean || mb_strpos($tClean, $cleanMateri) !== false || mb_strpos($cleanMateri, $tClean) !== false) {
+                    $isTaught = true;
+                    break;
+                }
+            }
+            $s->is_previously_taught = $isTaught;
+        }
+
+        // Jika materi terakhir ditemukan, tandai materi sebelumnya sebagai sudah lewat dan berikutnya sebagai next
+        if ($lastIndex !== null) {
+            for ($i = 0; $i <= $lastIndex; $i++) {
+                $silabuses[$i]->is_previously_taught = true;
+            }
+            if (isset($silabuses[$lastIndex + 1])) {
+                $silabuses[$lastIndex + 1]->is_next_material = true;
+            }
+        }
+
         return response()->json($silabuses);
     }
 
