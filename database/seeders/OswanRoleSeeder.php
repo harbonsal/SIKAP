@@ -62,16 +62,19 @@ class OswanRoleSeeder extends Seeder
 
         // 3. Buat / Pastikan User Akun Default OSWAN
         $defaultOswanUser = User::firstOrCreate(
-            ['username' => 'oswan'],
+            ['email' => 'oswan@sikap.alwan.ac.id'],
             [
                 'name' => 'Pengurus OSWAN',
-                'email' => 'oswan@sikap.alwan.ac.id',
                 'password' => Hash::make('password'),
                 'user_level_id' => $oswanRole->id,
                 'status' => 'Aktif',
-                'nomor_induk' => 'OSWAN01',
+                'nomor_induk' => 'oswan',
             ]
         );
+
+        if ($defaultOswanUser->nomor_induk !== 'oswan') {
+            $defaultOswanUser->update(['nomor_induk' => 'oswan']);
+        }
 
         // Pastikan role tersinkronisasi jika user sudah ada sebelumnya
         if ($defaultOswanUser->user_level_id !== $oswanRole->id) {
