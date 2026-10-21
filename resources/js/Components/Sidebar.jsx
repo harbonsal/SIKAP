@@ -12,6 +12,14 @@ const navItems = [
         active: "dashboard",
         // Semua user yang login berhak melihat tombol Dashboard
     },
+    // OSWAN: Jurnal Ketertiban Santri
+    {
+        title: "Jurnal OSWAN",
+        icon: ClipboardCheck,
+        href: "care.oswan.index",
+        active: "care.oswan.index",
+        roles: ['OSWAN', 'Administrator'],
+    },
     // Al-Quran Digital — accessible to all roles including Santri
     {
         title: "Al-Quran Digital",
@@ -115,6 +123,8 @@ const navItems = [
                 title: "Penilaian Akhlak",
                 children: [
                     { title: "Input Akhlak", href: "assessments.character.index", permission: 'view_character_input' },
+                    { title: "Pemantauan Ketertiban", href: "care.oswan.monitor", roles: ['Administrator', 'Musrif', 'Musyrif', 'Musrif Asrama', 'Manager Pengasuhan', 'Wali Kelas', 'Guru', 'Guru Asuh'] },
+                    { title: "Input Ketertiban OSWAN", href: "care.oswan.index", roles: ['Administrator', 'OSWAN'] },
                     { title: "Rekap Kamar SM1 (Jul-Des)", href: "assessments.character.recap.index", params: { semester: 1 }, permission: 'view_character_recap' },
                     { title: "Rekap Kamar SM2 (Jan-Jun)", href: "assessments.character.recap.index", params: { semester: 2 }, permission: 'view_character_recap' },
                     { title: "Rekap Per Santri", href: "assessments.character.recap.student.index", permission: 'view_character_recap' },

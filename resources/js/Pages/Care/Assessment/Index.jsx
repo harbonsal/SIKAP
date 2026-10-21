@@ -8,7 +8,7 @@ import { Button } from "@/Components/ui/button";
 import { Checkbox } from "@/Components/ui/checkbox";
 import Swal from 'sweetalert2';
 
-export default function Index({ kamars, categories, rubrics, students, existingAssessments, existingReports, filters }) {
+export default function Index({ kamars, categories, rubrics, students, existingAssessments, existingReports, oswanCalculations = {}, filters }) {
     const [selectedKamarId, setSelectedKamarId] = useState(filters.active_kamar_id || '');
     const [selectedMonth, setSelectedMonth] = useState(filters.month || '');
     const [selectedYear, setSelectedYear] = useState(filters.year || new Date().getFullYear());
@@ -38,7 +38,14 @@ export default function Index({ kamars, categories, rubrics, students, existingA
                 initialAssessments[student.id] = {};
                 categories.forEach(category => {
                     const existingScore = existingAssessments[student.id]?.[category] ?? '';
-                    initialAssessments[student.id][category] = normalizeScore(existingScore);
+                    let scoreToSet = normalizeScore(existingScore);
+
+                    // Jika belum pernah diinput musyrif dan ada rekomendasi otomatis dari OSWAN:
+                    if (scoreToSet === '' && oswanCalculations[student.id]?.[category]?.suggested_score !== undefined) {
+                        scoreToSet = String(oswanCalculations[student.id][category].suggested_score);
+                    }
+
+                    initialAssessments[student.id][category] = scoreToSet;
                 });
                 initialComments[student.id] = existingReports[student.id] || '';
             });
@@ -48,7 +55,7 @@ export default function Index({ kamars, categories, rubrics, students, existingA
                 comments: initialComments
             }));
         }
-    }, [students, existingAssessments, existingReports]);
+    }, [students, existingAssessments, existingReports, oswanCalculations]);
 
     // Update form's state when selection changes
     useEffect(() => {
@@ -384,22 +391,46 @@ export default function Index({ kamars, categories, rubrics, students, existingA
                                                     <td className="px-4 py-4 font-medium text-muted-foreground">
                                                         {student.class_name || '-'}
                                                     </td>
-                                                    {categories.map((cat, catIndex) => (
-                                                        <td key={cat} className="px-2 py-4 text-center">
-                                                            <input
-                                                                type="text"
-                                                                inputMode="numeric"
-                                                                pattern="[0-9]*"
-                                                                className="w-16 rounded-md border border-input bg-background px-2 py-1 text-center text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
-                                                                value={data.assessments[student.id]?.[cat] || ''}
-                                                                onChange={(e) => handleScoreChange(student.id, cat, e.target.value)}
-                                                                onPaste={(e) => handleScorePaste(e, index, catIndex)}
-                                                                placeholder="0"
-                                                                disabled={!student.active_class_id}
-                                                                title={!student.active_class_id ? "Santri belum masuk kelas" : ""}
-                                                            />
-                                                        </td>
-                                                    ))}
+                                                    {categories.map((cat, catIndex) => {
+                                                        const oswanData = oswanCalculations?.[student.id]?.[cat];
+                                                        const hasOswan = Boolean(oswanData);
+
+                                                        return (
+                                                            <td key={cat} className="px-2 py-3 text-center align-top">
+                                                                <div className="flex flex-col items-center gap-1">
+                                                                    <input
+                                                                        type="text"
+                                                                        inputMode="numeric"
+                                                                        pattern="[0-9]*"
+                                                                        className="w-16 rounded-md border border-input bg-background px-2 py-1 text-center text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+                                                                        value={data.assessments[student.id]?.[cat] || ''}
+                                                                        onChange={(e) => handleScoreChange(student.id, cat, e.target.value)}
+                                                                        onPaste={(e) => handleScorePaste(e, index, catIndex)}
+                                                                        placeholder="0"
+                                                                        disabled={!student.active_class_id}
+                                                                        title={!student.active_class_id ? "Santri belum masuk kelas" : ""}
+                                                                    />
+                                                                    {hasOswan && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleScoreChange(student.id, cat, String(oswanData.suggested_score))}
+                                                                            title={`Rekomendasi Rekap OSWAN: Nilai ${oswanData.suggested_score} (Total Pelanggaran: ${oswanData.violations}x). Klik untuk menerapkan.`}
+                                                                            className={`text-[10px] px-1.5 py-0.5 rounded font-medium border transition-colors flex items-center gap-0.5 cursor-pointer ${
+                                                                                oswanData.violations > 0
+                                                                                    ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+                                                                                    : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                                                                            }`}
+                                                                        >
+                                                                            <span>⚡ {oswanData.suggested_score}</span>
+                                                                            {oswanData.violations > 0 && (
+                                                                                <span className="opacity-80">({oswanData.violations}x)</span>
+                                                                            )}
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                        );
+                                                    })}
                                                     <td className="px-4 py-4">
                                                         <Popover>
                                                             <PopoverTrigger asChild>

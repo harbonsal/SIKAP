@@ -130,6 +130,50 @@ class CharacterAssessmentController extends Controller
                     ->where('year', $selectedYear)
                     ->get()
                     ->pluck('notes', 'student_id');
+
+                // Fetch OSWAN Conduct Records for these students in selected month & year
+                $oswanRecords = \App\Models\OswanConductRecord::whereIn('student_id', $studentIds)
+                    ->where('month', $selectedMonth)
+                    ->where('year', $selectedYear)
+                    ->get()
+                    ->groupBy('student_id');
+
+                $oswanCalculations = $students->mapWithKeys(function ($student) use ($oswanRecords) {
+                    $sRec = $oswanRecords->get($student['id'], collect());
+                    $ibadahCount = $sRec->sum('ibadah_count');
+                    $bahasaCount = $sRec->sum('bahasa_count');
+                    $tidurCount = $sRec->sum('tidur_count');
+
+                    return [
+                        $student['id'] => [
+                            'Ibadah' => [
+                                'violations' => $ibadahCount,
+                                'suggested_score' => max(70, 100 - $ibadahCount),
+                                'label' => 'Keterlambatan Ibadah',
+                            ],
+                            'Kedisiplinan' => [
+                                'violations' => $bahasaCount,
+                                'suggested_score' => max(70, 100 - $bahasaCount),
+                                'label' => 'Ketertiban Berbahasa',
+                            ],
+                            'Kepatuhan' => [
+                                'violations' => $tidurCount,
+                                'suggested_score' => max(70, 100 - $tidurCount),
+                                'label' => 'Ketertiban Jam Tidur',
+                            ],
+                            'total_violations' => $ibadahCount + $bahasaCount + $tidurCount,
+                            'weeks' => $sRec->map(function ($w) {
+                                return [
+                                    'week' => $w->week_number,
+                                    'ibadah' => $w->ibadah_count,
+                                    'bahasa' => $w->bahasa_count,
+                                    'tidur' => $w->tidur_count,
+                                    'notes' => $w->notes,
+                                ];
+                            })->keyBy('week'),
+                        ]
+                    ];
+                });
             }
         }
 
@@ -140,6 +184,7 @@ class CharacterAssessmentController extends Controller
             'students' => $students,
             'existingAssessments' => $assessments,
             'existingReports' => $reports ?? [],
+            'oswanCalculations' => $oswanCalculations ?? [],
             'filters' => [
                 'active_kamar_id' => $selectedKamarId,
                 'month' => $selectedMonth,

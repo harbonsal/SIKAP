@@ -140,6 +140,32 @@ Route::get('/setup-care-permissions', function () {
     echo "</ul><p>Done. (Corrected)</p>";
 });
 
+Route::get('/setup-oswan', function () {
+    try {
+        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        $migrateOutput = \Illuminate\Support\Facades\Artisan::output();
+
+        $seeder = new \Database\Seeders\OswanRoleSeeder();
+        $seeder->run();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Migrasi dan inisialisasi Role & Akun OSWAN berhasil.',
+            'migrate_output' => $migrateOutput,
+            'default_account' => [
+                'username' => 'oswan',
+                'password' => 'password',
+                'role' => 'OSWAN'
+            ]
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage()
+        ], 500);
+    }
+});
+
 Route::get('/debug-search', function (\Illuminate\Http\Request $request) {
     $search = $request->query('q');
     $kamarId = $request->query('k');
@@ -410,6 +436,11 @@ Route::middleware('auth')->group(function () {
     Route::get('assessments/character/recap/student', [App\Http\Controllers\CharacterRecapController::class, 'studentIndex'])->name('assessments.character.recap.student.index'); // Show Students List
     Route::get('assessments/character/recap/student/{id}', [App\Http\Controllers\CharacterRecapController::class, 'student'])->name('assessments.character.recap.student'); // Show by Student
 
+    // OSWAN Conduct Records & Monitoring
+    Route::get('/care/oswan/input', [App\Http\Controllers\OswanConductController::class, 'index'])->name('care.oswan.index');
+    Route::post('/care/oswan/input', [App\Http\Controllers\OswanConductController::class, 'store'])->name('care.oswan.store');
+    Route::get('/care/oswan/monitor', [App\Http\Controllers\OswanConductController::class, 'monitorIndex'])->name('care.oswan.monitor');
+    Route::get('/care/oswan/export', [App\Http\Controllers\OswanConductController::class, 'exportExcel'])->name('care.oswan.export');
 
     Route::get('/assessments', [App\Http\Controllers\AssessmentController::class, 'index'])->name('assessments.index');
     Route::get('/assessments/export/excel', [App\Http\Controllers\AssessmentController::class, 'exportExcel'])->name('assessments.export-excel');
