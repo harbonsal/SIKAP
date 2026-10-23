@@ -55,7 +55,9 @@ class OswanConductController extends Controller
                     $sq->where('academic_year_id', $activeYear->id);
                 })->with('activeClass.kelas', 'activeClass.kelasParalel');
             }
-        ])->where('status', 'active');
+        ])->whereHas('user', function ($q) {
+            $q->where('status', 'Aktif');
+        });
 
         // Filter Kamar
         if ($selectedKamarId) {
@@ -73,14 +75,13 @@ class OswanConductController extends Controller
 
         // Search Nama / NIS
         if ($search) {
-            $studentsQuery->where(function ($q) use ($search) {
+            $studentsQuery->whereHas('user', function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('nis', 'like', "%{$search}%")
                   ->orWhere('nomor_induk', 'like', "%{$search}%");
             });
         }
 
-        $students = $studentsQuery->orderBy('name')->get()->map(function ($s) {
+        $students = $studentsQuery->get()->sortBy('name')->values()->map(function ($s) {
             $kamar = $s->kamarMembers->first()?->activeKamar?->kamar?->name ?? '-';
             $kelasObj = $s->classMembers->first()?->activeClass;
             $kelas = $kelasObj ? trim(($kelasObj->kelas->name ?? '') . ' ' . ($kelasObj->kelasParalel->name ?? '')) : '-';
@@ -248,7 +249,9 @@ class OswanConductController extends Controller
                     $sq->where('academic_year_id', $activeYear->id);
                 })->with('activeClass.kelas', 'activeClass.kelasParalel');
             }
-        ])->where('status', 'active');
+        ])->whereHas('user', function ($q) {
+            $q->where('status', 'Aktif');
+        });
 
         if (!$isSuper) {
             // Batasi hanya santri di kamar binaan musyrif ATAU santri bimbingan guru asuh
@@ -277,14 +280,13 @@ class OswanConductController extends Controller
         }
 
         if ($search) {
-            $studentsQuery->where(function ($q) use ($search) {
+            $studentsQuery->whereHas('user', function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('nis', 'like', "%{$search}%")
                   ->orWhere('nomor_induk', 'like', "%{$search}%");
             });
         }
 
-        $students = $studentsQuery->orderBy('name')->get();
+        $students = $studentsQuery->get()->sortBy('name')->values();
 
         // Ambil seluruh rekap ketertiban bulan tersebut untuk santri-santri ini
         $records = OswanConductRecord::where('academic_year_id', $activeYear->id)
@@ -386,10 +388,13 @@ class OswanConductController extends Controller
         $search = $request->input('search');
 
         $studentsQuery = Student::with([
+            'user',
             'kamarMembers.activeKamar.kamar',
             'classMembers.activeClass.kelas',
             'classMembers.activeClass.kelasParalel'
-        ])->where('status', 'active');
+        ])->whereHas('user', function ($q) {
+            $q->where('status', 'Aktif');
+        });
 
         if ($selectedKamarId) {
             $studentsQuery->whereHas('kamarMembers', fn($q) => $q->where('active_kamar_id', $selectedKamarId));
@@ -398,10 +403,13 @@ class OswanConductController extends Controller
             $studentsQuery->whereHas('classMembers', fn($q) => $q->where('active_class_id', $selectedClassId));
         }
         if ($search) {
-            $studentsQuery->where('name', 'like', "%{$search}%");
+            $studentsQuery->whereHas('user', function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('nomor_induk', 'like', "%{$search}%");
+            });
         }
 
-        $students = $studentsQuery->orderBy('name')->get();
+        $students = $studentsQuery->get()->sortBy('name')->values();
         $records = OswanConductRecord::where('academic_year_id', $activeYear->id)
             ->where('semester_id', $activeSemester->id)
             ->where('year', $currentYear)
