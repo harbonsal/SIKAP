@@ -140,32 +140,6 @@ Route::get('/setup-care-permissions', function () {
     echo "</ul><p>Done. (Corrected)</p>";
 });
 
-Route::get('/setup-oswan', function () {
-    try {
-        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
-        $migrateOutput = \Illuminate\Support\Facades\Artisan::output();
-
-        $seeder = new \Database\Seeders\OswanRoleSeeder();
-        $seeder->run();
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Migrasi dan inisialisasi Role & Akun OSWAN berhasil.',
-            'migrate_output' => $migrateOutput,
-            'default_account' => [
-                'username' => 'oswan',
-                'password' => 'password',
-                'role' => 'OSWAN'
-            ]
-        ]);
-    } catch (\Throwable $e) {
-        return response()->json([
-            'status' => 'error',
-            'message' => $e->getMessage()
-        ], 500);
-    }
-});
-
 Route::get('/debug-search', function (\Illuminate\Http\Request $request) {
     $search = $request->query('q');
     $kamarId = $request->query('k');
