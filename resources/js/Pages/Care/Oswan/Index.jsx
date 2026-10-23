@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Head, router } from '@inertiajs/react';
 import MainLayout from '@/Layouts/MainLayout';
 import { 
@@ -15,7 +15,12 @@ import {
     Minus,
     Plus,
     UserCheck,
-    RotateCcw
+    RotateCcw,
+    Layers,
+    FileSpreadsheet,
+    HelpCircle,
+    Building2,
+    GraduationCap
 } from 'lucide-react';
 
 export default function OswanIndex({ 
@@ -34,10 +39,15 @@ export default function OswanIndex({
     const [selectedClass, setSelectedClass] = useState(filters.active_class_id || '');
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
 
-    // Form data: { [student_id]: { ibadah_count: 0, bahasa_count: 0, tidur_count: 0, notes: '' } }
+    // Form data: { [student_id]: { student_id, ibadah_count: 0, bahasa_count: 0, tidur_count: 0, notes: '' } }
     const [records, setRecords] = useState({});
     const [isSaving, setIsSaving] = useState(false);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [saveSuccessMessage, setSaveSuccessMessage] = useState(false);
+
+    // Refs untuk navigasi keyboard cell tabel [rowIndex][colIndex]
+    // colIndex: 0 = ibadah, 1 = bahasa, 2 = tidur, 3 = notes
+    const inputRefs = useRef({});
 
     const months = [
         { id: 1, name: 'Januari' }, { id: 2, name: 'Februari' }, { id: 3, name: 'Maret' },
@@ -63,6 +73,18 @@ export default function OswanIndex({
         setHasUnsavedChanges(false);
     }, [students, existingRecords]);
 
+    // Keyboard shortcut Ctrl+S untuk simpan cepat
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                handleSubmit();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [records, selectedYear, selectedMonth, selectedWeek]);
+
     const handleFilterChange = (updates = {}) => {
         const query = {
             month: updates.month !== undefined ? updates.month : selectedMonth,
@@ -79,44 +101,123 @@ export default function OswanIndex({
         });
     };
 
-    const updateCount = (studentId, field, delta) => {
+    const handleInputChange = (studentId, field, rawValue) => {
+        const val = rawValue === '' ? 0 : Math.max(0, parseInt(rawValue, 10) || 0);
+        setRecords(prev => ({
+            ...prev,
+            [studentId]: {
+                ...prev[studentId],
+                student_id: studentId,
+                [field]: val
+            }
+        }));
+        setHasUnsavedChanges(true);
+    };
+
+    const handleNotesChange = (studentId, rawValue) => {
+        setRecords(prev => ({
+            ...prev,
+            [studentId]: {
+                ...prev[studentId],
+                student_id: studentId,
+                notes: rawValue
+            }
+        }));
+        setHasUnsavedChanges(true);
+    };
+
+    // Navigasi keyboard Excel-like (Enter / Arrow keys)
+    const handleCellKeyDown = (e, rowIndex, colIndex) => {
+        const totalRows = students.length;
+        const totalCols = 4; // 0: ibadah, 1: bahasa, 2: tidur, 3: notes
+
+        if (e.key === 'Enter' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            const nextRow = Math.min(totalRows - 1, rowIndex + 1);
+            inputRefs.current[`${nextRow}-${colIndex}`]?.focus();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            const prevRow = Math.max(0, rowIndex - 1);
+            inputRefs.current[`${prevRow}-${colIndex}`]?.focus();
+        } else if (e.key === 'ArrowRight' && colIndex < totalCols - 1 && e.target.selectionStart === e.target.value.length) {
+            inputRefs.current[`${rowIndex}-${colIndex + 1}`]?.focus();
+        } else if (e.key === 'ArrowLeft' && colIndex > 0 && e.target.selectionStart === 0) {
+            inputRefs.current[`${rowIndex}-${colIndex - 1}`]?.focus();
+        }
+    };
+
+    // Paste dari Excel / Spreadsheet (Ctrl+V)
+    const handlePaste = (e, startRowIndex, startColIndex) => {
+        const pasteData = e.clipboardData.getData('text');
+        if (!pasteData) return;
+
+        // Cek jika multi baris atau multi kolom (ada tab atau newline)
+        if (pasteData.includes('\t') || pasteData.includes('\n')) {
+            e.preventDefault();
+            const rows = pasteData.trim().split(/\r\n|\n|\r/);
+            const fields = ['ibadah_count', 'bahasa_count', 'tidur_count', 'notes'];
+
+            setRecords(prev => {
+                const nextRecords = { ...prev };
+
+                rows.forEach((rowStr, rIdx) => {
+                    const targetRow = startRowIndex + rIdx;
+                    if (targetRow >= students.length) return;
+
+                    const student = students[targetRow];
+                    if (!student) return;
+
+                    const cols = rowStr.split('\t');
+                    cols.forEach((colVal, cIdx) => {
+                        const targetCol = startColIndex + cIdx;
+                        if (targetCol >= fields.length) return;
+
+                        const fieldName = fields[targetCol];
+                        const cleanVal = colVal.trim();
+
+                        if (!nextRecords[student.id]) {
+                            nextRecords[student.id] = {
+                                student_id: student.id,
+                                ibadah_count: 0,
+                                bahasa_count: 0,
+                                tidur_count: 0,
+                                notes: ''
+                            };
+                        }
+
+                        if (fieldName === 'notes') {
+                            nextRecords[student.id][fieldName] = cleanVal;
+                        } else {
+                            nextRecords[student.id][fieldName] = cleanVal === '' ? 0 : Math.max(0, parseInt(cleanVal, 10) || 0);
+                        }
+                    });
+                });
+
+                return nextRecords;
+            });
+
+            setHasUnsavedChanges(true);
+        }
+    };
+
+    const handleClearAllInView = () => {
+        if (!confirm('Apakah antum yakin ingin mengosongkan seluruh angka pelanggaran di tabel yang tampil saat ini?')) {
+            return;
+        }
+
         setRecords(prev => {
-            const currentVal = Number(prev[studentId]?.[field] || 0);
-            const newVal = Math.max(0, currentVal + delta);
-            return {
-                ...prev,
-                [studentId]: {
-                    ...prev[studentId],
-                    student_id: studentId,
-                    [field]: newVal
-                }
-            };
+            const nextRecords = { ...prev };
+            students.forEach(s => {
+                nextRecords[s.id] = {
+                    student_id: s.id,
+                    ibadah_count: 0,
+                    bahasa_count: 0,
+                    tidur_count: 0,
+                    notes: ''
+                };
+            });
+            return nextRecords;
         });
-        setHasUnsavedChanges(true);
-    };
-
-    const handleInputChange = (studentId, field, value) => {
-        const num = value === '' ? 0 : Math.max(0, parseInt(value, 10) || 0);
-        setRecords(prev => ({
-            ...prev,
-            [studentId]: {
-                ...prev[studentId],
-                student_id: studentId,
-                [field]: num
-            }
-        }));
-        setHasUnsavedChanges(true);
-    };
-
-    const handleNotesChange = (studentId, value) => {
-        setRecords(prev => ({
-            ...prev,
-            [studentId]: {
-                ...prev[studentId],
-                student_id: studentId,
-                notes: value
-            }
-        }));
         setHasUnsavedChanges(true);
     };
 
@@ -135,6 +236,8 @@ export default function OswanIndex({
             onSuccess: () => {
                 setIsSaving(false);
                 setHasUnsavedChanges(false);
+                setSaveSuccessMessage(true);
+                setTimeout(() => setSaveSuccessMessage(false), 4000);
             },
             onError: () => {
                 setIsSaving(false);
@@ -142,48 +245,64 @@ export default function OswanIndex({
         });
     };
 
-    // Hitung total pelanggaran yang diinput pada form saat ini
-    const totalRecordedThisWeek = Object.values(records).reduce((sum, r) => {
+    // Total pelanggaran santri yang sedang tampil di tabel
+    const totalViolationsInView = students.reduce((sum, s) => {
+        const r = records[s.id] || {};
         return sum + (Number(r.ibadah_count) || 0) + (Number(r.bahasa_count) || 0) + (Number(r.tidur_count) || 0);
     }, 0);
+
+    const totalStudentsViolating = students.filter(s => {
+        const r = records[s.id] || {};
+        return (Number(r.ibadah_count) || 0) + (Number(r.bahasa_count) || 0) + (Number(r.tidur_count) || 0) > 0;
+    }).length;
 
     return (
         <MainLayout>
             <Head title="Jurnal Ketertiban Santri - OSWAN" />
 
-            <div className="space-y-6 pb-20 max-w-7xl mx-auto px-2 sm:px-4">
-                {/* Header Card */}
-                <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+            <div className="space-y-5 pb-28 max-w-7xl mx-auto px-2 sm:px-4">
+                {/* Header Banner Ringkas */}
+                <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 rounded-2xl p-5 text-white shadow-md relative overflow-hidden">
                     <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
-                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/15 backdrop-blur-md rounded-full text-xs font-semibold tracking-wide uppercase mb-2 border border-white/20">
+                            <div className="inline-flex items-center gap-2 px-3 py-0.5 bg-white/20 backdrop-blur-md rounded-full text-[11px] font-semibold uppercase tracking-wide mb-1.5 border border-white/20">
                                 <span>OSWAN</span>
                                 <span>•</span>
-                                <span>Biro Pengasuhan Santri</span>
+                                <span>Biro Pengasuhan</span>
                             </div>
-                            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Jurnal Ketertiban Santri</h1>
-                            <p className="text-emerald-100 text-sm mt-1 max-w-xl">
-                                Pencatatan rekapitulasi keterlambatan salat, pelanggaran bahasa Arab, dan ketertiban tidur malam santri setiap pekan.
+                            <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2">
+                                <FileSpreadsheet className="h-6 w-6" />
+                                Jurnal Rekapitulasi Ketertiban Massal
+                            </h1>
+                            <p className="text-emerald-100 text-xs mt-1 max-w-xl">
+                                Input rekap mingguan keterlambatan salat, bahasa Arab, dan jam tidur santri. Gunakan keyboard <strong>Tab / Enter / Panah</strong> untuk berpindah baris secara cepat.
                             </p>
                         </div>
-                        <div className="flex flex-wrap items-center gap-3">
-                            <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 text-right">
-                                <span className="text-xs text-emerald-100 block">Tahun Ajaran / Semester</span>
-                                <span className="font-semibold text-sm">
-                                    {academicYear?.name || '-'} ({semester?.name || '-'})
-                                </span>
+                        <div className="flex flex-wrap items-center gap-2.5">
+                            <div className="bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-white/10 text-xs">
+                                <span className="opacity-80 block text-[10px]">Tahun / Semester</span>
+                                <span className="font-bold">{academicYear?.name || '-'} ({semester?.name || '-'})</span>
                             </div>
+                            <button
+                                type="button"
+                                onClick={handleSubmit}
+                                disabled={isSaving}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-emerald-800 hover:bg-emerald-50 font-bold rounded-xl text-xs sm:text-sm shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                            >
+                                <Save className="h-4 w-4 text-emerald-600" />
+                                <span>{isSaving ? 'Menyimpan...' : 'Simpan Data (Ctrl+S)'}</span>
+                            </button>
                         </div>
                     </div>
                 </div>
 
-                {/* Filter & Periode Bar */}
-                <div className="bg-card rounded-2xl border p-4 sm:p-5 shadow-sm space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                        {/* Pilih Bulan */}
-                        <div>
-                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
-                                Bulan
+                {/* Filter Utama: Periode Bulan & Pekan */}
+                <div className="bg-card rounded-2xl border p-4 shadow-xs space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        {/* Selector Bulan */}
+                        <div className="flex items-center gap-2">
+                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                                Bulan:
                             </label>
                             <select
                                 value={selectedMonth}
@@ -192,326 +311,355 @@ export default function OswanIndex({
                                     setSelectedMonth(val);
                                     handleFilterChange({ month: val });
                                 }}
-                                className="w-full text-sm rounded-xl border border-input bg-background px-3 py-2 focus:ring-2 focus:ring-emerald-500 font-medium"
+                                className="text-xs sm:text-sm font-semibold rounded-xl border border-input bg-background px-3 py-1.5 focus:ring-2 focus:ring-emerald-500"
                             >
                                 {months.map(m => (
-                                    <option key={m.id} value={m.id}>{m.name}</option>
+                                    <option key={m.id} value={m.id}>{m.name} {selectedYear}</option>
                                 ))}
                             </select>
                         </div>
 
-                        {/* Pilih Pekan */}
-                        <div>
-                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
-                                Pekan Evaluasi
-                            </label>
-                            <div className="grid grid-cols-5 gap-1">
-                                {[1, 2, 3, 4, 5].map(w => (
-                                    <button
-                                        key={w}
-                                        type="button"
-                                        onClick={() => {
-                                            setSelectedWeek(w);
-                                            handleFilterChange({ week_number: w });
-                                        }}
-                                        className={`py-2 text-xs font-bold rounded-xl transition-all border ${
-                                            selectedWeek === w
-                                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                                                : 'bg-muted/40 text-muted-foreground hover:bg-muted border-border'
-                                        }`}
-                                    >
-                                        P{w}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Filter Kamar */}
-                        <div>
-                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
-                                Filter Kamar
-                            </label>
-                            <select
-                                value={selectedKamar}
-                                onChange={(e) => {
-                                    const val = e.target.value;
-                                    setSelectedKamar(val);
-                                    handleFilterChange({ active_kamar_id: val });
-                                }}
-                                className="w-full text-sm rounded-xl border border-input bg-background px-3 py-2 focus:ring-2 focus:ring-emerald-500"
-                            >
-                                <option value="">Semua Kamar</option>
-                                {kamars.map(k => (
-                                    <option key={k.id} value={k.id}>{k.name}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Filter Kelas */}
-                        <div>
-                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
-                                Filter Kelas
-                            </label>
-                            <select
-                                value={selectedClass}
-                                onChange={(e) => {
-                                    const val = e.target.value;
-                                    setSelectedClass(val);
-                                    handleFilterChange({ active_class_id: val });
-                                }}
-                                className="w-full text-sm rounded-xl border border-input bg-background px-3 py-2 focus:ring-2 focus:ring-emerald-500"
-                            >
-                                <option value="">Semua Kelas</option>
-                                {classes.map(c => (
-                                    <option key={c.id} value={c.id}>{c.name}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Pencarian Santri */}
-                        <div>
-                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
-                                Cari Santri
-                            </label>
-                            <div className="relative">
-                                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <input
-                                    type="text"
-                                    placeholder="Nama / NIS..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            handleFilterChange({ search: searchQuery });
-                                        }
+                        {/* Selector Pekan */}
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider mr-1">
+                                Pekan:
+                            </span>
+                            {[1, 2, 3, 4, 5].map(w => (
+                                <button
+                                    key={w}
+                                    type="button"
+                                    onClick={() => {
+                                        setSelectedWeek(w);
+                                        handleFilterChange({ week_number: w });
                                     }}
-                                    className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-input bg-background focus:ring-2 focus:ring-emerald-500"
-                                />
-                            </div>
+                                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-all border ${
+                                        selectedWeek === w
+                                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                                            : 'bg-muted/40 text-muted-foreground hover:bg-muted border-border'
+                                    }`}
+                                >
+                                    Pekan {w}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Search Bar */}
+                        <div className="relative min-w-[200px] flex-1 max-w-xs">
+                            <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
+                            <input
+                                type="text"
+                                placeholder="Cari Nama / NIS..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        handleFilterChange({ search: searchQuery });
+                                    }
+                                }}
+                                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-input bg-background focus:ring-2 focus:ring-emerald-500"
+                            />
                         </div>
                     </div>
 
-                    {/* Ringkasan Filter & Quick Action */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t text-xs text-muted-foreground">
-                        <div className="flex items-center gap-2">
-                            <span className="font-medium text-foreground">Total Santri: {students.length} anak</span>
-                            <span>•</span>
-                            <span>Pekan ke-{selectedWeek} ({months.find(m => m.id === selectedMonth)?.name} {selectedYear})</span>
-                            <span>•</span>
-                            <span className="text-emerald-600 font-medium">Dicatat Pekan Ini: {totalRecordedThisWeek} pelanggaran</span>
-                        </div>
-                        {hasUnsavedChanges && (
-                            <div className="flex items-center gap-1.5 text-amber-600 font-semibold animate-pulse">
-                                <AlertCircle className="h-4 w-4" />
-                                Ada perubahan yang belum disimpan!
+                    {/* Quick Kamar Selector (Tab Bar Kamar) */}
+                    <div className="pt-2 border-t">
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                                <Building2 className="h-3.5 w-3.5 text-emerald-600" />
+                                Pilih Kamar Santri:
+                            </span>
+                            <div className="flex items-center gap-3 text-xs">
+                                <select
+                                    value={selectedClass}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setSelectedClass(val);
+                                        handleFilterChange({ active_class_id: val });
+                                    }}
+                                    className="text-xs rounded-lg border border-input bg-background px-2 py-1 text-muted-foreground"
+                                >
+                                    <option value="">Semua Kelas</option>
+                                    {classes.map(c => (
+                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                    ))}
+                                </select>
                             </div>
-                        )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSelectedKamar('');
+                                    handleFilterChange({ active_kamar_id: '' });
+                                }}
+                                className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors border ${
+                                    selectedKamar === ''
+                                        ? 'bg-slate-800 text-white border-slate-800 dark:bg-slate-200 dark:text-slate-900'
+                                        : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                                }`}
+                            >
+                                Semua Kamar ({kamars.length})
+                            </button>
+                            {kamars.map(k => (
+                                <button
+                                    key={k.id}
+                                    type="button"
+                                    onClick={() => {
+                                        setSelectedKamar(k.id);
+                                        handleFilterChange({ active_kamar_id: k.id });
+                                    }}
+                                    className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors border ${
+                                        String(selectedKamar) === String(k.id)
+                                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                                            : 'bg-background hover:bg-muted text-foreground border-border'
+                                    }`}
+                                >
+                                    {k.name}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Indikator Status & Quick Action */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t text-xs">
+                        <div className="flex items-center gap-3 text-muted-foreground">
+                            <span>Menampilkan: <strong className="text-foreground">{students.length} santri</strong></span>
+                            <span>•</span>
+                            <span>Total Pelanggaran: <strong className="text-amber-600 dark:text-amber-400">{totalViolationsInView} kasus</strong></span>
+                            <span>•</span>
+                            <span>Santri Melanggar: <strong className="text-foreground">{totalStudentsViolating} anak</strong></span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={handleClearAllInView}
+                                className="text-xs text-muted-foreground hover:text-red-600 transition-colors inline-flex items-center gap-1"
+                                title="Kosongkan angka di tampilan saat ini"
+                            >
+                                <RotateCcw className="h-3 w-3" />
+                                <span>Reset Tampilan</span>
+                            </button>
+                            {hasUnsavedChanges && (
+                                <span className="inline-flex items-center gap-1 text-amber-600 font-semibold animate-pulse text-xs">
+                                    <AlertCircle className="h-3.5 w-3.5" />
+                                    Belum disimpan
+                                </span>
+                            )}
+                            {saveSuccessMessage && (
+                                <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold text-xs animate-bounce">
+                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                    Tersimpan!
+                                </span>
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                {/* Form Input Pelanggaran Santri */}
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    {students.length === 0 ? (
-                        <div className="bg-card rounded-2xl border p-12 text-center text-muted-foreground">
-                            <UserCheck className="h-12 w-12 mx-auto mb-3 opacity-30 text-emerald-500" />
-                            <p className="font-semibold text-base text-foreground">Tidak Ada Data Santri</p>
-                            <p className="text-sm mt-1">Coba sesuaikan filter kamar, kelas, atau kata kunci pencarian Anda.</p>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                            {students.map((student, idx) => {
-                                const rec = records[student.id] || { ibadah_count: 0, bahasa_count: 0, tidur_count: 0, notes: '' };
-                                const subTotal = (rec.ibadah_count || 0) + (rec.bahasa_count || 0) + (rec.tidur_count || 0);
+                {/* Petunjuk Pintas Keyboard */}
+                <div className="bg-muted/30 border border-dashed rounded-xl px-4 py-2 text-[11px] text-muted-foreground flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                        <span className="font-semibold text-foreground">💡 Tip Cepat:</span>
+                        <span>Fokuskan kursor di kolom angka pertama, tekan <kbd className="px-1.5 py-0.5 bg-background border rounded text-[10px] font-mono">Enter</kbd> / <kbd className="px-1.5 py-0.5 bg-background border rounded text-[10px] font-mono">↓</kbd> untuk lanjut ke santri bawahnya.</span>
+                    </div>
+                    <span>Dapat paste langsung dari Excel / Spreadsheet (<kbd className="px-1.5 py-0.5 bg-background border rounded text-[10px] font-mono">Ctrl+V</kbd>)</span>
+                </div>
 
-                                return (
-                                    <div 
-                                        key={student.id} 
-                                        className={`bg-card rounded-2xl border p-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between ${
-                                            subTotal > 0 ? 'border-amber-200 dark:border-amber-900/50 bg-amber-50/10' : 'border-border'
-                                        }`}
-                                    >
-                                        {/* Info Santri */}
-                                        <div>
-                                            <div className="flex items-start justify-between gap-2">
-                                                <div className="flex-1 min-w-0">
-                                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
-                                                        #{idx + 1} • NIS: {student.nis}
-                                                    </span>
-                                                    <h3 className="font-semibold text-sm sm:text-base text-foreground truncate mt-0.5">
-                                                        {student.name}
-                                                    </h3>
-                                                    <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                                                        <span className="bg-muted px-2 py-0.5 rounded-md font-medium">
+                {/* Spreadsheet Table Input Massal */}
+                <form onSubmit={handleSubmit}>
+                    <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
+                        <div className="overflow-x-auto min-h-[400px]">
+                            <table className="w-full text-xs text-left">
+                                <thead className="bg-muted/70 text-muted-foreground text-[11px] uppercase tracking-wider font-bold border-b">
+                                    <tr>
+                                        <th className="px-3 py-3 w-10 text-center">No</th>
+                                        <th className="px-4 py-3 min-w-[200px]">Nama Santri</th>
+                                        <th className="px-3 py-3 min-w-[100px]">Kamar</th>
+                                        <th className="px-3 py-3 min-w-[90px]">Kelas</th>
+                                        <th className="px-3 py-3 text-center w-28 bg-blue-50/50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300">
+                                            <div className="flex items-center justify-center gap-1">
+                                                <Clock className="h-3 w-3" />
+                                                <span>Telat Salat</span>
+                                            </div>
+                                        </th>
+                                        <th className="px-3 py-3 text-center w-28 bg-purple-50/50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300">
+                                            <div className="flex items-center justify-center gap-1">
+                                                <MessageSquare className="h-3 w-3" />
+                                                <span>Bahasa</span>
+                                            </div>
+                                        </th>
+                                        <th className="px-3 py-3 text-center w-28 bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300">
+                                            <div className="flex items-center justify-center gap-1">
+                                                <Moon className="h-3 w-3" />
+                                                <span>Jam Tidur</span>
+                                            </div>
+                                        </th>
+                                        <th className="px-3 py-3 text-center w-20">Total</th>
+                                        <th className="px-4 py-3 min-w-[240px]">Catatan Pelanggaran (Opsional)</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border">
+                                    {students.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="9" className="px-6 py-14 text-center text-muted-foreground">
+                                                <UserCheck className="h-10 w-10 mx-auto mb-2 opacity-30 text-emerald-500" />
+                                                <p className="font-semibold text-sm text-foreground">Tidak ada santri di filter ini</p>
+                                                <p className="text-xs mt-0.5">Pilih kamar lain atau sesuaikan kata kunci pencarian antum.</p>
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        students.map((student, rowIndex) => {
+                                            const rec = records[student.id] || { ibadah_count: 0, bahasa_count: 0, tidur_count: 0, notes: '' };
+                                            const subTotal = (rec.ibadah_count || 0) + (rec.bahasa_count || 0) + (rec.tidur_count || 0);
+                                            const hasViolation = subTotal > 0;
+
+                                            return (
+                                                <tr 
+                                                    key={student.id} 
+                                                    className={`transition-colors hover:bg-muted/40 ${
+                                                        hasViolation ? 'bg-amber-50/20 dark:bg-amber-950/15' : ''
+                                                    }`}
+                                                >
+                                                    {/* No */}
+                                                    <td className="px-3 py-2 text-center text-muted-foreground font-mono">
+                                                        {rowIndex + 1}
+                                                    </td>
+
+                                                    {/* Nama Santri */}
+                                                    <td className="px-4 py-2">
+                                                        <div className="font-semibold text-foreground text-xs leading-snug">
+                                                            {student.name}
+                                                        </div>
+                                                        <div className="text-[10px] text-muted-foreground">
+                                                            NIS: {student.nis}
+                                                        </div>
+                                                    </td>
+
+                                                    {/* Kamar */}
+                                                    <td className="px-3 py-2 text-muted-foreground">
+                                                        <span className="truncate block max-w-[120px]" title={student.kamar}>
                                                             {student.kamar}
                                                         </span>
-                                                        <span className="bg-muted px-2 py-0.5 rounded-md font-medium">
+                                                    </td>
+
+                                                    {/* Kelas */}
+                                                    <td className="px-3 py-2 text-muted-foreground">
+                                                        <span className="truncate block max-w-[100px]" title={student.kelas}>
                                                             {student.kelas}
                                                         </span>
-                                                    </div>
-                                                </div>
+                                                    </td>
 
-                                                {/* Badge Total Pekan Ini */}
-                                                <div className="text-right shrink-0">
-                                                    <div className={`px-2 py-1 rounded-xl text-xs font-bold ${
-                                                        subTotal > 0 
-                                                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300' 
-                                                            : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                                                    }`}>
-                                                        {subTotal} Kasus
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Evaluasi 3 Aspek */}
-                                            <div className="space-y-3 mt-4 pt-3 border-t">
-                                                {/* 1. Keterlambatan Ibadah */}
-                                                <div className="flex items-center justify-between gap-2 bg-muted/20 p-2 rounded-xl">
-                                                    <div className="flex items-center gap-2 text-xs font-medium">
-                                                        <div className="p-1.5 rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
-                                                            <Clock className="h-3.5 w-3.5" />
-                                                        </div>
-                                                        <div>
-                                                            <span className="block font-semibold">Keterlambatan Salat</span>
-                                                            <span className="text-[10px] text-muted-foreground">Subuh/Maghrib/Isya</span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => updateCount(student.id, 'ibadah_count', -1)}
-                                                            className="w-7 h-7 rounded-lg bg-card border hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground active:scale-95 transition-transform"
-                                                        >
-                                                            <Minus className="h-3 w-3" />
-                                                        </button>
+                                                    {/* Col 0: Telat Salat */}
+                                                    <td className="px-2 py-1.5 text-center bg-blue-50/20 dark:bg-blue-950/10">
                                                         <input
+                                                            ref={el => inputRefs.current[`${rowIndex}-0`] = el}
                                                             type="text"
                                                             inputMode="numeric"
                                                             pattern="[0-9]*"
-                                                            value={rec.ibadah_count || 0}
+                                                            value={rec.ibadah_count === 0 ? '' : rec.ibadah_count}
+                                                            placeholder="0"
                                                             onChange={(e) => handleInputChange(student.id, 'ibadah_count', e.target.value)}
-                                                            className="w-10 text-center font-bold text-sm bg-background border border-input rounded-lg py-1 focus:ring-1 focus:ring-emerald-500"
+                                                            onKeyDown={(e) => handleCellKeyDown(e, rowIndex, 0)}
+                                                            onPaste={(e) => handlePaste(e, rowIndex, 0)}
+                                                            className={`w-14 h-8 text-center font-bold text-xs rounded-lg border focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all ${
+                                                                (rec.ibadah_count || 0) > 0 
+                                                                    ? 'bg-blue-50 border-blue-400 text-blue-800 dark:bg-blue-950 dark:border-blue-700 dark:text-blue-200' 
+                                                                    : 'bg-background border-input text-muted-foreground focus:text-foreground'
+                                                            }`}
                                                         />
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => updateCount(student.id, 'ibadah_count', 1)}
-                                                            className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 flex items-center justify-center active:scale-95 transition-transform"
-                                                        >
-                                                            <Plus className="h-3 w-3" />
-                                                        </button>
-                                                    </div>
-                                                </div>
+                                                    </td>
 
-                                                {/* 2. Ketertiban Berbahasa */}
-                                                <div className="flex items-center justify-between gap-2 bg-muted/20 p-2 rounded-xl">
-                                                    <div className="flex items-center gap-2 text-xs font-medium">
-                                                        <div className="p-1.5 rounded-lg bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300">
-                                                            <MessageSquare className="h-3.5 w-3.5" />
-                                                        </div>
-                                                        <div>
-                                                            <span className="block font-semibold">Pelanggaran Bahasa</span>
-                                                            <span className="text-[10px] text-muted-foreground">Tidak berbahasa Arab</span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => updateCount(student.id, 'bahasa_count', -1)}
-                                                            className="w-7 h-7 rounded-lg bg-card border hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground active:scale-95 transition-transform"
-                                                        >
-                                                            <Minus className="h-3 w-3" />
-                                                        </button>
+                                                    {/* Col 1: Pelanggaran Bahasa */}
+                                                    <td className="px-2 py-1.5 text-center bg-purple-50/20 dark:bg-purple-950/10">
                                                         <input
+                                                            ref={el => inputRefs.current[`${rowIndex}-1`] = el}
                                                             type="text"
                                                             inputMode="numeric"
                                                             pattern="[0-9]*"
-                                                            value={rec.bahasa_count || 0}
+                                                            value={rec.bahasa_count === 0 ? '' : rec.bahasa_count}
+                                                            placeholder="0"
                                                             onChange={(e) => handleInputChange(student.id, 'bahasa_count', e.target.value)}
-                                                            className="w-10 text-center font-bold text-sm bg-background border border-input rounded-lg py-1 focus:ring-1 focus:ring-emerald-500"
+                                                            onKeyDown={(e) => handleCellKeyDown(e, rowIndex, 1)}
+                                                            onPaste={(e) => handlePaste(e, rowIndex, 1)}
+                                                            className={`w-14 h-8 text-center font-bold text-xs rounded-lg border focus:ring-2 focus:ring-purple-500 focus:outline-none transition-all ${
+                                                                (rec.bahasa_count || 0) > 0 
+                                                                    ? 'bg-purple-50 border-purple-400 text-purple-800 dark:bg-purple-950 dark:border-purple-700 dark:text-purple-200' 
+                                                                    : 'bg-background border-input text-muted-foreground focus:text-foreground'
+                                                            }`}
                                                         />
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => updateCount(student.id, 'bahasa_count', 1)}
-                                                            className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 flex items-center justify-center active:scale-95 transition-transform"
-                                                        >
-                                                            <Plus className="h-3 w-3" />
-                                                        </button>
-                                                    </div>
-                                                </div>
+                                                    </td>
 
-                                                {/* 3. Ketertiban Jam Tidur */}
-                                                <div className="flex items-center justify-between gap-2 bg-muted/20 p-2 rounded-xl">
-                                                    <div className="flex items-center gap-2 text-xs font-medium">
-                                                        <div className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300">
-                                                            <Moon className="h-3.5 w-3.5" />
-                                                        </div>
-                                                        <div>
-                                                            <span className="block font-semibold">Ketertiban Tidur</span>
-                                                            <span className="text-[10px] text-muted-foreground">Begadang / lewat batas</span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => updateCount(student.id, 'tidur_count', -1)}
-                                                            className="w-7 h-7 rounded-lg bg-card border hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground active:scale-95 transition-transform"
-                                                        >
-                                                            <Minus className="h-3 w-3" />
-                                                        </button>
+                                                    {/* Col 2: Jam Tidur */}
+                                                    <td className="px-2 py-1.5 text-center bg-indigo-50/20 dark:bg-indigo-950/10">
                                                         <input
+                                                            ref={el => inputRefs.current[`${rowIndex}-2`] = el}
                                                             type="text"
                                                             inputMode="numeric"
                                                             pattern="[0-9]*"
-                                                            value={rec.tidur_count || 0}
+                                                            value={rec.tidur_count === 0 ? '' : rec.tidur_count}
+                                                            placeholder="0"
                                                             onChange={(e) => handleInputChange(student.id, 'tidur_count', e.target.value)}
-                                                            className="w-10 text-center font-bold text-sm bg-background border border-input rounded-lg py-1 focus:ring-1 focus:ring-emerald-500"
+                                                            onKeyDown={(e) => handleCellKeyDown(e, rowIndex, 2)}
+                                                            onPaste={(e) => handlePaste(e, rowIndex, 2)}
+                                                            className={`w-14 h-8 text-center font-bold text-xs rounded-lg border focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all ${
+                                                                (rec.tidur_count || 0) > 0 
+                                                                    ? 'bg-indigo-50 border-indigo-400 text-indigo-800 dark:bg-indigo-950 dark:border-indigo-700 dark:text-indigo-200' 
+                                                                    : 'bg-background border-input text-muted-foreground focus:text-foreground'
+                                                            }`}
                                                         />
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => updateCount(student.id, 'tidur_count', 1)}
-                                                            className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 flex items-center justify-center active:scale-95 transition-transform"
-                                                        >
-                                                            <Plus className="h-3 w-3" />
-                                                        </button>
-                                                    </div>
-                                                </div>
+                                                    </td>
 
-                                                {/* Catatan Ringkas */}
-                                                <div className="mt-2">
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Catatan tambahan santri (opsional)..."
-                                                        value={rec.notes || ''}
-                                                        onChange={(e) => handleNotesChange(student.id, e.target.value)}
-                                                        className="w-full text-xs rounded-xl border border-input bg-background px-3 py-1.5 focus:ring-1 focus:ring-emerald-500"
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                                                    {/* Total Live */}
+                                                    <td className="px-3 py-2 text-center">
+                                                        <span className={`inline-block px-2 py-1 rounded-md font-bold text-xs ${
+                                                            hasViolation
+                                                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                                                                : 'text-muted-foreground/50'
+                                                        }`}>
+                                                            {subTotal}
+                                                        </span>
+                                                    </td>
+
+                                                    {/* Col 3: Catatan Ringkas */}
+                                                    <td className="px-3 py-1.5">
+                                                        <input
+                                                            ref={el => inputRefs.current[`${rowIndex}-3`] = el}
+                                                            type="text"
+                                                            placeholder="Catatan..."
+                                                            value={rec.notes || ''}
+                                                            onChange={(e) => handleNotesChange(student.id, e.target.value)}
+                                                            onKeyDown={(e) => handleCellKeyDown(e, rowIndex, 3)}
+                                                            className="w-full h-8 text-xs rounded-lg border border-input bg-background px-2.5 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                                                        />
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
-                    )}
+                    </div>
 
-                    {/* Bottom Floating Save Button Bar */}
+                    {/* Bottom Floating Bar */}
                     <div className="fixed bottom-4 left-0 right-0 z-40 px-4">
                         <div className="max-w-2xl mx-auto bg-card/95 backdrop-blur-md border border-border shadow-2xl rounded-2xl p-3 flex items-center justify-between gap-4">
                             <div className="text-xs">
-                                <span className="font-semibold block text-foreground">
-                                    Rekap Pekan {selectedWeek} • {months.find(m => m.id === selectedMonth)?.name}
+                                <span className="font-bold block text-foreground">
+                                    Pekan {selectedWeek} • {months.find(m => m.id === selectedMonth)?.name} {selectedYear}
                                 </span>
-                                <span className="text-muted-foreground">
-                                    {totalRecordedThisWeek} pelanggaran tercatat
+                                <span className="text-muted-foreground text-[11px]">
+                                    {totalViolationsInView} pelanggaran tercatat ({students.length} santri di tampilan)
                                 </span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <button
                                     type="submit"
                                     disabled={isSaving}
-                                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-sm shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs sm:text-sm shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
                                 >
                                     <Save className="h-4 w-4" />
-                                    <span>{isSaving ? 'Menyimpan...' : 'Simpan Rekap Pekan Ini'}</span>
+                                    <span>{isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}</span>
                                 </button>
                             </div>
                         </div>
