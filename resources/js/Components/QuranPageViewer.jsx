@@ -1,11 +1,38 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Loader2, BookOpen, RefreshCw, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
+import { Loader2, BookOpen, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { SURAH_MAPPING, estimatePageFromSurahAyah } from '@/Services/quranApi';
 
 const API_BASE = 'https://api.quran.com/api/v4';
 
 const toArabicNum = (n) =>
     String(n).replace(/[0-9]/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
+
+// Nama surat dalam Bahasa Arab standar Mushaf Madinah
+const ARABIC_SURAH_NAMES = {
+    1: "الفَاتِحَة", 2: "البَقَرَة", 3: "آل عِمْرَان", 4: "النِّسَاء", 5: "المَائِدَة",
+    6: "الأَنْعَام", 7: "الأَعْرَاف", 8: "الأَنْفَال", 9: "التَّوْبَة", 10: "يُونُس",
+    11: "هُود", 12: "يُوسُف", 13: "الرَّعْد", 14: "إِبْرَاهِيم", 15: "الحِجْر",
+    16: "النَّحْل", 17: "الإِسْرَاء", 18: "الكَهْف", 19: "مَرْيَم", 20: "طه",
+    21: "الأَنْبِيَاء", 22: "الحَجّ", 23: "المُؤْمِنُون", 24: "النُّور", 25: "الفُرْقَان",
+    26: "الشُّعَرَاء", 27: "النَّمْل", 28: "القَصَص", 29: "العَنْكَبُوت", 30: "الرُّوم",
+    31: "لُقْمَان", 32: "السَّجْدَة", 33: "الأَحْزَاب", 34: "سَبَأ", 35: "فَاطِر",
+    36: "يس", 37: "الصَّافَّات", 38: "ص", 39: "الزُّمَر", 40: "غَافِر",
+    41: "فُصِّلَت", 42: "الشُّورَى", 43: "الزُّخْرُف", 44: "الدُّخَان", 45: "الجَاثِيَة",
+    46: "الأَحْقَاف", 47: "مُحَمَّد", 48: "الفَتْح", 49: "الحُجُرَات", 50: "ق",
+    51: "الذَّارِيَات", 52: "الطُّور", 53: "النَّجْم", 54: "القَمَر", 55: "الرَّحْمَٰن",
+    56: "الوَاقِعَة", 57: "الحَدِيد", 58: "المُجَادِلَة", 59: "الحَشْر", 60: "المُمْتَحَنَة",
+    61: "الصَّفّ", 62: "الجُمُعَة", 63: "المُنَافِقُون", 64: "التَّغَابُن", 65: "الطَّلَاق",
+    66: "التَّحْرِيم", 67: "المُلْك", 68: "القَلَم", 69: "الحَاقَّة", 70: "المَعَارِج",
+    71: "نُوح", 72: "الجِنّ", 73: "المُزَّمِّل", 74: "المُدَّثِّر", 75: "القِيَامَة",
+    76: "الإِنْسَان", 77: "المُرْسَلَات", 78: "النَّبَأ", 79: "النَّازِعَات", 80: "عَبَس",
+    81: "التَّكْوِير", 82: "الانْفِطَار", 83: "المُطَفِّفِين", 84: "الانْشِقَاق", 85: "البُرُوج",
+    86: "الطَّارِق", 87: "الأَعْلَى", 88: "الغَاشِيَة", 89: "الفَجْر", 90: "البَلَد",
+    91: "الشَّمْس", 92: "اللَّيْل", 93: "الضُّحَى", 94: "الشَّرْح", 95: "التِّين",
+    96: "العَلَق", 97: "القَدْر", 98: "البَيِّنَة", 99: "الزَّلْزَلَة", 100: "العَادِيَات",
+    101: "القَارِعَة", 102: "التَّكَاثُر", 103: "العَصْر", 104: "الهُمَزَة", 105: "الفِيل",
+    106: "قُرَيْش", 107: "المَاعُون", 108: "الكَوْثَر", 109: "الكَافِرُون", 110: "النَّصْر",
+    111: "المَسَد", 112: "الإِخْلَاص", 113: "الفَلَق", 114: "النَّاس"
+};
 
 async function fetchVerses(surahNum, startAyah, surahName, perPage = 20) {
     let accuratePage = null;
@@ -29,7 +56,7 @@ async function fetchVerses(surahNum, startAyah, surahName, perPage = 20) {
     }
 
     if (!accuratePage) {
-        accuratePage = 582; // Default to Juz 30 / An-Naba if not resolvable
+        accuratePage = 582; // Default ke Juz 30 / An-Naba jika tidak terdefinisi
     }
 
     const res = await fetch(
@@ -40,79 +67,87 @@ async function fetchVerses(surahNum, startAyah, surahName, perPage = 20) {
     return { verses: json.verses || [], page: accuratePage };
 }
 
-function isVerseInRange(vk, startVk, endVk) {
-    if (!vk || !startVk) return false;
-    const [s1, a1] = vk.split(':').map(Number);
-    const [s2, a2] = startVk.split(':').map(Number);
-    
-    if (s1 < s2 || (s1 === s2 && a1 < a2)) return false;
-    
-    if (endVk) {
-        const [s3, a3] = endVk.split(':').map(Number);
-        if (s1 > s3 || (s1 === s3 && a1 > a3)) return false;
-    }
-    return true;
-}
-
-// ─── Inline Mode (Dioptimalkan Penuh untuk Layar HP & Desktop) ──────────────────
-function InlineViewer({ surahName, startAyah, verses, loading, error, onRefresh, onAyahClick, pageNumber, onPageChange, highlightState }) {
+// ─── Inline Mode: Desain Tipografi Mushaf Al-Qur'an Dinamis & Rapi ──────────────
+function InlineViewer({ 
+    surahName, 
+    startAyah, 
+    startVerseKey, 
+    verses, 
+    loading, 
+    error, 
+    onRefresh, 
+    onAyahClick, 
+    pageNumber, 
+    onPageChange 
+}) {
     const startRef = useRef(null);
-    const [zoomLevel, setZoomLevel] = useState(0); // -1: Kecil, 0: Normal, 1: Besar, 2: Sangat Besar
+    const [zoomLevel, setZoomLevel] = useState(0); // -1: Ringkas, 0: Standar, 1: Besar, 2: Sangat Besar
 
     useEffect(() => {
         if (startRef.current) {
             startRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
-    }, [verses]);
+    }, [verses, startVerseKey]);
 
     const clickable = typeof onAyahClick === 'function';
 
-    // Map ayah texts for quick modal lookup
-    const versesMap = useMemo(() => {
-        const map = {};
-        verses.forEach(v => {
-            if (v.verse_key) map[v.verse_key] = v;
-        });
-        return map;
-    }, [verses]);
-
-    // Ukuran Font & Line Height Responsif
+    // Konfigurasi ukuran teks & jarak baris Mushaf
     const fontConfig = {
         '-1': {
-            sizeClass: 'text-lg sm:text-xl md:text-2xl',
-            lineClass: 'leading-[2.8rem] sm:leading-[3.6rem]',
-            heightStyle: '3.6rem',
-            bismillahSize: '1.4rem'
+            fontSize: '1.25rem',
+            lineHeight: '2.6rem',
+            bismillahSize: '1.35rem'
         },
         '0': {
-            sizeClass: 'text-xl sm:text-2xl md:text-3xl',
-            lineClass: 'leading-[3.2rem] sm:leading-[4.2rem]',
-            heightStyle: '4.2rem',
-            bismillahSize: '1.75rem'
+            fontSize: '1.5rem',
+            lineHeight: '3.1rem',
+            bismillahSize: '1.65rem'
         },
         '1': {
-            sizeClass: 'text-2xl sm:text-3xl md:text-4xl',
-            lineClass: 'leading-[3.8rem] sm:leading-[4.8rem]',
-            heightStyle: '4.8rem',
-            bismillahSize: '2.1rem'
+            fontSize: '1.85rem',
+            lineHeight: '3.8rem',
+            bismillahSize: '1.95rem'
         },
         '2': {
-            sizeClass: 'text-3xl sm:text-4xl md:text-5xl',
-            lineClass: 'leading-[4.4rem] sm:leading-[5.6rem]',
-            heightStyle: '5.6rem',
-            bismillahSize: '2.5rem'
+            fontSize: '2.25rem',
+            lineHeight: '4.6rem',
+            bismillahSize: '2.35rem'
         }
     }[zoomLevel] || {
-        sizeClass: 'text-xl sm:text-2xl md:text-3xl',
-        lineClass: 'leading-[3.2rem] sm:leading-[4.2rem]',
-        heightStyle: '4.2rem',
-        bismillahSize: '1.75rem'
+        fontSize: '1.5rem',
+        lineHeight: '3.1rem',
+        bismillahSize: '1.65rem'
     };
 
+    // Kelompokkan ayat-ayat pada halaman berdasarkan Surah
+    const surahGroups = useMemo(() => {
+        if (!verses || verses.length === 0) return [];
+        const groups = [];
+        let currentGroup = null;
+
+        verses.forEach((v) => {
+            const [sNum] = (v.verse_key || '').split(':').map(Number);
+            if (!currentGroup || currentGroup.surahId !== sNum) {
+                currentGroup = {
+                    surahId: sNum,
+                    hasFirstVerse: false,
+                    verses: []
+                };
+                groups.push(currentGroup);
+            }
+            if (v.verse_key && v.verse_key.endsWith(':1')) {
+                currentGroup.hasFirstVerse = true;
+            }
+            currentGroup.verses.push(v);
+        });
+
+        return groups;
+    }, [verses]);
+
     return (
-        <div className="flex flex-col h-full w-full bg-[#fcf9f2] rounded-none sm:rounded-2xl border-0 sm:border border-amber-200/70 shadow-xs overflow-hidden select-none">
-            {/* BILAH KONTROL MUSHAF (Minimalis & Bebas Keterangan Doble) */}
-            <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-900 text-white shrink-0 shadow-xs">
+        <div className="flex flex-col h-full w-full bg-[#fdfaf4] select-none overflow-hidden">
+            {/* BILAH KONTROL MUSHAF (Minimalis & Elegan) */}
+            <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-950 text-white shrink-0 shadow-xs border-b border-emerald-800">
                 {/* KIRI: Navigasi Cepat Halaman */}
                 <div className="flex items-center gap-1.5">
                     <button
@@ -141,7 +176,7 @@ function InlineViewer({ surahName, startAyah, verses, loading, error, onRefresh,
                     </button>
                 </div>
 
-                {/* TENGAH: Nama Surat Aktif */}
+                {/* TENGAH: Nama Surat & Ayat Aktif */}
                 <div className="text-center truncate px-2">
                     <span className="text-xs sm:text-sm font-semibold text-white/95">
                         {surahName ? `${surahName}` : 'Mushaf Madinah'}
@@ -184,8 +219,8 @@ function InlineViewer({ surahName, startAyah, verses, loading, error, onRefresh,
                 </div>
             </div>
 
-            {/* AREA TEKS MUSHAF AL-QUR'AN */}
-            <div className="flex-1 overflow-x-hidden overflow-y-auto px-2 sm:px-6 py-4 custom-scrollbar bg-[#fdfaf4]">
+            {/* AREA TEKS MUSHAF AL-QUR'AN (Teks Mengalir Rapi Alami) */}
+            <div className="flex-1 overflow-x-hidden overflow-y-auto px-3 sm:px-8 py-5 custom-scrollbar bg-[#fdfaf4]">
                 {loading && (
                     <div className="flex flex-col items-center justify-center h-full gap-3 py-20">
                         <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
@@ -210,184 +245,166 @@ function InlineViewer({ surahName, startAyah, verses, loading, error, onRefresh,
                     </div>
                 )}
 
-                {!loading && !error && verses.length > 0 && (() => {
-                    const lines = {};
-                    for (let i = 1; i <= 15; i++) lines[i] = [];
-
-                    verses.forEach(v => {
-                        if (v.words) {
-                            v.words.forEach(w => {
-                                const l = w.line_number;
-                                if (lines[l]) {
-                                    lines[l].push({ ...w, verse_key: v.verse_key });
-                                }
-                            });
-                        }
-                    });
-
-                    let headerIndices = [];
-                    let bismillahIndices = [];
-
-                    for (let i = 1; i <= 15; i++) {
-                        if (lines[i].length === 0) {
-                            let nextSurah = null;
-                            for (let j = i + 1; j <= 15; j++) {
-                                if (lines[j].length > 0) {
-                                    const vk = lines[j][0].verse_key;
-                                    if (vk && vk.endsWith(':1')) {
-                                        nextSurah = vk.split(':')[0];
-                                    }
-                                    break;
-                                }
-                            }
-                            if (nextSurah) {
-                                if (i < 15 && lines[i + 1].length === 0) {
-                                    headerIndices.push(i);
-                                    bismillahIndices.push(i + 1);
-                                } else if (!bismillahIndices.includes(i)) {
-                                    headerIndices.push(i);
-                                }
-                            }
-                        }
-                    }
-
-                    const renderContent = [];
-                    for (let i = 1; i <= 15; i++) {
-                        // Header Pembatas Surah
-                        if (headerIndices.includes(i)) {
-                            let nextS = null;
-                            for (let j = i + 1; j <= 15; j++) {
-                                if (lines[j].length > 0) { nextS = lines[j][0].verse_key.split(':')[0]; break; }
-                            }
-                            const surahNameMatched = Object.keys(SURAH_MAPPING).find(key => SURAH_MAPPING[key] === parseInt(nextS, 10));
-                            renderContent.push(
-                                <div key={`sheader-${i}`} className="w-full text-center relative shrink-0 flex items-center justify-center my-2" style={{ height: '3.5rem' }}>
-                                    <div className="absolute inset-0 flex items-center">
-                                        <div className="w-full border-t border-amber-300 border-dashed"></div>
-                                    </div>
-                                    <div className="relative flex justify-center">
-                                        <span className="bg-[#fcf8f0] px-6 py-1 border border-amber-400/80 rounded-full text-xs sm:text-sm font-bold text-amber-900 tracking-wider shadow-2xs">
-                                            سُورَةُ {surahNameMatched || `Surah ${nextS}`}
-                                        </span>
-                                    </div>
-                                </div>
-                            );
-                            continue;
-                        }
-
-                        // Kalimat Bismillah
-                        if (bismillahIndices.includes(i)) {
-                            renderContent.push(
-                                <div 
-                                    key={`bismillah-${i}`} 
-                                    className="w-full text-center shrink-0 flex items-center justify-center text-stone-800" 
-                                    style={{ 
-                                        fontFamily: "'Amiri Quran', serif", 
-                                        fontSize: fontConfig.bismillahSize, 
-                                        height: '3.5rem' 
-                                    }}
-                                >
-                                    بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ
-                                </div>
-                            );
-                            continue;
-                        }
-
-                        if (lines[i].length === 0) {
-                            renderContent.push(<div key={`empty-${i}`} className="w-full shrink-0" style={{ height: '1.5rem' }} />);
-                            continue;
-                        }
-
-                        // Kata-kata dalam satu baris
-                        const wordSpans = lines[i].map((w, idx) => {
-                            const isAyahEnd = w.char_type_name === 'end';
-                            const [wSurah, wAyah] = w.verse_key.split(':');
-                            const isStartInfo = surahName ? SURAH_MAPPING[surahName] : null;
-                            const isStart = w.verse_key === `${isStartInfo}:${startAyah}`;
-                            let isHighlighted = false;
+                {!loading && !error && verses.length > 0 && (
+                    <div className="max-w-3xl mx-auto w-full pb-8">
+                        {surahGroups.map((group) => {
+                            const arabicSurahName = ARABIC_SURAH_NAMES[group.surahId] || `Surah ${group.surahId}`;
                             
-                            if (highlightState && highlightState.startVk) {
-                                const afterStart = isVerseInRange(w.verse_key, highlightState.startVk, null);
-                                if (highlightState.L_start !== null && pageNumber) {
-                                    const w_global_line = (pageNumber - 1) * 15 + parseInt(w.line_number, 10);
-                                    isHighlighted = afterStart && (w_global_line < highlightState.L_start + 8);
-                                } else {
-                                    isHighlighted = afterStart;
-                                }
-                            }
-
-                            if (isAyahEnd) {
-                                return (
-                                    <span 
-                                        key={`${w.verse_key}-${w.position}`}
-                                        onClick={clickable ? () => onAyahClick({ 
-                                            verse_key: w.verse_key, 
-                                            text_uthmani: versesMap[w.verse_key]?.text_uthmani || '' 
-                                        }) : undefined}
-                                        className={`inline-flex items-center justify-center mx-1 rounded-full w-7 h-7 sm:w-8 sm:h-8 align-middle shrink-0 cursor-pointer transition-transform active:scale-95 ${
-                                            isHighlighted 
-                                                ? 'bg-sky-600 text-white shadow-xs ring-2 ring-sky-200' 
-                                                : 'bg-amber-100 text-amber-900 border border-amber-300'
-                                        }`}
-                                        style={{ fontFamily: 'sans-serif', fontSize: '11px', fontWeight: 700 }}
-                                        title={`Klik untuk menilai Ayat ${wAyah}`}
-                                    >
-                                        {toArabicNum(wAyah)}
-                                    </span>
-                                );
-                            }
-
                             return (
-                                <span
-                                    key={`${w.verse_key}-${w.position}`}
-                                    ref={isStart && idx === 0 ? startRef : null}
-                                    onClick={clickable ? () => onAyahClick({ 
-                                        verse_key: w.verse_key, 
-                                        text_uthmani: versesMap[w.verse_key]?.text_uthmani || '' 
-                                    }) : undefined}
-                                    className={`inline-flex items-center transition-all duration-150 rounded px-1 py-0.5 ${
-                                        isHighlighted 
-                                            ? 'text-sky-950 bg-sky-100/90 ring-1 ring-sky-300 font-medium' 
-                                            : 'text-stone-900'
-                                    } ${clickable ? 'cursor-pointer hover:bg-amber-200/80 active:bg-amber-300' : ''}`}
-                                    title={clickable ? `Klik untuk input kesalahan Ayat ${wAyah}` : undefined}
-                                >
-                                    {w.text_uthmani}
-                                </span>
+                                <div key={`surah-group-${group.surahId}`} className="mb-6">
+                                    {/* ORNAMEN FRAME HEADER SURAH (Bila ayat pertama ada di halaman ini) */}
+                                    {group.hasFirstVerse && (
+                                        <div className="w-full my-4 select-none">
+                                            <div className="relative py-2.5 px-4 rounded-xl border-2 border-amber-600/60 bg-[#fdf5e6] shadow-2xs text-center flex items-center justify-between overflow-hidden">
+                                                <div className="text-amber-800/70 font-semibold text-xs hidden sm:block">
+                                                    سُورَةُ {arabicSurahName}
+                                                </div>
+                                                <div className="flex-1 flex flex-col items-center justify-center">
+                                                    <span 
+                                                        className="text-lg sm:text-xl md:text-2xl font-bold text-amber-950 tracking-wide"
+                                                        style={{ fontFamily: "'Amiri Quran', 'Amiri', serif" }}
+                                                    >
+                                                        سُورَةُ {arabicSurahName}
+                                                    </span>
+                                                </div>
+                                                <div className="text-amber-800/70 font-semibold text-xs hidden sm:block">
+                                                    {group.verses.length} آيَات
+                                                </div>
+                                            </div>
+
+                                            {/* BISMILLAH (Kecuali Surah At-Taubah & Al-Fatihah yg ayat 1 sudah bismillah) */}
+                                            {group.surahId !== 9 && group.surahId !== 1 && (
+                                                <div 
+                                                    className="w-full text-center mt-3 mb-2 text-stone-800 select-none" 
+                                                    style={{ 
+                                                        fontFamily: "'Amiri Quran', 'Amiri', serif", 
+                                                        fontSize: fontConfig.bismillahSize 
+                                                    }}
+                                                >
+                                                    بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* BLOK TEKS AYAT MENGALIR (FLOWING PARAGRAPH MUSHAF) */}
+                                    <div 
+                                        className="w-full text-stone-900 transition-all duration-150"
+                                        style={{ 
+                                            direction: 'rtl', 
+                                            fontFamily: "'Amiri Quran', 'Amiri', serif",
+                                            textAlign: 'justify',
+                                            textJustify: 'inter-word',
+                                            fontSize: fontConfig.fontSize,
+                                            lineHeight: fontConfig.lineHeight
+                                        }}
+                                    >
+                                        {group.verses.map((v) => {
+                                            const [vSurah, vAyah] = (v.verse_key || '').split(':');
+                                            const isStartAyah = startVerseKey && v.verse_key === startVerseKey;
+                                            const words = v.words && v.words.length > 0 ? v.words : null;
+                                            const hasEndWord = words ? words.some(w => w.char_type_name === 'end') : false;
+
+                                            return (
+                                                <span 
+                                                    key={v.verse_key}
+                                                    ref={isStartAyah ? startRef : null}
+                                                    className={`inline transition-colors ${
+                                                        isStartAyah ? 'bg-amber-100/80 rounded-md px-1 py-0.5 ring-1 ring-amber-400/60' : ''
+                                                    }`}
+                                                >
+                                                    {/* Penanda Mulai Soal */}
+                                                    {isStartAyah && (
+                                                        <span className="inline-flex items-center gap-0.5 mx-1 px-1.5 py-0.5 rounded-full bg-emerald-700 text-white text-[10px] font-sans font-semibold align-middle select-none shadow-2xs">
+                                                            <span>Mulai</span>
+                                                            <span>◀</span>
+                                                        </span>
+                                                    )}
+
+                                                    {words ? (
+                                                        words.map((w, wIdx) => {
+                                                            if (w.char_type_name === 'end') {
+                                                                return (
+                                                                    <span
+                                                                        key={`end-${v.verse_key}-${wIdx}`}
+                                                                        onClick={clickable ? () => onAyahClick({ 
+                                                                            verse_key: v.verse_key, 
+                                                                            text_uthmani: v.text_uthmani 
+                                                                        }) : undefined}
+                                                                        className={`inline-flex items-center justify-center align-middle mx-1 w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-amber-600/70 bg-gradient-to-b from-amber-100 to-amber-200/90 text-amber-950 font-bold text-xs select-none shadow-2xs transition-transform active:scale-90 ${
+                                                                            clickable ? 'cursor-pointer hover:scale-110 hover:border-emerald-600 hover:bg-emerald-100' : ''
+                                                                        }`}
+                                                                        style={{ fontFamily: 'sans-serif' }}
+                                                                        title={clickable ? `Ayat ${vAyah} - Klik untuk menilai kesalahan` : undefined}
+                                                                    >
+                                                                        {toArabicNum(vAyah)}
+                                                                    </span>
+                                                                );
+                                                            }
+
+                                                            return (
+                                                                <span
+                                                                    key={`w-${v.verse_key}-${w.position || wIdx}`}
+                                                                    onClick={clickable ? () => onAyahClick({ 
+                                                                        verse_key: v.verse_key, 
+                                                                        text_uthmani: v.text_uthmani 
+                                                                    }) : undefined}
+                                                                    className={`inline transition-colors rounded px-0.5 ${
+                                                                        clickable ? 'cursor-pointer hover:text-emerald-800 hover:bg-emerald-100/60 active:bg-amber-200' : ''
+                                                                    }`}
+                                                                    title={clickable ? `Ayat ${vAyah} - Klik kata untuk menilai` : undefined}
+                                                                >
+                                                                    {w.text_uthmani}{' '}
+                                                                </span>
+                                                            );
+                                                        })
+                                                    ) : (
+                                                        <>
+                                                            <span
+                                                                onClick={clickable ? () => onAyahClick({ 
+                                                                    verse_key: v.verse_key, 
+                                                                    text_uthmani: v.text_uthmani 
+                                                                }) : undefined}
+                                                                className={`inline transition-colors rounded px-0.5 ${
+                                                                    clickable ? 'cursor-pointer hover:text-emerald-800 hover:bg-emerald-100/60' : ''
+                                                                }`}
+                                                            >
+                                                                {v.text_uthmani}
+                                                            </span>
+                                                        </>
+                                                    )}
+
+                                                    {/* Fallback nomor ayat jika tidak ada char_type_name === 'end' */}
+                                                    {!hasEndWord && (
+                                                        <span
+                                                            onClick={clickable ? () => onAyahClick({ 
+                                                                verse_key: v.verse_key, 
+                                                                text_uthmani: v.text_uthmani 
+                                                            }) : undefined}
+                                                            className={`inline-flex items-center justify-center align-middle mx-1 w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-amber-600/70 bg-gradient-to-b from-amber-100 to-amber-200/90 text-amber-950 font-bold text-xs select-none shadow-2xs transition-transform active:scale-90 ${
+                                                                clickable ? 'cursor-pointer hover:scale-110 hover:border-emerald-600 hover:bg-emerald-100' : ''
+                                                            }`}
+                                                            style={{ fontFamily: 'sans-serif' }}
+                                                            title={clickable ? `Ayat ${vAyah} - Klik untuk menilai` : undefined}
+                                                        >
+                                                            {toArabicNum(vAyah)}
+                                                        </span>
+                                                    )}
+                                                    {' '}
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
                             );
-                        });
-
-                        const nextLineEmpty = (i < 15 && lines[i + 1].length === 0);
-                        let flexStrategy = 'justify-between';
-                        if (nextLineEmpty || lines[i].length < 6) {
-                            flexStrategy = 'justify-center gap-2 sm:gap-4';
-                        }
-
-                        renderContent.push(
-                            <div 
-                                key={`line-${i}`} 
-                                className={`flex w-full items-center shrink-0 ${flexStrategy} flex-wrap sm:flex-nowrap`} 
-                                style={{ direction: 'rtl', minHeight: fontConfig.heightStyle }}
-                            >
-                                {wordSpans}
-                            </div>
-                        );
-                    }
-
-                    return (
-                        <div 
-                            className={`w-full max-w-4xl mx-auto flex flex-col font-normal py-2 sm:py-6 px-1 sm:px-4 ${fontConfig.sizeClass} ${fontConfig.lineClass}`} 
-                            style={{ fontFamily: "'Amiri Quran', serif" }}
-                        >
-                            {renderContent}
-                        </div>
-                    );
-                })()}
+                        })}
+                    </div>
+                )}
             </div>
 
             {/* FOOTER RINGKAS DENGAN THUMB-FRIENDLY NAVIGASI */}
             {!loading && verses.length > 0 && (
-                <div className="shrink-0 border-t border-amber-200/80 px-3 py-2 bg-amber-50/70 flex items-center justify-between text-xs text-amber-900">
+                <div className="shrink-0 border-t border-amber-200/80 px-3 py-2 bg-amber-50/70 flex items-center justify-between text-xs text-amber-900 shadow-xs">
                     <button 
                         type="button"
                         disabled={!pageNumber || pageNumber <= 1}
@@ -470,37 +487,9 @@ export default function QuranPageViewer({ selectedJuz, surahName, verseStart, in
     const [error, setError] = useState(null);
     const [fetchKey, setFetchKey] = useState(0);
     const [pageNumber, setPageNumber] = useState(null);
-    const [highlightState, setHighlightState] = useState({ startVk: null, L_start: null });
 
     const surahNum = surahName ? SURAH_MAPPING[surahName] : null;
     const startVerseKey = (surahNum && verseStart) ? `${surahNum}:${verseStart}` : null;
-
-    useEffect(() => {
-        setHighlightState({
-            startVk: startVerseKey,
-            L_start: null
-        });
-    }, [startVerseKey]);
-
-    useEffect(() => {
-        if (!verses.length || !pageNumber || !startVerseKey) return;
-        
-        let newL_start = highlightState.L_start;
-        let changed = false;
-
-        if (newL_start === null) {
-            const startVerse = verses.find(v => v.verse_key === startVerseKey);
-            if (startVerse && startVerse.words && startVerse.words.length > 0) {
-                const firstWord = startVerse.words[0];
-                newL_start = (pageNumber - 1) * 15 + parseInt(firstWord.line_number, 10);
-                changed = true;
-            }
-        }
-
-        if (changed) {
-            setHighlightState(prev => ({ ...prev, L_start: newL_start }));
-        }
-    }, [verses, pageNumber, startVerseKey, highlightState.L_start]);
 
     useEffect(() => {
         if (!surahNum || !verseStart) { setVerses([]); setError(null); setPageNumber(null); return; }
@@ -546,7 +535,17 @@ export default function QuranPageViewer({ selectedJuz, surahName, verseStart, in
             });
     };
 
-    const props = { surahName, startAyah: verseStart, verses, loading, error, onRefresh: handleRefresh, pageNumber, onPageChange: handlePageChange, highlightState };
+    const props = { 
+        surahName, 
+        startAyah: verseStart, 
+        startVerseKey, 
+        verses, 
+        loading, 
+        error, 
+        onRefresh: handleRefresh, 
+        pageNumber, 
+        onPageChange: handlePageChange 
+    };
 
     return inline
         ? <InlineViewer {...props} onAyahClick={onAyahClick} />

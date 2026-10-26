@@ -104,6 +104,7 @@ export default function MainLayout({
     breadcrumbItems = null, 
     showBreadcrumb = true,
     hideMobileNav = false,
+    hideHeader = false,
     contentPadding = "p-3 sm:p-4 lg:p-6 pb-4 lg:pb-6"
 }) {
     const { auth, flash, app_settings } = usePage().props;
@@ -225,6 +226,7 @@ export default function MainLayout({
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden">
                 {/* Header - Fixed top in flex flow, shrink-0, stationary during scrolling */}
+                {!hideHeader && (
                 <header className="shrink-0 z-30 h-14 border-b border-border bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60 print:hidden select-none">
                     <div className="flex h-14 items-center justify-between gap-2 px-3 sm:px-4 lg:px-6">
                         {/* Left: Brand Identity (Iconic Logo + Name) */}
@@ -294,6 +296,7 @@ export default function MainLayout({
                         </div>
                     </div>
                 </header>
+                )}
 
                 {/* Page Content with isolated scroll container */}
                 <main scroll-region="true" className={cn("flex-1 overflow-y-auto overscroll-y-contain", contentPadding)}>

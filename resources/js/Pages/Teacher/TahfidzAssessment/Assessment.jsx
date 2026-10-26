@@ -525,7 +525,8 @@ export default function Assessment({
         <MainLayout 
             showBreadcrumb={false} 
             hideMobileNav={true} 
-            contentPadding="p-0 sm:p-2 lg:p-4"
+            hideHeader={true}
+            contentPadding="p-0"
         >
             <Head title={`Ujian ${gradeWeight?.name || 'Tahfidz'} - ${student?.name || ''}`} />
             <link href="https://fonts.googleapis.com/css2?family=Amiri+Quran&display=swap" rel="stylesheet" />
