@@ -49,7 +49,7 @@ const BatteryProgress = ({ value, max, label, colorClass, emptyClass = "bg-slate
     );
 };
 
-export default function Index({ auth, title, students, filters, classes, kamars, musyrifs }) {
+export default function Index({ auth, title, students, filters, classes, kamars, musyrifs, default_musyrif_id }) {
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const [searchInput, setSearchInput] = useState(filters.search || '');
     const [selectedClass, setSelectedClass] = useState(filters.active_class_id || 'all');
@@ -394,7 +394,10 @@ export default function Index({ auth, title, students, filters, classes, kamars,
 
                     {activeTab === 'mass-input' && (
                         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                            <MassInputTab musyrifs={musyrifs} />
+                            <MassInputTab 
+                                musyrifs={musyrifs} 
+                                defaultMusyrifId={default_musyrif_id || filters.musyrif_id || ''} 
+                            />
                         </div>
                     )}
                 </div>

@@ -191,12 +191,18 @@ class TahfidzAchievementController extends Controller
             ])
             ->values();
 
+        $userMusyrif = \App\Models\TahfidzMusyrif::where('user_id', $user->id)
+            ->orWhere('student_id', $user->student?->id)
+            ->first();
+        $defaultMusyrifId = $request->musyrif_id ?? ($userMusyrif ? (string)$userMusyrif->id : null);
+
         return Inertia::render('Tahfidz/Achievement/Index', [
             'students' => $students,
             'filters' => $request->only(['active_class_id', 'active_kamar_id', 'musyrif_id', 'search', 'tab']),
             'classes' => $classes,
             'kamars' => $kamars,
             'musyrifs' => $musyrifs,
+            'default_musyrif_id' => $defaultMusyrifId,
         ]);
     }
 
@@ -263,6 +269,10 @@ class TahfidzAchievementController extends Controller
     public function getMassInputData(Request $request)
     {
         $musyrifId = $request->musyrif_id;
+        $type = $request->get('type', 'sabaq');
+        if (!in_array($type, ['sabaq', 'sabqi', 'manzil'])) {
+            $type = 'sabaq';
+        }
         
         if (!$musyrifId) {
             return response()->json([]);
@@ -276,16 +286,22 @@ class TahfidzAchievementController extends Controller
         }
 
         $semester = str_contains(strtolower($activeSemester->name), 'ganjil') ? 1 : 2;
-        
-        Log::info("getMassInputData Debug", [
-            'active_semester_name' => $activeSemester->name,
-            'calculated_semester' => $semester,
-            'active_year_status' => $activeYear->status,
-        ]);
 
-        $members = \App\Models\TahfidzHalaqohMember::with(['student.user', 'student.classMembers.activeClass.kelas', 'student.classMembers.activeClass.kelasParalel'])
-            ->where('musyrif_id', $musyrifId)
-            ->get();
+        $members = \App\Models\TahfidzHalaqohMember::with([
+            'student.user',
+            'student.classMembers.activeClass.kelas',
+            'student.classMembers.activeClass.kelasParalel'
+        ])
+        ->where('musyrif_id', $musyrifId)
+        ->get();
+
+        $studentIds = $members->pluck('student_id')->filter()->unique();
+
+        // Preload all memorizations for these students filtered by the selected type
+        $allMemorizations = \App\Models\TahfidzMemorization::whereIn('student_id', $studentIds)
+            ->where('type', $type)
+            ->get()
+            ->groupBy('student_id');
 
         $studentsData = [];
 
@@ -316,73 +332,72 @@ class TahfidzAchievementController extends Controller
             $rawTargets = $studentTarget ? $studentTarget->juz_targets : ($classTarget ? $classTarget->juz_targets : []);
             $targets = is_array($rawTargets) ? $rawTargets : (json_decode($rawTargets, true) ?? []);
             
-            Log::info("Student Target Debug", [
-                'student_id' => $student->id,
-                'active_class_id' => $activeClassId,
-                'semester' => $semester,
-                'class_target' => $classTarget ? $classTarget->juz_targets : null,
-                'student_target' => $studentTarget ? $studentTarget->juz_targets : null,
-                'resolved_targets' => $targets,
-            ]);
-            
-            $completedJuzs = \App\Models\TahfidzMemorization::where('student_id', $student->id)
-                ->where('is_completed', true)
-                ->pluck('juz')
-                ->toArray();
+            $studentMems = $allMemorizations->get($student->id, collect());
+            $memsByJuz = [];
+            $completedJuzs = [];
+
+            foreach ($studentMems as $m) {
+                $mJuz = (int)$m->juz;
+                $memsByJuz[$mJuz] = [
+                    'completed_pages' => is_array($m->completed_pages) ? array_map('intval', $m->completed_pages) : [],
+                    'is_completed' => (bool)$m->is_completed,
+                ];
+                if ($m->is_completed) {
+                    $completedJuzs[] = $mJuz;
+                }
+            }
 
             $currentJuz = null;
             if (is_array($targets)) {
                 foreach ($targets as $j) {
-                    if (!in_array($j, $completedJuzs)) {
-                        $currentJuz = $j;
+                    $jInt = (int)$j;
+                    if (!in_array($jInt, $completedJuzs)) {
+                        $currentJuz = $jInt;
                         break;
                     }
                 }
             }
 
             if (!$currentJuz) {
-                // fallback to in-progress juz
-                $inProgress = \App\Models\TahfidzMemorization::where('student_id', $student->id)
-                    ->where('is_completed', false)
-                    ->orderBy('juz', 'desc')
-                    ->first();
+                // fallback to any incomplete in-progress juz
+                $inProgress = $studentMems->where('is_completed', false)->sortByDesc('juz')->first();
                 if ($inProgress) {
-                    $currentJuz = $inProgress->juz;
+                    $currentJuz = (int)$inProgress->juz;
                 }
             }
-            
-            // If still no target, default to something or leave empty
+
+            if (!$currentJuz && !empty($targets)) {
+                $currentJuz = (int)$targets[0];
+            }
+
+            // If still no target or in-progress, default to 30
             if (!$currentJuz) {
-                $currentJuz = null; 
+                $currentJuz = 30; 
             }
 
             $totalPages = 20;
-            $startPage = 1;
-            
-            if ($currentJuz) {
-                $startPage = 22 + ($currentJuz - 2) * 20;
-                if ($currentJuz == 1) { $totalPages = 21; $startPage = 1; }
-                elseif ($currentJuz == 30) { $totalPages = 23; $startPage = 582; }
+            $startPage = 22 + ($currentJuz - 2) * 20;
+            if ($currentJuz == 1) { 
+                $totalPages = 21; 
+                $startPage = 1; 
+            } elseif ($currentJuz == 30) { 
+                $totalPages = 23; 
+                $startPage = 582; 
             }
 
-            $completedPages = [];
-            if ($currentJuz) {
-                $mem = \App\Models\TahfidzMemorization::where('student_id', $student->id)
-                    ->where('juz', $currentJuz)
-                    ->first();
-                if ($mem && is_array($mem->completed_pages)) {
-                    $completedPages = $mem->completed_pages;
-                }
-            }
+            $completedPages = $memsByJuz[$currentJuz]['completed_pages'] ?? [];
 
             $studentsData[] = [
                 'id' => $student->id,
+                'nis' => $student->user?->nomor_induk ?? $student->nis ?? '-',
                 'name' => $student->user?->name ?? $student->name,
                 'class_name' => $className,
+                'targets' => $targets,
                 'current_juz' => $currentJuz,
                 'start_page' => $startPage,
-                'total_pages' => $currentJuz ? $totalPages : 0,
+                'total_pages' => $totalPages,
                 'completed_pages' => $completedPages,
+                'mems_by_juz' => $memsByJuz,
             ];
         }
 
@@ -395,58 +410,72 @@ class TahfidzAchievementController extends Controller
             'inputs' => 'required|array',
             'inputs.*.student_id' => 'required|exists:students,id',
             'inputs.*.juz' => 'required|integer|min:1|max:30',
-            'inputs.*.completed_pages' => 'array'
+            'inputs.*.completed_pages' => 'nullable|array',
+            'type' => 'nullable|in:sabaq,sabqi,manzil'
         ]);
 
+        $type = $request->input('type', 'sabaq');
         $activeYear = \App\Models\AcademicYear::where('is_active', true)->first();
         $academicYearId = $activeYear ? $activeYear->id : null;
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        foreach ($request->inputs as $input) {
-            $juz = $input['juz'];
-            $pages = isset($input['completed_pages']) ? array_map('intval', $input['completed_pages']) : [];
-            
-            $totalPages = 20;
-            if ($juz == 1) $totalPages = 21;
-            elseif ($juz == 30) $totalPages = 23;
+        \DB::transaction(function () use ($request, $type, $academicYearId, $user) {
+            foreach ($request->inputs as $input) {
+                $studentId = $input['student_id'];
+                $juz = (int)$input['juz'];
+                $rawPages = isset($input['completed_pages']) ? (array)$input['completed_pages'] : [];
+                $pages = array_values(array_unique(array_map('intval', $rawPages)));
+                
+                $totalPages = 20;
+                $startPage = 22 + ($juz - 2) * 20;
+                $endPage = $startPage + 19;
+                if ($juz == 1) {
+                    $totalPages = 21;
+                    $startPage = 1;
+                    $endPage = 21;
+                } elseif ($juz == 30) {
+                    $totalPages = 23;
+                    $startPage = 582;
+                    $endPage = 604;
+                }
 
-            $isCompleted = count($pages) >= $totalPages;
+                $validPages = array_values(array_filter($pages, fn($p) => $p >= $startPage && $p <= $endPage));
+                $isCompleted = count($validPages) >= $totalPages;
 
-            $mem = \App\Models\TahfidzMemorization::firstOrCreate(
-                ['student_id' => $input['student_id'], 'juz' => $juz],
-                ['type' => 'sabaq', 'is_completed' => false, 'is_validated' => false, 'completed_pages' => []]
-            );
+                $mem = \App\Models\TahfidzMemorization::firstOrCreate(
+                    ['student_id' => $studentId, 'juz' => $juz, 'type' => $type],
+                    ['is_completed' => false, 'is_validated' => false, 'completed_pages' => []]
+                );
 
-            // Calculate new pages added for details tracking
-            $oldPages = is_array($mem->completed_pages) ? $mem->completed_pages : [];
-            $newPagesAdded = array_diff($pages, $oldPages);
+                $oldPages = is_array($mem->completed_pages) ? array_map('intval', $mem->completed_pages) : [];
+                $newPagesAdded = array_diff($validPages, $oldPages);
 
-            $mem->completed_pages = $pages;
-            
-            // If they reach total pages, mark completed
-            if ($isCompleted) {
-                $mem->is_completed = true;
-            } else {
-                // If they unchecked some pages so it drops below total, uncomplete it
-                $mem->is_completed = false;
+                $mem->completed_pages = $validPages;
+                $mem->is_completed = $isCompleted;
+                $mem->save();
+
+                // Record history for any new pages
+                foreach ($newPagesAdded as $page) {
+                    \App\Models\TahfidzMemorizationDetail::firstOrCreate([
+                        'student_id' => $studentId,
+                        'academic_year_id' => $academicYearId,
+                        'type' => $type,
+                        'juz' => $juz,
+                        'page_number' => $page,
+                    ], [
+                        'officer_id' => $user?->id,
+                        'status' => 'full'
+                    ]);
+                }
             }
+        });
 
-            $mem->save();
-
-            // Record history for any new pages
-            foreach ($newPagesAdded as $page) {
-                \App\Models\TahfidzMemorizationDetail::firstOrCreate([
-                    'student_id' => $input['student_id'],
-                    'academic_year_id' => $academicYearId,
-                    'type' => 'sabaq',
-                    'juz' => $juz,
-                    'page_number' => $page,
-                ], [
-                    'officer_id' => $user->id,
-                    'status' => 'full'
-                ]);
-            }
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Data hafalan massal berhasil disimpan'
+            ]);
         }
 
         return redirect()->back()->with('success', 'Data hafalan massal berhasil disimpan');
