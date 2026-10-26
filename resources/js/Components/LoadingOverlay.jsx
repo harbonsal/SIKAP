@@ -51,26 +51,26 @@ export default function LoadingOverlay() {
 
             {/* Kartu Loading di Tengah Layar */}
             <div className="relative z-10 flex flex-col items-center justify-center px-8 py-7 rounded-3xl bg-white/95 dark:bg-slate-900/95 shadow-2xl border border-emerald-500/20 backdrop-blur-md animate-in zoom-in-95 duration-200">
-                {/* Spinner & Pulsing Logo Container */}
-                <div className="relative flex items-center justify-center w-24 h-24 sm:w-28 sm:h-28">
+                {/* Spinner & Pulsing Logo Container (Lega & Proporsional) */}
+                <div className="relative flex items-center justify-center w-32 h-32 sm:w-36 sm:h-36">
                     {/* Ambient Glow emerald di belakang */}
-                    <div className="absolute inset-1 rounded-full bg-emerald-500/15 blur-lg animate-pulse" />
+                    <div className="absolute inset-2 rounded-full bg-emerald-500/15 blur-xl animate-pulse" />
 
                     {/* Cincin Luar: Spinner Gradasi Emerald & Teal */}
-                    <div className="absolute inset-0 rounded-full border-4 border-emerald-500/15 border-t-emerald-600 border-r-teal-400 animate-spin" />
+                    <div className="absolute inset-0 rounded-full border-[3px] border-emerald-500/15 border-t-emerald-600 border-r-teal-400 animate-spin" />
 
                     {/* Cincin Aksen Halus: Berputar Berlawanan Arah */}
                     <div 
-                        className="absolute inset-1.5 rounded-full border-2 border-transparent border-b-emerald-400/30 border-l-teal-500/30 animate-spin"
-                        style={{ animationDirection: 'reverse', animationDuration: '3.5s' }}
+                        className="absolute inset-2 rounded-full border-[2px] border-transparent border-b-emerald-400/30 border-l-teal-500/30 animate-spin"
+                        style={{ animationDirection: 'reverse', animationDuration: '4s' }}
                     />
 
-                    {/* Logo Aplikasi/Pesantren di Tengah dengan Efek Pulse */}
-                    <div className="relative flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white dark:bg-slate-800 shadow-sm p-2 border border-emerald-500/10">
+                    {/* Wadah Logo Bulat Bersih di Tengah - Memberikan ruang lega agar logo tidak terpotong */}
+                    <div className="relative flex items-center justify-center w-22 h-22 sm:w-24 sm:h-24 rounded-full bg-white dark:bg-slate-800 shadow-sm p-2.5 border border-emerald-500/15">
                         <img
                             src={logoUrl}
                             alt={appName}
-                            className="w-full h-full object-contain animate-pulse"
+                            className="w-full h-full object-contain animate-pulse drop-shadow-xs"
                             onError={(e) => {
                                 e.currentTarget.src = '/images/logo.png';
                             }}

@@ -1977,7 +1977,7 @@ Route::get('/manifest.json', function () {
             'purpose' => 'any'
         ],
         [
-            'src' => asset('pwa-192x192.png'),
+            'src' => asset('pwa-maskable-192x192.png'),
             'sizes' => '192x192',
             'type' => 'image/png',
             'purpose' => 'maskable'
@@ -1989,7 +1989,7 @@ Route::get('/manifest.json', function () {
             'purpose' => 'any'
         ],
         [
-            'src' => asset('pwa-512x512.png'),
+            'src' => asset('pwa-maskable-512x512.png'),
             'sizes' => '512x512',
             'type' => 'image/png',
             'purpose' => 'maskable'
