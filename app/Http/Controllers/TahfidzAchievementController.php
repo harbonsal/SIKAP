@@ -72,6 +72,8 @@ class TahfidzAchievementController extends Controller
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('nomor_induk', 'like', "%{$search}%");
             });
+        }
+
         $sortBy = $request->get('sort_by', 'mutabaah');
         if ($sortBy === 'name') {
             $query->join('users', 'students.user_id', '=', 'users.id')
