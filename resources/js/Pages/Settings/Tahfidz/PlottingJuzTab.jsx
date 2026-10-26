@@ -11,7 +11,17 @@ import { Target, Users, BookOpen, CheckCircle, Save, Edit3, Trash2 } from 'lucid
 import { Alert, AlertDescription, AlertTitle } from '@/Components/ui/alert';
 import { Info } from 'lucide-react';
 
-// MultiSelect component specifically for Juz
+const sortTahfidzJuz = (list) => {
+    return [...list].sort((a, b) => {
+        const aInt = parseInt(a, 10);
+        const bInt = parseInt(b, 10);
+        const aGroup = (aInt >= 26) ? 1 : 2;
+        const bGroup = (bInt >= 26) ? 1 : 2;
+        if (aGroup !== bGroup) return aGroup - bGroup;
+        return aInt - bInt;
+    });
+};
+
 const JuzMultiSelect = ({ selected, onChange }) => {
     const allJuz = Array.from({ length: 30 }, (_, i) => i + 1);
     
@@ -19,7 +29,7 @@ const JuzMultiSelect = ({ selected, onChange }) => {
         if (selected.includes(juz)) {
             onChange(selected.filter(j => j !== juz));
         } else {
-            onChange([...selected, juz].sort((a, b) => a - b));
+            onChange(sortTahfidzJuz([...selected, juz]));
         }
     };
 

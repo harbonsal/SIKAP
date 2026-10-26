@@ -72,6 +72,27 @@ class TahfidzAchievementController extends Controller
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('nomor_induk', 'like', "%{$search}%");
             });
+        $sortBy = $request->get('sort_by', 'mutabaah');
+        if ($sortBy === 'name') {
+            $query->join('users', 'students.user_id', '=', 'users.id')
+                ->orderBy('users.name', 'asc')
+                ->select('students.*');
+        } elseif ($sortBy === 'nis') {
+            $query->join('users', 'students.user_id', '=', 'users.id')
+                ->orderBy('users.nomor_induk', 'asc')
+                ->select('students.*');
+        } else {
+            // Default 'mutabaah': urutkan berdasarkan nama kelas lalu nama santri
+            $query->join('users', 'students.user_id', '=', 'users.id')
+                ->leftJoin('class_members', function ($join) {
+                    $join->on('students.id', '=', 'class_members.student_id')
+                        ->whereRaw('class_members.id = (select max(cm2.id) from class_members cm2 where cm2.student_id = students.id)');
+                })
+                ->leftJoin('active_classes', 'class_members.active_class_id', '=', 'active_classes.id')
+                ->leftJoin('kelas', 'active_classes.kelas_id', '=', 'kelas.id')
+                ->orderBy('kelas.name', 'asc')
+                ->orderBy('users.name', 'asc')
+                ->select('students.*');
         }
 
         $students = $query->paginate(20)->through(function ($student) {
@@ -198,7 +219,7 @@ class TahfidzAchievementController extends Controller
 
         return Inertia::render('Tahfidz/Achievement/Index', [
             'students' => $students,
-            'filters' => $request->only(['active_class_id', 'active_kamar_id', 'musyrif_id', 'search', 'tab']),
+            'filters' => $request->only(['active_class_id', 'active_kamar_id', 'musyrif_id', 'search', 'tab', 'sort_by']),
             'classes' => $classes,
             'kamars' => $kamars,
             'musyrifs' => $musyrifs,
@@ -295,10 +316,38 @@ class TahfidzAchievementController extends Controller
         ->where('musyrif_id', $musyrifId)
         ->get();
 
+        // Urutkan anggota halaqoh sesuai Mutabaah: Kelas (Tingkat & Paralel) lalu Nama Santri
+        $members = $members->sort(function ($a, $b) {
+            $classMemberA = $a->student?->classMembers->sortByDesc('id')->first();
+            $classMemberB = $b->student?->classMembers->sortByDesc('id')->first();
+            
+            $kelasNameA = $classMemberA?->activeClass?->kelas?->name ?? '';
+            $parallelNameA = $classMemberA?->activeClass?->kelasParalel?->name ?? '';
+            $classNameA = trim($kelasNameA . ' ' . $parallelNameA);
+
+            $kelasNameB = $classMemberB?->activeClass?->kelas?->name ?? '';
+            $parallelNameB = $classMemberB?->activeClass?->kelasParalel?->name ?? '';
+            $classNameB = trim($kelasNameB . ' ' . $parallelNameB);
+
+            if ($classNameA !== $classNameB) {
+                return strcmp($classNameA, $classNameB);
+            }
+
+            $nameA = $a->student?->user?->name ?? $a->student?->name ?? '';
+            $nameB = $b->student?->user?->name ?? $b->student?->name ?? '';
+            return strcasecmp($nameA, $nameB);
+        })->values();
+
         $studentIds = $members->pluck('student_id')->filter()->unique();
 
         // Preload all memorizations for these students filtered by the selected type
         $allMemorizations = \App\Models\TahfidzMemorization::whereIn('student_id', $studentIds)
+            ->where('type', $type)
+            ->get()
+            ->groupBy('student_id');
+
+        // Preload all details (termasuk status 'half' untuk 1/2 halaman)
+        $allDetails = \App\Models\TahfidzMemorizationDetail::whereIn('student_id', $studentIds)
             ->where('type', $type)
             ->get()
             ->groupBy('student_id');
@@ -332,9 +381,31 @@ class TahfidzAchievementController extends Controller
             $rawTargets = $studentTarget ? $studentTarget->juz_targets : ($classTarget ? $classTarget->juz_targets : []);
             $targets = is_array($rawTargets) ? $rawTargets : (json_decode($rawTargets, true) ?? []);
             
+            // Urutkan Muqarrar cerdas (Prioritaskan Juz 26-30 terlebih dahulu jika ada kombinasi dengan Juz 1-25)
+            if (is_array($targets) && count($targets) > 1) {
+                usort($targets, function ($a, $b) {
+                    $aInt = (int)$a;
+                    $bInt = (int)$b;
+                    $aGroup = ($aInt >= 26) ? 1 : 2;
+                    $bGroup = ($bInt >= 26) ? 1 : 2;
+                    if ($aGroup !== $bGroup) {
+                        return $aGroup - $bGroup;
+                    }
+                    return $aInt - $bInt;
+                });
+            }
+
             $studentMems = $allMemorizations->get($student->id, collect());
+            $studentDetails = $allDetails->get($student->id, collect());
             $memsByJuz = [];
             $completedJuzs = [];
+
+            // Peta 1/2 Halaman (Half Pages) per Juz
+            $halfPagesByJuz = [];
+            foreach ($studentDetails->where('status', 'half') as $det) {
+                $dJuz = (int)$det->juz;
+                $halfPagesByJuz[$dJuz][] = (int)$det->page_number;
+            }
 
             foreach ($studentMems as $m) {
                 $mJuz = (int)$m->juz;
@@ -347,8 +418,12 @@ class TahfidzAchievementController extends Controller
                 }
             }
 
+            // Tentukan Juz aktif untuk santri
             $currentJuz = null;
-            if (is_array($targets)) {
+            $isAccelerated = false;
+
+            // 1. Cek apakah ada muqarrar yang belum selesai
+            if (is_array($targets) && !empty($targets)) {
                 foreach ($targets as $j) {
                     $jInt = (int)$j;
                     if (!in_array($jInt, $completedJuzs)) {
@@ -358,19 +433,28 @@ class TahfidzAchievementController extends Controller
                 }
             }
 
+            // 2. Jika tidak ada muqarrar tersisa, cek apakah ada juz yang in-progress
             if (!$currentJuz) {
-                // fallback to any incomplete in-progress juz
                 $inProgress = $studentMems->where('is_completed', false)->sortByDesc('juz')->first();
                 if ($inProgress) {
                     $currentJuz = (int)$inProgress->juz;
                 }
             }
 
-            if (!$currentJuz && !empty($targets)) {
-                $currentJuz = (int)$targets[0];
+            // 3. Jika santri sudah menyelesaikan SEMUA muqarrar (Melampaui target / Akselerasi)
+            if (!$currentJuz) {
+                // Auto-advance ke Juz berikutnya yang belum pernah diselesaikan
+                // Urutan standar: Juz 26 s/d 30, lalu Juz 1 s/d 25
+                $orderSequence = array_merge(range(26, 30), range(1, 25));
+                foreach ($orderSequence as $cand) {
+                    if (!in_array($cand, $completedJuzs)) {
+                        $currentJuz = $cand;
+                        $isAccelerated = true;
+                        break;
+                    }
+                }
             }
 
-            // If still no target or in-progress, default to 30
             if (!$currentJuz) {
                 $currentJuz = 30; 
             }
@@ -386,6 +470,7 @@ class TahfidzAchievementController extends Controller
             }
 
             $completedPages = $memsByJuz[$currentJuz]['completed_pages'] ?? [];
+            $halfPages = $halfPagesByJuz[$currentJuz] ?? [];
 
             $studentsData[] = [
                 'id' => $student->id,
@@ -397,6 +482,9 @@ class TahfidzAchievementController extends Controller
                 'start_page' => $startPage,
                 'total_pages' => $totalPages,
                 'completed_pages' => $completedPages,
+                'half_pages' => $halfPages,
+                'half_pages_by_juz' => $halfPagesByJuz,
+                'is_accelerated' => $isAccelerated,
                 'mems_by_juz' => $memsByJuz,
             ];
         }
@@ -411,6 +499,7 @@ class TahfidzAchievementController extends Controller
             'inputs.*.student_id' => 'required|exists:students,id',
             'inputs.*.juz' => 'required|integer|min:1|max:30',
             'inputs.*.completed_pages' => 'nullable|array',
+            'inputs.*.half_pages' => 'nullable|array',
             'type' => 'nullable|in:sabaq,sabqi,manzil'
         ]);
 
@@ -424,8 +513,13 @@ class TahfidzAchievementController extends Controller
             foreach ($request->inputs as $input) {
                 $studentId = $input['student_id'];
                 $juz = (int)$input['juz'];
+
                 $rawPages = isset($input['completed_pages']) ? (array)$input['completed_pages'] : [];
-                $pages = array_values(array_unique(array_map('intval', $rawPages)));
+                $rawHalfPages = isset($input['half_pages']) ? (array)$input['half_pages'] : [];
+
+                $fullPages = array_values(array_unique(array_map('intval', $rawPages)));
+                // Pastikan half_pages tidak tumpang tindih dengan fullPages
+                $halfPages = array_values(array_diff(array_unique(array_map('intval', $rawHalfPages)), $fullPages));
                 
                 $totalPages = 20;
                 $startPage = 22 + ($juz - 2) * 20;
@@ -440,24 +534,22 @@ class TahfidzAchievementController extends Controller
                     $endPage = 604;
                 }
 
-                $validPages = array_values(array_filter($pages, fn($p) => $p >= $startPage && $p <= $endPage));
-                $isCompleted = count($validPages) >= $totalPages;
+                $validFullPages = array_values(array_filter($fullPages, fn($p) => $p >= $startPage && $p <= $endPage));
+                $validHalfPages = array_values(array_filter($halfPages, fn($p) => $p >= $startPage && $p <= $endPage));
+                $isCompleted = count($validFullPages) >= $totalPages;
 
                 $mem = \App\Models\TahfidzMemorization::firstOrCreate(
                     ['student_id' => $studentId, 'juz' => $juz, 'type' => $type],
                     ['is_completed' => false, 'is_validated' => false, 'completed_pages' => []]
                 );
 
-                $oldPages = is_array($mem->completed_pages) ? array_map('intval', $mem->completed_pages) : [];
-                $newPagesAdded = array_diff($validPages, $oldPages);
-
-                $mem->completed_pages = $validPages;
+                $mem->completed_pages = $validFullPages;
                 $mem->is_completed = $isCompleted;
                 $mem->save();
 
-                // Record history for any new pages
-                foreach ($newPagesAdded as $page) {
-                    \App\Models\TahfidzMemorizationDetail::firstOrCreate([
+                // 1. Simpan / Update status 'full' pada TahfidzMemorizationDetail
+                foreach ($validFullPages as $page) {
+                    \App\Models\TahfidzMemorizationDetail::updateOrCreate([
                         'student_id' => $studentId,
                         'academic_year_id' => $academicYearId,
                         'type' => $type,
@@ -468,6 +560,28 @@ class TahfidzAchievementController extends Controller
                         'status' => 'full'
                     ]);
                 }
+
+                // 2. Simpan / Update status 'half' (1/2 halaman) pada TahfidzMemorizationDetail
+                foreach ($validHalfPages as $page) {
+                    \App\Models\TahfidzMemorizationDetail::updateOrCreate([
+                        'student_id' => $studentId,
+                        'academic_year_id' => $academicYearId,
+                        'type' => $type,
+                        'juz' => $juz,
+                        'page_number' => $page,
+                    ], [
+                        'officer_id' => $user?->id,
+                        'status' => 'half'
+                    ]);
+                }
+
+                // 3. Hapus detail yang sudah di-uncheck (tidak ada di full maupun half)
+                $activePageNumbers = array_merge($validFullPages, $validHalfPages);
+                \App\Models\TahfidzMemorizationDetail::where('student_id', $studentId)
+                    ->where('type', $type)
+                    ->where('juz', $juz)
+                    ->whereNotIn('page_number', $activePageNumbers)
+                    ->delete();
             }
         });
 
@@ -486,11 +600,14 @@ class TahfidzAchievementController extends Controller
         $query = $request->get('q');
         $musyrifId = $request->get('musyrif_id');
 
-        $students = \App\Models\Student::with(['user', 'classMembers.activeClass'])
+        $students = \App\Models\Student::with(['user', 'classMembers.activeClass.kelas', 'classMembers.activeClass.kelasParalel'])
             ->whereHas('user', function ($q) use ($query) {
                 $q->active();
                 if ($query) {
-                    $q->where('name', 'like', "%{$query}%");
+                    $q->where(function ($sub) use ($query) {
+                        $sub->where('name', 'like', "%{$query}%")
+                            ->orWhere('nomor_induk', 'like', "%{$query}%");
+                    });
                 }
             })
             ->when($musyrifId && $musyrifId !== 'all', function ($q) use ($musyrifId) {
@@ -498,11 +615,20 @@ class TahfidzAchievementController extends Controller
                     $sub->where('musyrif_id', $musyrifId);
                 });
             })
-            ->limit(20)
+            ->limit($musyrifId && $musyrifId !== 'all' ? 100 : 30)
             ->get()
+            ->sort(function ($a, $b) {
+                $classA = $a->classMembers->sortByDesc('id')->first()?->activeClass?->name ?? '';
+                $classB = $b->classMembers->sortByDesc('id')->first()?->activeClass?->name ?? '';
+                if ($classA !== $classB) {
+                    return strcmp($classA, $classB);
+                }
+                return strcasecmp($a->user?->name ?? '', $b->user?->name ?? '');
+            })
+            ->values()
             ->map(fn($s) => [
                 'id' => $s->id,
-                'text' => $s->user->name . ' (' . ($s->classMembers->last()?->activeClass?->name ?? '-') . ')',
+                'text' => ($s->user->name ?? '-') . ' (' . ($s->classMembers->sortByDesc('id')->first()?->activeClass?->name ?? '-') . ')',
                 'nis' => $s->user->nomor_induk ?? '-'
             ]);
 

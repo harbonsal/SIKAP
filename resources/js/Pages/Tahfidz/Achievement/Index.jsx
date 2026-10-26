@@ -56,6 +56,7 @@ export default function Index({ auth, title, students, filters, classes, kamars,
     const [selectedKamar, setSelectedKamar] = useState(filters.active_kamar_id || 'all');
     const [selectedMusyrif, setSelectedMusyrif] = useState(filters.musyrif_id || 'all');
     const [showStagnantOnly, setShowStagnantOnly] = useState(filters.stagnant === '1');
+    const [selectedSort, setSelectedSort] = useState(filters.sort_by || 'mutabaah');
 
     const handleSearch = (e) => {
         setSearchTerm(e.target.value);
@@ -68,6 +69,7 @@ export default function Index({ auth, title, students, filters, classes, kamars,
             musyrif_id: selectedMusyrif,
             search: searchInput,
             stagnant: showStagnantOnly ? '1' : '0',
+            sort_by: selectedSort,
             tab: activeTab,
             [key]: value
         };
@@ -77,6 +79,7 @@ export default function Index({ auth, title, students, filters, classes, kamars,
         if (key === 'musyrif_id') setSelectedMusyrif(value);
         if (key === 'search') setSearchInput(value);
         if (key === 'stagnant') setShowStagnantOnly(value === '1');
+        if (key === 'sort_by') setSelectedSort(value);
 
         router.get(route('tahfidz.achievements.index'), newFilters, {
             preserveState: true,
@@ -191,7 +194,20 @@ export default function Index({ auth, title, students, filters, classes, kamars,
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                    <div className="flex items-center mt-2 md:mt-0 md:ml-2 text-sm text-gray-700">
+                                    {/* Urutan Santri */}
+                                    <div className="w-full md:w-56">
+                                        <Select value={selectedSort} onValueChange={(val) => handleFilterChange('sort_by', val)}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Urutan Santri" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="mutabaah">📋 Sesuai Mutabaah (Kelas & Nama)</SelectItem>
+                                                <SelectItem value="name">🔤 Nama Santri (A - Z)</SelectItem>
+                                                <SelectItem value="nis">🔢 Nomor Induk (NIS)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="flex items-center mt-2 md:mt-0 md:ml-1 text-sm text-gray-700 shrink-0">
                                         <label className="flex items-center gap-2 cursor-pointer bg-red-50 hover:bg-red-100 text-red-700 px-3 py-2 rounded-md border border-red-200 transition-colors">
                                             <input 
                                                 type="checkbox" 
@@ -213,15 +229,16 @@ export default function Index({ auth, title, students, filters, classes, kamars,
                                         />
                                         <button
                                             type="submit"
-                                            className="px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center gap-1 text-sm"
+                                            className="px-3.5 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center gap-1 text-sm font-semibold shadow-xs"
                                         >
-                                            <Search className="h-4 w-4" />
+                                            <Search className="h-4 w-4 mr-0.5" />
+                                            <span>Cari</span>
                                         </button>
                                         {searchInput && (
                                             <button
                                                 type="button"
                                                 onClick={() => { setSearchInput(''); handleFilterChange('search', ''); }}
-                                                className="px-3 py-2 bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200 transition-colors text-sm"
+                                                className="px-3 py-2 bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200 transition-colors text-sm font-bold"
                                             >
                                                 ✕
                                             </button>
@@ -344,34 +361,36 @@ export default function Index({ auth, title, students, filters, classes, kamars,
                                     <CardDescription>Cari santri untuk mulai menginput hafalan</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
-                                    <div className="w-full max-w-xl">
-                                        <div className="mb-2 text-sm font-medium text-gray-700">Filter Halaqoh</div>
-                                        <Select value={musyrifFilter} onValueChange={setMusyrifFilter}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Pilih Halaqoh" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">Semua Halaqoh</SelectItem>
-                                                {musyrifs.map((m) => (
-                                                    <SelectItem key={m.id} value={m.id.toString()}>{m.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="w-full max-w-xl">
-                                        <div className="mb-2 text-sm font-medium text-gray-700">Cari Nama Santri / NIS</div>
-                                        <AsyncSelect
-                                            key={musyrifFilter} // Force re-render/reload when filter changes
-                                            cacheOptions
-                                            loadOptions={loadOptions}
-                                            defaultOptions={true}
-                                            onChange={(opt) => loadStudentData(opt?.value)}
-                                            placeholder="Ketik nama santri (min 3 huruf)..."
-                                            className="react-select-container"
-                                            classNamePrefix="react-select"
-                                            noOptionsMessage={() => "Ketik untuk mencari..."}
-                                            isClearable
-                                        />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                        <div className="w-full">
+                                            <div className="mb-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider">Filter Halaqoh / Musyrif</div>
+                                            <Select value={musyrifFilter} onValueChange={setMusyrifFilter}>
+                                                <SelectTrigger className="h-10 text-sm bg-white font-medium border-slate-300">
+                                                    <SelectValue placeholder="Pilih Halaqoh" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">Semua Halaqoh</SelectItem>
+                                                    {musyrifs.map((m) => (
+                                                        <SelectItem key={m.id} value={m.id.toString()}>{m.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="w-full">
+                                            <div className="mb-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider">Cari Nama Santri / NIS</div>
+                                            <AsyncSelect
+                                                key={musyrifFilter}
+                                                cacheOptions
+                                                loadOptions={loadOptions}
+                                                defaultOptions={true}
+                                                onChange={(opt) => loadStudentData(opt?.value)}
+                                                placeholder="Ketik nama atau NIS santri..."
+                                                className="react-select-container text-sm font-medium"
+                                                classNamePrefix="react-select"
+                                                noOptionsMessage={() => "Ketik untuk mencari..."}
+                                                isClearable
+                                            />
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
