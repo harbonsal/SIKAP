@@ -6,6 +6,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
 import { Home } from 'lucide-react';
 import AppUpdateDetector from '@/Components/AppUpdateDetector';
+import LoadingOverlay from '@/Components/LoadingOverlay';
 
 export default function AuthenticatedLayout({ header, children }) {
     const user = usePage().props.auth.user;
@@ -78,6 +79,7 @@ export default function AuthenticatedLayout({ header, children }) {
 
     return (
         <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+            <LoadingOverlay />
             <nav className="sticky top-0 z-40 border-b border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-80">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex h-16 justify-between">
