@@ -99,7 +99,13 @@ function FlashMessage({ type, message, errors, onDismiss }) {
     );
 }
 
-export default function MainLayout({ children, breadcrumbItems = null, showBreadcrumb = true }) {
+export default function MainLayout({ 
+    children, 
+    breadcrumbItems = null, 
+    showBreadcrumb = true,
+    hideMobileNav = false,
+    contentPadding = "p-3 sm:p-4 lg:p-6 pb-4 lg:pb-6"
+}) {
     const { auth, flash, app_settings } = usePage().props;
     const user = auth.user;
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -290,7 +296,7 @@ export default function MainLayout({ children, breadcrumbItems = null, showBread
                 </header>
 
                 {/* Page Content with isolated scroll container */}
-                <main scroll-region="true" className="flex-1 overflow-y-auto overscroll-y-contain p-3 sm:p-4 lg:p-6 pb-4 lg:pb-6">
+                <main scroll-region="true" className={cn("flex-1 overflow-y-auto overscroll-y-contain", contentPadding)}>
                     <div className="print:hidden">
                         {['success', 'error', 'warning', 'info'].map((type) =>
                             flash?.[type] && !dismissedTypes[type] ? (
@@ -314,7 +320,8 @@ export default function MainLayout({ children, breadcrumbItems = null, showBread
                 </main>
 
                 {/* Mobile Bottom Navigation Dock (Thumb Zone) - Stationary Fixed in flex flow */}
-                <nav className="lg:hidden shrink-0 z-30 bg-background/95 backdrop-blur-lg border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.08)] px-2 py-1 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] print:hidden select-none">
+                {!hideMobileNav && (
+                    <nav className="lg:hidden shrink-0 z-30 bg-background/95 backdrop-blur-lg border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.08)] px-2 py-1 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] print:hidden select-none">
                     <div className="grid grid-cols-5 items-center justify-around max-w-md mx-auto">
                         {/* 1. Beranda */}
                         <Link
@@ -383,6 +390,7 @@ export default function MainLayout({ children, breadcrumbItems = null, showBread
                         </button>
                     </div>
                 </nav>
+                )}
             </div>
 
             {/* App Update Detector */}
