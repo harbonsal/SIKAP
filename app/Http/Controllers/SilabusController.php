@@ -23,41 +23,55 @@ class SilabusController extends Controller
     {
         $user = auth()->user();
 
-        // If Admin or Manager, return null (meaning all access)
-        if ($user->hasRole('Administrator') || $user->hasRole('Manager')) {
-            return null;
-        }
+        // If Admin or Manager without teaching assignments, return null (meaning all access)
+        $isAdminOrManager = $user->hasRole('Administrator') || $user->hasRole('Manager');
 
         // Get active subjects where user is teacher AND in Active Academic Year
         $activeYear = \App\Services\AcademicStateService::currentAcademicYear();
         $activeYearId = $activeYear ? $activeYear->id : null;
 
-        $query = \App\Models\ActiveSubject::with('activeClass')->where(function ($q) use ($user) {
+        $query = \App\Models\ActiveSubject::with(['mapel', 'activeClass.kelas.jenjang'])->where(function ($q) use ($user) {
             $q->where('teacher_id', $user->id)
                 ->orWhereHas('semesterSubjectTeachers', function ($subQ) use ($user) {
                     $subQ->where('teacher_id', $user->id);
                 });
         });
 
-        if ($activeYearId) {
-            $query->whereHas('activeClass', function ($q) use ($activeYearId) {
-                $q->where('academic_year_id', $activeYearId);
+        // Coba cari di tahun ajaran aktif, jika belum ada, ambil semua yang pernah diajar
+        $activeSubjects = (clone $query)->when($activeYearId, function ($q) use ($activeYearId) {
+            $q->whereHas('activeClass', function ($sq) use ($activeYearId) {
+                $sq->where('academic_year_id', $activeYearId);
             });
+        })->get();
+
+        if ($activeSubjects->isEmpty()) {
+            $activeSubjects = $query->get();
         }
 
-        $activeSubjects = $query->get();
-        
+        // Jika Admin / Manager dan memang TIDAK mengajar mapel sama sekali, berikan akses penuh
+        if ($isAdminOrManager && $activeSubjects->isEmpty()) {
+            return null;
+        }
+
+        // Jika user adalah guru (atau admin yang juga mengajar), petakan mapel & kelas yang diampu
+        $mapelIds = $activeSubjects->pluck('mapel_id')->filter()->unique()->values()->toArray();
+        $kelasIds = $activeSubjects->pluck('activeClass.kelas_id')->filter()->unique()->values()->toArray();
+        $pairs = $activeSubjects->map(function($subject) {
+            return [
+                'mapel_id' => $subject->mapel_id,
+                'kelas_id' => $subject->activeClass ? $subject->activeClass->kelas_id : null,
+                'jenjang_id' => $subject->activeClass?->kelas?->jenjang_id ?? null,
+            ];
+        })->filter(function($pair) {
+            return $pair['mapel_id'] !== null && $pair['kelas_id'] !== null;
+        })->values()->toArray();
+
         return [
-            'mapel_ids' => $activeSubjects->pluck('mapel_id')->filter()->unique()->toArray(),
-            'kelas_ids' => $activeSubjects->pluck('activeClass.kelas_id')->filter()->unique()->toArray(),
-            'pairs' => $activeSubjects->map(function($subject) {
-                return [
-                    'mapel_id' => $subject->mapel_id,
-                    'kelas_id' => $subject->activeClass ? $subject->activeClass->kelas_id : null,
-                ];
-            })->filter(function($pair) {
-                return $pair['mapel_id'] !== null && $pair['kelas_id'] !== null;
-            })->toArray()
+            'is_teacher' => true,
+            'is_admin_override' => $isAdminOrManager,
+            'mapel_ids' => $mapelIds,
+            'kelas_ids' => $kelasIds,
+            'pairs' => $pairs,
         ];
     }
 
@@ -67,7 +81,7 @@ class SilabusController extends Controller
         $jenjangs = Jenjang::query();
         $kelas = \App\Models\Kelas::query();
 
-        if ($accessible !== null) {
+        if ($accessible !== null && empty($accessible['is_admin_override'])) {
             $mapels->whereIn('id', $accessible['mapel_ids']);
             $kelas->whereIn('id', $accessible['kelas_ids']);
             $accessibleKelas = \App\Models\Kelas::whereIn('id', $accessible['kelas_ids'])->get();
@@ -85,12 +99,31 @@ class SilabusController extends Controller
     public function index(Request $request)
     {
         $query = Silabus::with(['mapel', 'jenjang', 'kelas']);
+        $accessible = $this->getAccessibleSubjects();
+
+        // AUTO-SELECT untuk Guru: jika belum memfilter, otomatis pilih mapel & kelas pertama yang dia ampu
+        if ($accessible !== null && !empty($accessible['pairs'])) {
+            // Jika guru belum memilih mapel, auto-select mapel pertama yang diajar
+            if (!$request->filled('mapel_id') && !empty($accessible['mapel_ids'])) {
+                $defaultMapelId = $accessible['mapel_ids'][0];
+                $request->merge(['mapel_id' => (string)$defaultMapelId]);
+            }
+
+            // Jika guru belum memilih kelas, auto-select kelas yang sesuai dengan mapel terpilih
+            if (!$request->filled('kelas_id') && !empty($accessible['pairs'])) {
+                $currentMapel = $request->mapel_id;
+                $matchingPair = collect($accessible['pairs'])->firstWhere('mapel_id', (int)$currentMapel);
+                $defaultKelasId = $matchingPair['kelas_id'] ?? ($accessible['kelas_ids'][0] ?? null);
+                if ($defaultKelasId) {
+                    $request->merge(['kelas_id' => (string)$defaultKelasId]);
+                }
+            }
+        }
 
         // RESTRICTION LOGIC
-        $accessible = $this->getAccessibleSubjects();
-        if ($accessible !== null) {
+        if ($accessible !== null && empty($accessible['is_admin_override'])) {
             if (empty($accessible['pairs'])) {
-                // If they don't teach any subjects, they shouldn't see anything
+                // Jika tidak mengajar mapel apapun, kosongkan
                 $query->whereRaw('1 = 0');
             } else {
                 $query->where(function($q) use ($accessible) {
@@ -107,7 +140,8 @@ class SilabusController extends Controller
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
                 $q->where('kompetensi', 'like', '%' . $request->search . '%')
-                    ->orWhere('materi', 'like', '%' . $request->search . '%');
+                    ->orWhere('materi', 'like', '%' . $request->search . '%')
+                    ->orWhere('kode', 'like', '%' . $request->search . '%');
             });
         }
 
@@ -140,10 +174,13 @@ class SilabusController extends Controller
             $query->whereIn('semester', $semesterValues);
         }
 
+        // Tampilkan 25 baris per halaman saat mapel/kelas terfilter agar 1 semester (16-20 pekan) tampil utuh
+        $perPage = ($request->filled('mapel_id') || $request->filled('kelas_id')) ? 30 : 15;
+
         // Sort by Pekan ascending, then by ID ascending
         $silabuses = $query->orderBy('pekan', 'asc')
             ->orderBy('id', 'asc')
-            ->paginate(10)
+            ->paginate($perPage)
             ->withQueryString();
 
         $dropdowns = $this->getFilteredDropdowns($accessible);
@@ -159,6 +196,8 @@ class SilabusController extends Controller
             'jenjangs' => $dropdowns['jenjangs'],
             'kelas' => $dropdowns['kelas'],
             'filters' => $filters,
+            'is_teacher' => !empty($accessible['is_teacher']),
+            'accessible_pairs' => $accessible['pairs'] ?? [],
         ]);
     }
 
@@ -203,7 +242,7 @@ class SilabusController extends Controller
 
         Silabus::create($validated);
 
-        return redirect()->route('silabus.index')->with('success', 'Silabus berhasil ditambahkan.');
+        return redirect()->back()->with('success', 'Silabus berhasil ditambahkan.');
     }
 
     public function edit(Silabus $silabus)
@@ -238,8 +277,11 @@ class SilabusController extends Controller
             'kelas_id' => 'sometimes|exists:kelas,id',
             'kurikulum' => 'sometimes|string',
             'semester' => 'sometimes|string',
+            'kode' => 'nullable|string',
+            'standar_kompetensi' => 'nullable|string',
             'kompetensi' => 'sometimes|string',
             'materi' => 'sometimes|string',
+            'alokasi_waktu' => 'nullable|string',
             'pekan' => 'nullable|integer',
         ];
 
@@ -248,11 +290,11 @@ class SilabusController extends Controller
             $rules['mapel_id'] .= '|in:' . implode(',', $allowedMapels);
         }
 
-        $request->validate($rules);
+        $validated = $request->validate($rules);
 
-        $silabus->update($request->all());
+        $silabus->update($validated);
 
-        return redirect()->route('silabus.index')->with('success', 'Silabus berhasil diperbarui.');
+        return redirect()->back()->with('success', 'Silabus berhasil diperbarui.');
     }
 
     public function destroy(Silabus $silabus)
