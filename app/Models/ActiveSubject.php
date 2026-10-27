@@ -41,6 +41,11 @@ class ActiveSubject extends Model
         return $this->hasMany(SemesterSubjectTeacher::class);
     }
 
+    public function schedules()
+    {
+        return $this->hasMany(Schedule::class);
+    }
+
     public function teacherForSemester($semesterId)
     {
         $override = $this->semesterSubjectTeachers->where('semester_id', $semesterId)->first();

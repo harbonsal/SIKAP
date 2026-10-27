@@ -16,6 +16,39 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class AssessmentController extends Controller
 {
+    /**
+     * Helper untuk memverifikasi apakah user adalah pengampu mapel tersebut
+     * (baik lewat penugasan pokok ActiveSubject, pembagian semester, maupun Jadwal KBM).
+     */
+    private function isTeacherOfSubject($user, $activeSubject, $activeYear = null, $activeSemester = null)
+    {
+        if ($activeSubject->teacher_id == $user->id) {
+            return true;
+        }
+
+        // Cek Pembagian Mengajar Semester (SemesterSubjectTeacher)
+        $sstQuery = \App\Models\SemesterSubjectTeacher::where('active_subject_id', $activeSubject->id)
+            ->where('teacher_id', $user->id);
+        if ($activeSemester) {
+            $sstQuery->where('semester_id', $activeSemester->id);
+        }
+        if ($sstQuery->exists()) {
+            return true;
+        }
+
+        // Cek Jadwal Pelajaran KBM (Schedule)
+        $schQuery = \App\Models\Schedule::where('active_subject_id', $activeSubject->id)
+            ->where('teacher_id', $user->id);
+        if ($activeYear) {
+            $schQuery->where('academic_year_id', $activeYear->id);
+        }
+        if ($schQuery->exists()) {
+            return true;
+        }
+
+        return false;
+    }
+
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -26,16 +59,32 @@ class AssessmentController extends Controller
             return redirect()->back()->with('error', 'Tahun ajaran atau semester aktif belum diatur.');
         }
 
-        $query = ActiveSubject::with(['mapel', 'activeClass.kelas', 'activeClass.kelasParalel', 'teacher'])
+        $query = ActiveSubject::with(['mapel', 'activeClass.kelas', 'activeClass.kelasParalel', 'teacher', 'semesterSubjectTeachers.teacher'])
             ->withMax('studentGrades', 'updated_at')
             ->whereHas('activeClass', function ($q) use ($activeYear) {
                 $q->where('academic_year_id', $activeYear->id);
             });
 
-        $canViewAll = $user->hasRole(['Administrator', 'Manager', 'Manager Tahfidz']) || $user->hasPermission('view_all_assessments');
+        $isSuperAdmin = $user->hasRole(['Administrator', 'Manager', 'Manager Tahfidz']);
+        $canViewAll = $isSuperAdmin || ($user->hasPermission('view_all_assessments') && optional($user->userLevel)->name !== 'Guru');
+
         if (!$canViewAll) {
-            // Hanya guru pengampu yang dapat melihat & menginput mapel miliknya
-            $query->where('active_subjects.teacher_id', $user->id);
+            // Guru hanya melihat mapel miliknya (berdasarkan ActiveSubject pokok, penugasan semester, atau Jadwal KBM)
+            $query->where(function ($q) use ($user, $activeSemester, $activeYear) {
+                $q->where('active_subjects.teacher_id', $user->id)
+                    ->orWhereHas('semesterSubjectTeachers', function ($sstQ) use ($user, $activeSemester) {
+                        $sstQ->where('teacher_id', $user->id);
+                        if ($activeSemester) {
+                            $sstQ->where('semester_id', $activeSemester->id);
+                        }
+                    })
+                    ->orWhereHas('schedules', function ($schQ) use ($user, $activeYear) {
+                        $schQ->where('teacher_id', $user->id);
+                        if ($activeYear) {
+                            $schQ->where('academic_year_id', $activeYear->id);
+                        }
+                    });
+            });
         }
 
         // Filter by Active Class (Specific Class + Parallel)
@@ -73,44 +122,93 @@ class AssessmentController extends Controller
             ->orderBy('student_grades_max_updated_at', 'desc')
             ->orderBy('kelas.name', 'asc')
             ->orderBy('kelas_paralels.name', 'asc')
-            ->paginate(10)
+            ->paginate(25)
             ->withQueryString();
 
-        $activeSubjects->getCollection()->transform(function ($subject) use ($activeYear) {
+        $activeSubjects->getCollection()->transform(function ($subject) use ($activeYear, $activeSemester) {
             $kkm = \App\Models\Kkm::where('mapel_id', $subject->mapel_id)
                 ->where('kelas_id', $subject->activeClass->kelas_id)
                 ->where('academic_year_id', $activeYear->id)
                 ->first();
             $subject->kkm = $kkm ? $kkm->kkm_value : '-';
+
+            // Resolve guru yang aktif mengajar di semester / jadwal KBM ini
+            $semesterTeacher = $subject->teacherForSemester($activeSemester->id);
+            $scheduleTeacher = \App\Models\Schedule::where('active_subject_id', $subject->id)
+                ->where('academic_year_id', $activeYear->id)
+                ->whereNotNull('teacher_id')
+                ->with('teacher')
+                ->first();
+
+            $effective = ($scheduleTeacher && $scheduleTeacher->teacher)
+                ? $scheduleTeacher->teacher
+                : ($semesterTeacher ?: $subject->teacher);
+
+            if ($effective) {
+                $subject->setRelation('teacher', $effective);
+            }
+
             return $subject;
         });
 
-        // Get data for filters
+        // Get data for filters (Keluarkan Tahfidz dari filter input nilai reguler)
         $classesQuery = \App\Models\ActiveClass::with(['kelas', 'kelasParalel'])
             ->where('academic_year_id', $activeYear->id)
-            ->whereHas('activeSubjects');
+            ->whereHas('activeSubjects', function ($asQ) use ($canViewAll, $user, $activeSemester, $activeYear) {
+                $asQ->whereHas('mapel', function ($mQ) {
+                    $mQ->where('name', 'not like', '%Tahfizh%')
+                        ->where('name', 'not like', '%Tahfidz%');
+                });
 
-        $mapelsQuery = \App\Models\Mapel::whereHas('activeSubjects', function ($q) use ($activeYear) {
-            $q->whereHas('activeClass', function ($subQ) use ($activeYear) {
-                $subQ->where('academic_year_id', $activeYear->id);
+                if (!$canViewAll) {
+                    $asQ->where(function ($q) use ($user, $activeSemester, $activeYear) {
+                        $q->where('teacher_id', $user->id)
+                            ->orWhereHas('semesterSubjectTeachers', function ($sstQ) use ($user, $activeSemester) {
+                                $sstQ->where('teacher_id', $user->id);
+                                if ($activeSemester) {
+                                    $sstQ->where('semester_id', $activeSemester->id);
+                                }
+                            })
+                            ->orWhereHas('schedules', function ($schQ) use ($user, $activeYear) {
+                                $schQ->where('teacher_id', $user->id);
+                                if ($activeYear) {
+                                    $schQ->where('academic_year_id', $activeYear->id);
+                                }
+                            });
+                    });
+                }
             });
-        });
+
+        $mapelsQuery = \App\Models\Mapel::where('name', 'not like', '%Tahfizh%')
+            ->where('name', 'not like', '%Tahfidz%')
+            ->whereHas('activeSubjects', function ($q) use ($activeYear, $canViewAll, $user, $activeSemester) {
+                $q->whereHas('activeClass', function ($subQ) use ($activeYear) {
+                    $subQ->where('academic_year_id', $activeYear->id);
+                });
+
+                if (!$canViewAll) {
+                    $q->where(function ($subQ) use ($user, $activeSemester, $activeYear) {
+                        $subQ->where('teacher_id', $user->id)
+                            ->orWhereHas('semesterSubjectTeachers', function ($sstQ) use ($user, $activeSemester) {
+                                $sstQ->where('teacher_id', $user->id);
+                                if ($activeSemester) {
+                                    $sstQ->where('semester_id', $activeSemester->id);
+                                }
+                            })
+                            ->orWhereHas('schedules', function ($schQ) use ($user, $activeYear) {
+                                $schQ->where('teacher_id', $user->id);
+                                if ($activeYear) {
+                                    $schQ->where('academic_year_id', $activeYear->id);
+                                }
+                            });
+                    });
+                }
+            });
 
         // Initialize teachers list
         $teachers = [];
 
-        if (!$canViewAll) {
-            // Guru hanya melihat filter kelas dan mapel yang benar-benar diampunya
-            $classesQuery->whereHas('activeSubjects', function ($sub) use ($user) {
-                $sub->where('teacher_id', $user->id);
-            });
-
-            $mapelsQuery->whereHas('activeSubjects', function ($q) use ($activeYear, $user) {
-                $q->whereHas('activeClass', function ($subQ) use ($activeYear) {
-                    $subQ->where('academic_year_id', $activeYear->id);
-                })->where('teacher_id', $user->id);
-            });
-        } else {
+        if ($canViewAll) {
             // Admin can see all, fetch Teachers list for filter
             $teachers = \App\Models\User::whereHas('activeSubjects', function ($q) use ($activeYear) {
                 $q->whereHas('activeClass', function ($subQ) use ($activeYear) {
@@ -157,9 +255,25 @@ class AssessmentController extends Controller
                 $q->where('academic_year_id', $activeYear->id);
             });
 
-        $canViewAll = $user->hasRole(['Administrator', 'Manager', 'Manager Tahfidz']) || $user->hasPermission('view_all_assessments');
+        $isSuperAdmin = $user->hasRole(['Administrator', 'Manager', 'Manager Tahfidz']);
+        $canViewAll = $isSuperAdmin || ($user->hasPermission('view_all_assessments') && optional($user->userLevel)->name !== 'Guru');
+
         if (!$canViewAll) {
-            $query->where('active_subjects.teacher_id', $user->id);
+            $query->where(function ($q) use ($user, $activeSemester, $activeYear) {
+                $q->where('active_subjects.teacher_id', $user->id)
+                    ->orWhereHas('semesterSubjectTeachers', function ($sstQ) use ($user, $activeSemester) {
+                        $sstQ->where('teacher_id', $user->id);
+                        if ($activeSemester) {
+                            $sstQ->where('semester_id', $activeSemester->id);
+                        }
+                    })
+                    ->orWhereHas('schedules', function ($schQ) use ($user, $activeYear) {
+                        $schQ->where('teacher_id', $user->id);
+                        if ($activeYear) {
+                            $schQ->where('academic_year_id', $activeYear->id);
+                        }
+                    });
+            });
         }
 
         if ($request->active_class_id) {
@@ -198,12 +312,28 @@ class AssessmentController extends Controller
             ->orderBy('kelas_paralels.name', 'asc')
             ->get();
 
-        $subjects->transform(function ($subject) use ($activeYear) {
+        $subjects->transform(function ($subject) use ($activeYear, $activeSemester) {
             $kkm = \App\Models\Kkm::where('mapel_id', $subject->mapel_id)
                 ->where('kelas_id', $subject->activeClass->kelas_id)
                 ->where('academic_year_id', $activeYear->id)
                 ->first();
             $subject->kkm = $kkm ? $kkm->kkm_value : '-';
+
+            $semesterTeacher = $subject->teacherForSemester($activeSemester->id);
+            $scheduleTeacher = \App\Models\Schedule::where('active_subject_id', $subject->id)
+                ->where('academic_year_id', $activeYear->id)
+                ->whereNotNull('teacher_id')
+                ->with('teacher')
+                ->first();
+
+            $effective = ($scheduleTeacher && $scheduleTeacher->teacher)
+                ? $scheduleTeacher->teacher
+                : ($semesterTeacher ?: $subject->teacher);
+
+            if ($effective) {
+                $subject->setRelation('teacher', $effective);
+            }
+
             return $subject;
         });
 
@@ -247,8 +377,8 @@ class AssessmentController extends Controller
         ])->findOrFail($id);
 
         $currentUser = Auth::user();
-        $isSuper = $currentUser->hasRole(['Administrator', 'Manager', 'Manager Tahfidz']) || $currentUser->hasPermission('view_all_assessments');
-        $isTeacher = $activeSubject->teacher_id == $currentUser->id;
+        $isSuper = $currentUser->hasRole(['Administrator', 'Manager', 'Manager Tahfidz']) || ($currentUser->hasPermission('view_all_assessments') && optional($currentUser->userLevel)->name !== 'Guru');
+        $isTeacher = $this->isTeacherOfSubject($currentUser, $activeSubject, $activeYear, $activeSemester);
 
         if (!$isSuper && !$isTeacher) {
             abort(403, 'Akses ditolak: Hanya guru pengampu mata pelajaran yang bersangkutan atau Administrator yang berhak mengakses halaman input nilai ini.');
@@ -315,8 +445,8 @@ class AssessmentController extends Controller
         ])->findOrFail($id);
 
         $currentUser = Auth::user();
-        $isSuper = $currentUser->hasRole(['Administrator', 'Manager', 'Manager Tahfidz']) || $currentUser->hasPermission('view_all_assessments');
-        $isTeacher = $activeSubject->teacher_id == $currentUser->id;
+        $isSuper = $currentUser->hasRole(['Administrator', 'Manager', 'Manager Tahfidz']) || ($currentUser->hasPermission('view_all_assessments') && optional($currentUser->userLevel)->name !== 'Guru');
+        $isTeacher = $this->isTeacherOfSubject($currentUser, $activeSubject, $activeYear, $activeSemester);
 
         if (!$isSuper && !$isTeacher) {
             abort(403, 'Akses ditolak: Hanya guru pengampu mata pelajaran atau Administrator yang berhak mengunduh data nilai mata pelajaran ini.');
@@ -380,9 +510,11 @@ class AssessmentController extends Controller
     {
         $currentUser = Auth::user();
         $activeSubject = ActiveSubject::findOrFail($id);
+        $activeYear = \App\Services\AcademicStateService::currentAcademicYear();
+        $activeSemester = \App\Services\AcademicStateService::currentSemester();
 
         $isSuper = $currentUser->hasRole(['Administrator', 'Manager', 'Manager Tahfidz']);
-        $isTeacher = $activeSubject->teacher_id == $currentUser->id;
+        $isTeacher = $this->isTeacherOfSubject($currentUser, $activeSubject, $activeYear, $activeSemester);
 
         // Enforce strict mutate lock: Only assigned teacher or Super Admin can edit grades
         if (!$isSuper && !$isTeacher) {
@@ -396,7 +528,7 @@ class AssessmentController extends Controller
             'grades.*.score' => 'nullable|numeric|min:0|max:100',
         ]);
 
-        $semesterId = \App\Services\AcademicStateService::currentSemester()->id;
+        $semesterId = $activeSemester ? $activeSemester->id : \App\Services\AcademicStateService::currentSemester()->id;
 
         foreach ($request->grades as $gradeData) {
             $conditions = [
@@ -429,11 +561,6 @@ class AssessmentController extends Controller
                 // If no record existed, create one
                 $newScore = $gradeData['score'] !== '' ? (float)$gradeData['score'] : null;
                 $newGrade = StudentGrade::create(array_merge($conditions, ['score' => $newScore]));
-
-                // Optional: Log history as initial entry?
-                // User said: "pastikan tercatat historinya, contoh anak A, pertama dapat nilai 65..."
-                // So initial entry might not be strictly required as "history of change", but helps visibility.
-                // For now, only log changes.
             }
         }
 
@@ -456,8 +583,8 @@ class AssessmentController extends Controller
         ])->findOrFail($id);
 
         $currentUser = Auth::user();
-        $isSuper = $currentUser->hasRole(['Administrator', 'Manager', 'Manager Tahfidz']) || $currentUser->hasPermission('view_all_assessments');
-        $isTeacher = $activeSubject->teacher_id == $currentUser->id;
+        $isSuper = $currentUser->hasRole(['Administrator', 'Manager', 'Manager Tahfidz']) || ($currentUser->hasPermission('view_all_assessments') && optional($currentUser->userLevel)->name !== 'Guru');
+        $isTeacher = $this->isTeacherOfSubject($currentUser, $activeSubject, $activeYear, $activeSemester);
 
         if (!$isSuper && !$isTeacher) {
             abort(403, 'Akses ditolak: Hanya guru pengampu mata pelajaran yang berhak mengunduh template input nilai.');
@@ -517,9 +644,11 @@ class AssessmentController extends Controller
     {
         $currentUser = Auth::user();
         $activeSubject = ActiveSubject::findOrFail($id);
+        $activeYear = \App\Services\AcademicStateService::currentAcademicYear();
+        $activeSemester = \App\Services\AcademicStateService::currentSemester();
 
         $isSuper = $currentUser->hasRole(['Administrator', 'Manager', 'Manager Tahfidz']);
-        $isTeacher = $activeSubject->teacher_id == $currentUser->id;
+        $isTeacher = $this->isTeacherOfSubject($currentUser, $activeSubject, $activeYear, $activeSemester);
 
         if (!$isSuper && !$isTeacher) {
             abort(403, 'Akses ditolak: Hanya guru pengampu mata pelajaran yang berhak mengimpor nilai.');

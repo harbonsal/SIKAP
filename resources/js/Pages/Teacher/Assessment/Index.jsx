@@ -78,7 +78,7 @@ export default function Index({ activeSubjects, filters, academicYear, semester,
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className={`grid grid-cols-1 md:grid-cols-${teachers && teachers.length > 0 ? '4' : '3'} gap-4`}>
+                        <div className={`grid grid-cols-1 ${teachers && teachers.length > 0 ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-4`}>
                             <div className="relative">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <form onSubmit={handleSearch}>
