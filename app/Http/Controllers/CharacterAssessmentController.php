@@ -144,23 +144,29 @@ class CharacterAssessmentController extends Controller
                     $bahasaCount = $sRec->sum('bahasa_count');
                     $tidurCount = $sRec->sum('tidur_count');
 
+                    $ibadahData = [
+                        'violations' => $ibadahCount,
+                        'suggested_score' => max(70, 100 - $ibadahCount),
+                        'label' => 'Keterlambatan Ibadah',
+                    ];
+                    $disiplinData = [
+                        'violations' => $bahasaCount,
+                        'suggested_score' => max(70, 100 - $bahasaCount),
+                        'label' => 'Ketertiban Berbahasa',
+                    ];
+                    $patuhData = [
+                        'violations' => $tidurCount,
+                        'suggested_score' => max(70, 100 - $tidurCount),
+                        'label' => 'Ketertiban Jam Tidur',
+                    ];
+
                     return [
                         $student['id'] => [
-                            'Ibadah' => [
-                                'violations' => $ibadahCount,
-                                'suggested_score' => max(70, 100 - $ibadahCount),
-                                'label' => 'Keterlambatan Ibadah',
-                            ],
-                            'Kedisiplinan' => [
-                                'violations' => $bahasaCount,
-                                'suggested_score' => max(70, 100 - $bahasaCount),
-                                'label' => 'Ketertiban Berbahasa',
-                            ],
-                            'Kepatuhan' => [
-                                'violations' => $tidurCount,
-                                'suggested_score' => max(70, 100 - $tidurCount),
-                                'label' => 'Ketertiban Jam Tidur',
-                            ],
+                            'Ibadah' => $ibadahData,
+                            'Disiplin' => $disiplinData,
+                            'Kedisiplinan' => $disiplinData,
+                            'Patuh' => $patuhData,
+                            'Kepatuhan' => $patuhData,
                             'total_violations' => $ibadahCount + $bahasaCount + $tidurCount,
                             'weeks' => $sRec->map(function ($w) {
                                 return [

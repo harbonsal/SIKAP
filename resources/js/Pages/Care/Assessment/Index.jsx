@@ -38,13 +38,9 @@ export default function Index({ kamars, categories, rubrics, students, existingA
                 initialAssessments[student.id] = {};
                 categories.forEach(category => {
                     const existingScore = existingAssessments[student.id]?.[category] ?? '';
-                    let scoreToSet = normalizeScore(existingScore);
+                    const scoreToSet = normalizeScore(existingScore);
 
-                    // Jika belum pernah diinput musyrif dan ada rekomendasi otomatis dari OSWAN:
-                    if (scoreToSet === '' && oswanCalculations[student.id]?.[category]?.suggested_score !== undefined) {
-                        scoreToSet = String(oswanCalculations[student.id][category].suggested_score);
-                    }
-
+                    // Kolom input murni hanya terisi jika memang sudah pernah disimpan sebelumnya di database
                     initialAssessments[student.id][category] = scoreToSet;
                 });
                 initialComments[student.id] = existingReports[student.id] || '';
