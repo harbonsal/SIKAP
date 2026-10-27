@@ -19,10 +19,15 @@ class StudentGrade extends Model
         'reading_quality',
         'reading_deficiencies',
         'is_excused',
+        'is_remedial',
+        'is_retake',
     ];
 
     protected $casts = [
         'reading_deficiencies' => 'array',
+        'is_remedial' => 'boolean',
+        'is_retake' => 'boolean',
+        'is_excused' => 'boolean',
     ];
 
     public function activeSubject()

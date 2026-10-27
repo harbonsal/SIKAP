@@ -99,6 +99,23 @@ export default function History({ activeSubject, student, grades, semester, acad
                                             {expandedGrades[grade.id] && (
                                                 <div className="border-t border-gray-100 p-4 bg-gray-50">
 
+                                                    {/* Remedial / Exam Repeat Info Banner */}
+                                                    {grade.original_score !== null && (
+                                                        <div className="mb-6 p-4 rounded-xl border bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm">
+                                                            <div className="flex items-center gap-2.5 text-amber-950">
+                                                                <span className={`font-bold px-2.5 py-1 rounded-full text-xs ${grade.is_remedial ? 'bg-amber-200 text-amber-900 border border-amber-300' : (grade.is_retake ? 'bg-blue-100 text-blue-900 border border-blue-200' : 'bg-orange-100 text-orange-900 border border-orange-200')}`}>
+                                                                    {grade.is_remedial ? 'Remidi' : (grade.is_retake ? 'Ujian Ulang' : 'Pengulangan Ujian')}
+                                                                </span>
+                                                                <span>
+                                                                    Nilai Awal Sebelum Pengulangan: <strong className="text-rose-700 font-mono text-sm">{parseFloat(parseFloat(grade.original_score).toFixed(1))}</strong>
+                                                                </span>
+                                                            </div>
+                                                            <div className="text-emerald-900 font-bold bg-white px-3 py-1.5 rounded-lg border border-emerald-300 shadow-2xs">
+                                                                Nilai Akhir: <span className="font-mono text-sm">{parseFloat(parseFloat(grade.score).toFixed(1))}</span>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
                                                     {/* Reading Quality Section */}
                                                     {grade.reading_quality && (
                                                         <div className="mb-6 bg-white p-4 rounded-lg border border-gray-200">

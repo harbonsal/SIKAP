@@ -150,12 +150,41 @@ export default function StudentList({ activeSubject, gradeWeight, existingGrades
                                                 <h3 className="font-semibold text-gray-900 group-hover:text-indigo-700 transition-colors">
                                                     {student.name}
                                                 </h3>
-                                                {hasGrade && grade.original_score !== null && (new Date(grade.updated_at) - new Date(grade.created_at) < 5000) && !grade.is_excused && (
-                                                    <span className="px-2 py-0.5 text-[10px] font-bold bg-red-100 text-red-600 rounded-full border border-red-200">Terlambat (Tledor)</span>
-                                                )}
-                                                {hasGrade && grade.original_score !== null && (new Date(grade.updated_at) - new Date(grade.created_at) >= 5000) && (
-                                                    <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 rounded-full border border-amber-200">Remedial</span>
-                                                )}
+                                                {hasGrade && grade.original_score !== null && (() => {
+                                                    if (grade.is_remedial) {
+                                                        return (
+                                                            <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 rounded-full border border-amber-300">
+                                                                Remidi (Awal: {parseFloat(parseFloat(grade.original_score).toFixed(1))})
+                                                            </span>
+                                                        );
+                                                    }
+                                                    if (grade.is_retake) {
+                                                        return (
+                                                            <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-800 rounded-full border border-blue-300">
+                                                                Ujian Ulang (Awal: {parseFloat(parseFloat(grade.original_score).toFixed(1))})
+                                                            </span>
+                                                        );
+                                                    }
+                                                    if (grade.is_excused) {
+                                                        return (
+                                                            <span className="px-2 py-0.5 text-[10px] font-bold bg-purple-100 text-purple-800 rounded-full border border-purple-300">
+                                                                Susulan (Izin)
+                                                            </span>
+                                                        );
+                                                    }
+                                                    if (parseFloat(grade.score) <= kkm && parseFloat(grade.original_score) < kkm) {
+                                                        return (
+                                                            <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 rounded-full border border-amber-300">
+                                                                Remidi (Awal: {parseFloat(parseFloat(grade.original_score).toFixed(1))})
+                                                            </span>
+                                                        );
+                                                    }
+                                                    return (
+                                                        <span className="px-2 py-0.5 text-[10px] font-bold bg-red-100 text-red-600 rounded-full border border-red-200">
+                                                            Terlambat (Tledor)
+                                                        </span>
+                                                    );
+                                                })()}
                                             </div>
                                             <p className="text-sm text-gray-500 font-mono">
                                                 {student.nomor_induk || student.nisn || '-'}

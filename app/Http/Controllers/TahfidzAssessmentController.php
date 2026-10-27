@@ -369,7 +369,10 @@ class TahfidzAssessmentController extends Controller
                 $kkmValue = $this->getKkmValue($activeSubject);
 
                 // 4. Mode Distinction Logic
-                if ($request->boolean('is_remedial')) {
+                $isRemedial = $request->boolean('is_remedial');
+                $isRetake = !$isNewSubmission && !$isRemedial;
+
+                if ($isRemedial) {
                     // REMEDIAL MODE: Cap at dynamic KKM
                     $finalScore = min($kkmValue, $calculatedScore);
 
@@ -388,10 +391,8 @@ class TahfidzAssessmentController extends Controller
                                 $grade->original_score = $calculatedScore;
                             }
                         } else {
-                            // Izin/Sakit -> Jatah full, but we still might want to mark it as delayed.
-                            // But requirement says "tetap mendapatkan jatah full".
+                            // Izin/Sakit -> Jatah full
                             $finalScore = $calculatedScore;
-                            // Optionally mark original_score if we want to visually indicate it was late
                             if (is_null($grade->original_score)) {
                                 $grade->original_score = $calculatedScore;
                             }
@@ -400,7 +401,6 @@ class TahfidzAssessmentController extends Controller
                         // This is a RETAKE (Ujian Ulang) - not new submission and not remedial mode
                         // "ujian ulang nilai tetap full maksimal 100"
                         $finalScore = $calculatedScore;
-                        // Mark original_score if not already marked so we know it was modified
                         if (is_null($grade->original_score)) {
                             $grade->original_score = $existingScore;
                         }
@@ -408,13 +408,20 @@ class TahfidzAssessmentController extends Controller
                 }
 
                 // 5. Update Grade Record
-                $grade->update([
+                $updateData = [
                     'score' => $finalScore,
                     'original_score' => $grade->original_score,
                     'reading_quality' => $request->reading_quality,
                     'reading_deficiencies' => $request->reading_deficiencies ?? [],
                     'is_excused' => $request->boolean('is_excused', false),
-                ]);
+                ];
+
+                if (\Illuminate\Support\Facades\Schema::hasColumn('student_grades', 'is_remedial')) {
+                    $updateData['is_remedial'] = $isRemedial;
+                    $updateData['is_retake'] = $isRetake;
+                }
+
+                $grade->update($updateData);
 
                 // 6. Handle Validation Logic for Juz
                 if (str_contains(strtolower($gw->name), 'validasi')) {
