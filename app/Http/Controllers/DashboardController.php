@@ -60,12 +60,19 @@ class DashboardController extends Controller
             }
         }
 
-        // [Feature] Prioritize Teacher Dashboard for Managers with Teaching Load
-        $hasActiveSubjects = \App\Models\ActiveSubject::where('teacher_id', $user->id)
-            ->whereHas('activeClass', function ($q) use ($academicYearId) {
-                $q->where('academic_year_id', $academicYearId);
-            })
-            ->exists();
+        $isTeacherRole = in_array('Guru', $allLevels->pluck('name')->toArray());
+        $isHomeroomRole = in_array('Wali Kelas', $allLevels->pluck('name')->toArray()) || $user->isCurrentHomeroomTeacher();
+
+        // [Feature] Prioritize Teacher Dashboard for Managers with Teaching Load or Teacher Role
+        $hasActiveSubjects = false;
+        if ($academicYearId) {
+            $hasActiveSubjects = \App\Models\ActiveSubject::where('teacher_id', $user->id)
+                ->whereHas('activeClass', fn($q) => $q->where('academic_year_id', $academicYearId))
+                ->exists()
+                || \App\Models\Schedule::where('teacher_id', $user->id)->where('academic_year_id', $academicYearId)->exists()
+                || \App\Models\SemesterSubjectTeacher::where('teacher_id', $user->id)->whereHas('activeSubject.activeClass', fn($q) => $q->where('academic_year_id', $academicYearId))->exists()
+                || $isTeacherRole;
+        }
 
         // 1. Determine Default Dashboard Type
         // If user has teaching load, PREFER 'Teacher' dashboard, even if they are Manager
@@ -74,8 +81,8 @@ class DashboardController extends Controller
         if ($defaultType === 'Default') {
             if ($user->userLevel && $user->userLevel->name === 'Santri') {
                 $defaultType = 'Student';
-            } elseif ($hasActiveSubjects) {
-                // FORCE Teacher Dashboard if they have active subjects
+            } elseif ($hasActiveSubjects && $isTeacherRole) {
+                // FORCE Teacher Dashboard if they have active subjects and are a teacher
                 $defaultType = 'Teacher';
             } elseif ($user->userLevel && in_array($user->userLevel->name, ['Guru', 'Wali Kelas', 'Kepala Sekolah'])) {
                 $defaultType = 'Teacher';
@@ -104,15 +111,27 @@ class DashboardController extends Controller
 
         if ($canViewStats) {
             if ($dashboardType === 'Teacher') {
-                // ... (Teacher logic existing) ...
-                // Teacher-specific Stats
-                $myActiveSubjects = \App\Models\ActiveSubject::where('teacher_id', $user->id)
-                    ->whereHas('activeClass', function ($q) use ($academicYearId) {
-                        $q->where('academic_year_id', $academicYearId);
-                    })
+                // Teacher-specific Stats across all assignments (direct, schedule, semester)
+                $myActiveSubjectIds = collect([]);
+                if ($academicYearId) {
+                    $directIds = \App\Models\ActiveSubject::where('teacher_id', $user->id)
+                        ->whereHas('activeClass', fn($q) => $q->where('academic_year_id', $academicYearId))
+                        ->pluck('id');
+                    $scheduleSubjectIds = \App\Models\Schedule::where('teacher_id', $user->id)
+                        ->where('academic_year_id', $academicYearId)
+                        ->whereNotNull('active_subject_id')
+                        ->pluck('active_subject_id');
+                    $semesterSubjectIds = \App\Models\SemesterSubjectTeacher::where('teacher_id', $user->id)
+                        ->whereHas('activeSubject.activeClass', fn($q) => $q->where('academic_year_id', $academicYearId))
+                        ->pluck('active_subject_id');
+                    $myActiveSubjectIds = $directIds->merge($scheduleSubjectIds)->merge($semesterSubjectIds)->unique()->values();
+                }
+
+                $myActiveSubjects = \App\Models\ActiveSubject::whereIn('id', $myActiveSubjectIds)
+                    ->with(['activeClass.kelas', 'activeClass.kelasParalel', 'mapel'])
                     ->get();
 
-                $myClassIds = $myActiveSubjects->pluck('active_class_id')->unique();
+                $myClassIds = $myActiveSubjects->pluck('active_class_id')->filter()->unique();
 
                 // Count students in classes I teach
                 $myStudentCount = \App\Models\ClassMember::whereIn('active_class_id', $myClassIds)
@@ -123,14 +142,10 @@ class DashboardController extends Controller
                 $myClasses = \App\Models\ActiveClass::whereIn('id', $myClassIds)
                     ->with(['kelas', 'kelasParalel'])
                     ->get()
-                    ->sortBy(function ($ac) {
-                        return $ac->kelas->name;
-                    });
+                    ->sortBy(fn($ac) => $ac->kelas?->name ?? '');
 
                 // Get Unique Subjects
-                $mySubjects = $myActiveSubjects->unique('mapel_id')->map(function ($as) {
-                    return $as->mapel->name;
-                })->values();
+                $mySubjects = $myActiveSubjects->map(fn($as) => $as->mapel?->name)->filter()->unique()->values();
 
                 $skriningToday = \App\Models\HafalanSkrining::whereDate('created_at', \Carbon\Carbon::today())->count();
 
@@ -139,7 +154,7 @@ class DashboardController extends Controller
                     'my_students' => $myStudentCount,
                     'my_classes' => $myClassIds->count(),
                     'my_subjects' => $mySubjects->count(), // Count unique subjects
-                    'my_class_list' => $myClasses->map(fn($c) => $c->kelas->name . ' ' . ($c->kelasParalel->name ?? ''))->values(),
+                    'my_class_list' => $myClasses->map(fn($c) => ($c->kelas?->name ?? '') . ' ' . ($c->kelasParalel?->name ?? ''))->values(),
                     'my_subject_list' => $mySubjects,
                     'role' => 'teacher',
                     'skrining_today' => $skriningToday, // Widget
@@ -427,73 +442,117 @@ class DashboardController extends Controller
         $allUserLevels = collect([$user->userLevel])->merge($user->additionalLevels)->filter()->unique('id');
 
         $mergedWidgets = [];
-        $hasCustomWidgets = false;
 
-        foreach ($allUserLevels as $lvl) {
-            $lvlWidgets = (is_array($lvl->widgets)) ? $lvl->widgets : [];
-            if (!empty($lvlWidgets)) {
-                $hasCustomWidgets = true;
+        foreach ($featuresRegistry as $feat) {
+            $featKey = $feat['key'];
+            $featAlias = $feat['alias'] ?? null;
+            $featPerm = $feat['required_permission'] ?? null;
+            $isExplicitlyAllowed = false;
+            $isRoleDefault = false;
+
+            foreach ($allUserLevels as $lvl) {
+                $lvlWidgets = (is_array($lvl->widgets)) ? $lvl->widgets : [];
+
+                if (isset($lvlWidgets[$featKey])) {
+                    if ((bool) $lvlWidgets[$featKey]) {
+                        $isExplicitlyAllowed = true;
+                    }
+                } elseif ($featAlias && isset($lvlWidgets[$featAlias])) {
+                    if ((bool) $lvlWidgets[$featAlias]) {
+                        $isExplicitlyAllowed = true;
+                    }
+                } else {
+                    // Cek default untuk role ini
+                    if (is_array($feat['default_for'] ?? null) && in_array($lvl->name, $feat['default_for'])) {
+                        $isRoleDefault = true;
+                    }
+                }
             }
 
-            foreach ($featuresRegistry as $feat) {
-                $featKey = $feat['key'];
-                $featAlias = $feat['alias'] ?? null;
+            // Jika ada salah satu role yang mengecek ya atau default role menyertakan
+            $finalAllowed = $isExplicitlyAllowed || $isRoleDefault;
 
-                // 1. Cek nilai eksplisit dari setting admin
-                if (isset($lvlWidgets[$featKey])) {
-                    $isEnabled = (bool) $lvlWidgets[$featKey];
-                } elseif ($featAlias && isset($lvlWidgets[$featAlias])) {
-                    $isEnabled = (bool) $lvlWidgets[$featAlias];
-                } else {
-                    // 2. Jika kunci ini belum pernah diatur eksplisit, gunakan rekomendasi bawaan role ini
-                    $isDefault = is_array($feat['default_for'] ?? null) && in_array($lvl->name, $feat['default_for']);
-                    $isEnabled = (bool) $isDefault;
-                }
+            // Permission fallback: jika user memiliki hak akses (permission) fitur ini, aktifkan!
+            if (!$finalAllowed && $featPerm && $user->hasPermission($featPerm)) {
+                $finalAllowed = true;
+            }
 
-                if ($isEnabled) {
-                    $mergedWidgets[$featKey] = true;
-                } elseif (!isset($mergedWidgets[$featKey])) {
-                    $mergedWidgets[$featKey] = false;
-                }
+            $mergedWidgets[$featKey] = $finalAllowed;
+            if ($featAlias) {
+                $mergedWidgets[$featAlias] = $finalAllowed;
             }
         }
 
-        // Always enable essential shell widgets by default unless explicitly disabled
-        $mergedWidgets['welcome_card'] = $mergedWidgets['welcome_card'] ?? true;
-        $mergedWidgets['quick_actions'] = $mergedWidgets['quick_actions'] ?? true;
-        $mergedWidgets['shortcut_profile'] = $mergedWidgets['shortcut_profile'] ?? true;
+        // Always enable essential shell widgets
+        $mergedWidgets['welcome_card'] = true;
+        $mergedWidgets['quick_actions'] = true;
+        $mergedWidgets['shortcut_profile'] = true;
+        $mergedWidgets['shortcut_calendar'] = true;
+        $mergedWidgets['shortcut_install_app'] = true;
 
         $userWidgets = $mergedWidgets;
 
-        // [Feature] Manager Tahfidz Widget Injection
-        // If user has 'Manager Tahfidz' role (either primary or additional), inject specific shortcuts if not custom configured
-        $isManagerTahfidz = ($user->userLevel?->name === 'Manager Tahfidz') || $user->additionalLevels->contains('name', 'Manager Tahfidz');
+        // [Feature] Manager Tahfidz Active Injection
+        // If user has 'Manager Tahfidz' role (primary or additional) or menu_tahfidz permission, enable all Tahfidz shortcuts
+        $isManagerTahfidz = ($user->userLevel?->name === 'Manager Tahfidz') 
+            || $user->additionalLevels->contains('name', 'Manager Tahfidz')
+            || $user->hasPermission('menu_tahfidz');
 
-        if (($dashboardType === 'Admin' || $dashboardType === 'Teacher') && $isManagerTahfidz && !$hasCustomWidgets) {
-            $userWidgets = array_merge($userWidgets, [
-                'shortcut_tahfidz_grades' => true,
-                'shortcut_tahfidz_recap' => true,
-                'shortcut_tahfidz_testers' => true,
-            ]);
+        if ($isManagerTahfidz) {
+            $userWidgets['shortcut_tahfidz'] = true;
+            $userWidgets['shortcut_tahfidz_grades'] = true;
+            $userWidgets['shortcut_tahfidz_recap'] = true;
+            $userWidgets['shortcut_tahfidz_testers'] = true;
+            $userWidgets['shortcut_tahfidz_monitoring'] = true;
+            $userWidgets['shortcut_skrining'] = true;
+            $userWidgets['shortcut_ikhtabir'] = true;
+            $userWidgets['shortcut_quran'] = true;
         }
 
-        // [Feature] Generic Academic Shortcuts based on Permission
-        // Only inject fallback academic shortcuts if the role DOES NOT have custom configured widgets
-        if (!$hasCustomWidgets) {
-            if ($dashboardType !== 'Teacher') {
-                if ($user->hasPermission('view_journals')) {
-                    $userWidgets['shortcut_journals'] = true;
-                }
-                if ($user->hasPermission('view_assessments')) {
-                    $userWidgets['shortcut_grades'] = true;
-                }
-                if ($user->hasPermission('view_silabus')) {
-                    $userWidgets['shortcut_silabus'] = true;
-                }
-            } else {
-                // Force enable these for teachers if they are somehow missing from default widgets but valid for role
-                $userWidgets['shortcut_tahfidz'] = $isTahfidzExamPeriod;
+        // [Feature] Teacher & Academic Shortcuts Active Injection
+        // If user is a teacher or has teaching load, make sure their academic shortcuts are fully recognized
+        if ($hasActiveSubjects || $isTeacherRole) {
+            if ($user->hasPermission('view_journals') || $hasActiveSubjects) {
+                $userWidgets['shortcut_journals'] = true;
             }
+            if ($user->hasPermission('view_assessments') || $hasActiveSubjects) {
+                $userWidgets['shortcut_grades'] = true;
+            }
+            if ($user->hasPermission('view_silabus') || $hasActiveSubjects) {
+                $userWidgets['shortcut_silabus'] = true;
+            }
+            if ($user->hasPermission('view_academic_schedules') || $hasActiveSubjects) {
+                $userWidgets['shortcut_schedule'] = true;
+            }
+            if ($user->hasPermission('view_grade_recap')) {
+                $userWidgets['shortcut_recap'] = true;
+            }
+            if ($dashboardType === 'Teacher') {
+                $userWidgets['shortcut_tahfidz'] = $isTahfidzExamPeriod || $isManagerTahfidz;
+            }
+        }
+
+        // [Feature] Homeroom (Wali Kelas) Shortcuts Active Injection
+        if ($isHomeroomRole || $user->isCurrentHomeroomTeacher()) {
+            $userWidgets['shortcut_reports'] = true;
+            $userWidgets['shortcut_recap'] = true;
+            if ($user->hasPermission('view_students')) {
+                $userWidgets['shortcut_students'] = true;
+            }
+        }
+
+        // [Feature] Care & Health Shortcuts
+        if ($user->hasPermission('view_students')) {
+            $userWidgets['shortcut_students'] = true;
+        }
+        if ($user->hasPermission('view_permissions')) {
+            $userWidgets['shortcut_permissions'] = true;
+        }
+        if ($user->hasPermission('create_permissions')) {
+            $userWidgets['shortcut_permission_personal'] = true;
+        }
+        if ($user->hasPermission('view_health_records')) {
+            $userWidgets['shortcut_health'] = true;
         }
 
         // [Feature] "Bagian Kesehatan" Widget Injection

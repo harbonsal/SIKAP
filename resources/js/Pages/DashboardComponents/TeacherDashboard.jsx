@@ -13,7 +13,7 @@ import {
     Users, GraduationCap, Clock, CalendarDays, BookOpen, FilePenLine, User, Calendar,
     Bot, Book, ChevronRight, Sparkles, BarChart2, CalendarRange, Download,
     SlidersHorizontal, Check, FileText, RotateCcw, X, Layers,
-    HeartPulse, Key, BookOpenCheck, Wallet, UserCheck
+    HeartPulse, Key, BookOpenCheck, Wallet, UserCheck, Activity, ClipboardCheck
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { cn } from '@/lib/utils';
@@ -63,6 +63,39 @@ const ALL_SHORTCUTS = [
         categoryLabel: 'Harian',
         color: 'from-teal-500 to-emerald-600',
         textColor: 'group-hover:text-teal-600',
+    },
+    {
+        id: 'tahfidz_recap',
+        alias: 'shortcut_tahfidz_recap',
+        label: 'Rekap Tahfidz',
+        icon: Activity,
+        route: () => route('tahfidz.recap.index'),
+        category: 'daily',
+        categoryLabel: 'Tahfidz',
+        color: 'from-lime-500 to-emerald-600',
+        textColor: 'group-hover:text-lime-600',
+    },
+    {
+        id: 'tahfidz_testers',
+        alias: 'shortcut_tahfidz_testers',
+        label: 'Plot Penguji',
+        icon: Users,
+        route: () => route('settings.tahfidz.index'),
+        category: 'daily',
+        categoryLabel: 'Tahfidz',
+        color: 'from-orange-500 to-amber-600',
+        textColor: 'group-hover:text-orange-600',
+    },
+    {
+        id: 'tahfidz_monitoring',
+        alias: 'shortcut_tahfidz_monitoring',
+        label: 'Pantau Halaqoh',
+        icon: ClipboardCheck,
+        route: () => route('tahfidz.monitoring.index'),
+        category: 'daily',
+        categoryLabel: 'Tahfidz',
+        color: 'from-pink-500 to-rose-600',
+        textColor: 'group-hover:text-pink-600',
     },
     {
         id: 'skrining',
@@ -259,7 +292,8 @@ export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} 
         // Fallback default rekomendasi jika kunci ini belum diset eksplisit oleh admin
         const defaultRecommended = [
             'students', 'journals', 'schedule', 'tahfidz', 'skrining', 
-            'ikhtabir', 'quran', 'silabus', 'grades', 'recap', 'calendar', 'profile', 'install_app'
+            'ikhtabir', 'quran', 'silabus', 'grades', 'recap', 'calendar', 'profile', 'install_app',
+            'tahfidz_recap', 'tahfidz_testers', 'tahfidz_monitoring'
         ];
         return defaultRecommended.includes(shortcutId) || (alias && defaultRecommended.includes(alias));
     };

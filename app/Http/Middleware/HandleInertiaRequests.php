@@ -81,11 +81,22 @@ class HandleInertiaRequests extends Middleware
                     $systemSemester = \App\Services\AcademicStateService::activeSemester();
                     $academicYearId = $systemAcademicYear?->id;
 
-                    $hasTeachingLoad = $academicYearId
-                        ? $user->activeSubjects()->whereHas('activeClass', function ($q) use ($academicYearId) {
+                    $allUserRoleNames = array_merge(
+                        [$user->userLevel?->name ?? 'User'],
+                        $user->additionalLevels->pluck('name')->toArray()
+                    );
+
+                    $hasTeachingLoad = false;
+                    if ($academicYearId) {
+                        $hasTeachingLoad = $user->activeSubjects()->whereHas('activeClass', function ($q) use ($academicYearId) {
                             $q->where('academic_year_id', $academicYearId);
                         })->exists()
-                        : false;
+                        || \App\Models\Schedule::where('teacher_id', $user->id)->where('academic_year_id', $academicYearId)->exists()
+                        || \App\Models\SemesterSubjectTeacher::where('teacher_id', $user->id)->whereHas('activeSubject.activeClass', function ($q) use ($academicYearId) {
+                            $q->where('academic_year_id', $academicYearId);
+                        })->exists()
+                        || in_array('Guru', $allUserRoleNames);
+                    }
 
                     $isCurrentHomeroomTeacher = $academicYearId
                         ? \App\Models\ActiveClass::where('academic_year_id', $academicYearId)

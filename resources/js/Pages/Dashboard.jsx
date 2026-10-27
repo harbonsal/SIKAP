@@ -31,7 +31,40 @@ export default function Dashboard({ stats, schedule, dashboard_type, allowed_wid
         <MainLayout>
             <Head title="Dashboard" />
 
-            <div className="max-w-7xl mx-auto">
+            <div className="max-w-7xl mx-auto space-y-4">
+                {available_dashboards && available_dashboards.length > 1 && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md p-2.5 px-4 rounded-2xl border border-indigo-100 dark:border-zinc-800 shadow-xs print:hidden">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
+                            <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                            <span>Peran ganda terdeteksi. Beralih mode tampilan:</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-zinc-800 rounded-xl">
+                            {available_dashboards.map((dash) => {
+                                const isActive = type === dash.type;
+                                return (
+                                    <button
+                                        key={dash.type}
+                                        type="button"
+                                        onClick={() => router.get(route('dashboard'), { view_as: dash.type }, { preserveScroll: true, preserveState: true })}
+                                        className={cn(
+                                            "px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 cursor-pointer",
+                                            isActive
+                                                ? "bg-white dark:bg-zinc-950 text-indigo-700 dark:text-indigo-400 shadow-xs ring-1 ring-black/5"
+                                                : "text-muted-foreground hover:text-foreground hover:bg-white/50"
+                                        )}
+                                    >
+                                        <span>
+                                            {dash.type === 'Teacher' 
+                                                ? '👨‍🏫 Guru / Pengajar' 
+                                                : (dash.type === 'Student' ? '🎓 Santri' : '👔 Manager Tahfidz / Admin')}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
                 {renderDashboard()}
             </div>
         </MainLayout>
