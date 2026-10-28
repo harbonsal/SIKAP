@@ -143,10 +143,23 @@ function validateJuzAyat(juzNum, surahName, ayatNum) {
 }
 
 // ─── Ayah Mistake Modal (Mobile-Thumb Friendly) ───────────────────────────────
-function AyahMistakeModal({ verse, activeQuestion, currentData, onSalah, onMumtaz, onReset, onClose, onLanjut, isLocked }) {
+// ─── Ayah Mistake Modal (Mobile-Thumb Friendly) ───────────────────────────────
+function AyahMistakeModal({ 
+    verse, 
+    activeQuestion, 
+    totalQuestions, 
+    currentData, 
+    onSalah, 
+    onSelesaiSoal, 
+    onReset, 
+    onClose, 
+    isLocked 
+}) {
     if (!verse) return null;
     const [surahNum, ayahNum] = (verse.verse_key || '').split(':');
-    const currentScore = Math.max(0, 10 - (currentData?.mistakes || 0)) * 10;
+    const currentMistakes = currentData?.mistakes || 0;
+    const currentScore = Math.max(0, 10 - currentMistakes) * 10;
+    const isLastQuestion = activeQuestion >= totalQuestions;
 
     return (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
@@ -156,11 +169,18 @@ function AyahMistakeModal({ verse, activeQuestion, currentData, onSalah, onMumta
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="bg-gradient-to-r from-emerald-900 to-teal-950 px-4 py-3 flex items-center justify-between text-white">
+                <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-950 px-4 py-3 flex items-center justify-between text-white">
                     <div>
-                        <h3 className="font-bold text-sm sm:text-base">Penilaian Ayat</h3>
+                        <div className="flex items-center gap-2">
+                            <h3 className="font-bold text-sm sm:text-base">Penilaian Ayat</h3>
+                            {isLastQuestion && (
+                                <span className="bg-amber-400 text-amber-950 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                    Soal Terakhir
+                                </span>
+                            )}
+                        </div>
                         <p className="text-emerald-300 text-xs mt-0.5">
-                            Surat {currentData?.surah_name || surahNum} Ayat {ayahNum} · Soal {activeQuestion}
+                            Surat {currentData?.surah_name || surahNum} Ayat {ayahNum} · Soal {activeQuestion} dari {totalQuestions}
                         </p>
                     </div>
                     <button onClick={onClose} className="p-1 rounded-full text-emerald-300 hover:text-white hover:bg-white/10 transition-colors">
@@ -179,45 +199,67 @@ function AyahMistakeModal({ verse, activeQuestion, currentData, onSalah, onMumta
                 {/* Score preview */}
                 <div className="flex items-center justify-around px-4 py-2.5 bg-slate-50 border-b">
                     <div className="text-center">
-                        <div className="text-[11px] text-slate-500 uppercase font-bold">Total Salah</div>
-                        <div className="text-xl font-bold text-rose-600">{currentData?.mistakes || 0}</div>
+                        <div className="text-[11px] text-slate-500 uppercase font-bold">Total Salah Soal Ini</div>
+                        <div className={`text-xl font-bold ${currentMistakes > 0 ? 'text-rose-600' : 'text-slate-700'}`}>
+                            {currentMistakes}
+                        </div>
                     </div>
                     <div className="h-8 w-px bg-slate-200" />
                     <div className="text-center">
                         <div className="text-[11px] text-slate-500 uppercase font-bold">Nilai Soal {activeQuestion}</div>
-                        <div className="text-xl font-bold text-indigo-700">{currentScore}</div>
+                        <div className={`text-xl font-black ${currentScore >= 90 ? 'text-emerald-700' : currentScore >= 75 ? 'text-blue-700' : 'text-rose-600'}`}>
+                            {currentScore}
+                        </div>
                     </div>
                 </div>
 
                 {/* Action Buttons */}
                 <div className="p-4 space-y-2.5">
+                    {/* Dua Tombol Utama: SALAH (+1) & SELESAI SOAL */}
                     <div className="grid grid-cols-2 gap-2">
+                        {/* Tombol Merah: Tambah Salah */}
                         <button
                             disabled={isLocked}
                             onClick={onSalah}
-                            className="h-12 bg-rose-600 hover:bg-rose-700 active:scale-98 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-all shadow-xs flex items-center justify-center gap-1.5"
+                            className="h-13 bg-rose-600 hover:bg-rose-700 active:scale-98 disabled:opacity-50 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-xs flex flex-col items-center justify-center leading-tight p-1.5"
                         >
                             <span>SALAH (+1)</span>
+                            <span className="text-[10px] font-normal opacity-85 mt-0.5">Nilai Jadi {Math.max(0, currentScore - 10)}</span>
                         </button>
+
+                        {/* Tombol Hijau: Selesai Soal Ini (TIDAK MERESET NILAI JADI 100 JIKA SUDAH ADA SALAH) */}
                         <button
                             disabled={isLocked}
-                            onClick={onMumtaz}
-                            className="h-12 bg-emerald-600 hover:bg-emerald-700 active:scale-98 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-all shadow-xs flex items-center justify-center gap-1.5"
+                            onClick={onSelesaiSoal}
+                            className="h-13 bg-emerald-600 hover:bg-emerald-700 active:scale-98 disabled:opacity-50 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-xs flex flex-col items-center justify-center leading-tight px-1.5 py-1"
                         >
-                            <span>MUMTAZ ✓</span>
+                            {currentMistakes === 0 ? (
+                                <>
+                                    <span>{isLastQuestion ? 'MUMTAZ (100) & SIMPAN 🏁' : 'MUMTAZ (100) & LANJUT ➔'}</span>
+                                    <span className="text-[10px] font-normal opacity-90 mt-0.5">Lancar Tanpa Salah</span>
+                                </>
+                            ) : (
+                                <>
+                                    <span>{isLastQuestion ? `SELESAI (${currentScore}) & SIMPAN 🏁` : `SELESAI (${currentScore}) & LANJUT ➔`}</span>
+                                    <span className="text-[10px] font-normal opacity-90 mt-0.5">Simpan {currentMistakes} Salah</span>
+                                </>
+                            )}
                         </button>
                     </div>
 
-                    <div className="flex gap-2 pt-1">
-                        <button
-                            disabled={isLocked}
-                            onClick={onReset}
-                            className="h-9 px-3 border border-slate-300 hover:bg-slate-50 text-slate-600 rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5"
-                            title="Reset kesalahan soal ini"
-                        >
-                            <RotateCcw className="h-3.5 w-3.5" />
-                            <span>Reset</span>
-                        </button>
+                    {/* Tombol Bawah: Reset (hanya jika ingin hapus salah), Tutup, dan Navigasi Lanjut */}
+                    <div className="flex items-center gap-2 pt-1">
+                        {currentMistakes > 0 && (
+                            <button
+                                disabled={isLocked}
+                                onClick={onReset}
+                                className="h-9 px-2.5 border border-slate-300 hover:bg-slate-50 text-slate-600 rounded-xl text-xs transition-colors flex items-center justify-center gap-1 shrink-0"
+                                title="Hapus semua kesalahan dan jadikan nilai 100"
+                            >
+                                <RotateCcw className="h-3.5 w-3.5" />
+                                <span>Reset (100)</span>
+                            </button>
+                        )}
 
                         <button
                             onClick={onClose}
@@ -227,10 +269,18 @@ function AyahMistakeModal({ verse, activeQuestion, currentData, onSalah, onMumta
                         </button>
 
                         <button
-                            onClick={onLanjut}
-                            className="flex-1 h-9 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-1"
+                            onClick={onSelesaiSoal}
+                            className={`flex-1 h-9 font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-1 ${
+                                isLastQuestion
+                                    ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800'
+                                    : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700'
+                            }`}
                         >
-                            <span>Lanjut Soal ➔</span>
+                            {isLastQuestion ? (
+                                <span>🏁 Selesai Ujian & Simpan</span>
+                            ) : (
+                                <span>Lanjut Soal {activeQuestion + 1} ➔</span>
+                            )}
                         </button>
                     </div>
                 </div>
@@ -328,24 +378,36 @@ export default function Assessment({
         setAyahModal({ verse });
     };
 
+    // Tambah kesalahan pada soal aktif
+    const handleAddMistake = (qNum = activeQuestion) => {
+        if (isLocked) return;
+        const currentMistakes = allAnswers[qNum]?.mistakes || 0;
+        updateAnswer(qNum, 'mistakes', currentMistakes + 1);
+        updateAnswer(qNum, 'is_reviewed', true);
+    };
+
     const handleModalSalah = () => {
-        updateAnswer(activeQuestion, 'mistakes', (allAnswers[activeQuestion].mistakes || 0) + 1);
-        updateAnswer(activeQuestion, 'is_reviewed', true);
+        handleAddMistake(activeQuestion);
         setAyahModal(null);
     };
 
-    const handleModalMumtaz = () => {
-        updateAnswer(activeQuestion, 'mistakes', 0);
-        updateAnswer(activeQuestion, 'is_reviewed', true);
+    // Selesaikan soal aktif (mempertahankan kesalahan yang sudah dicatat, TIDAK mereset nilai jadi 100)
+    const handleCompleteQuestion = (qNum = activeQuestion) => {
+        if (isLocked) return;
+        updateAnswer(qNum, 'is_reviewed', true);
         setAyahModal(null);
-        if (activeQuestion < totalQuestions) {
-            setActiveQuestion(q => q + 1);
+        if (qNum < totalQuestions) {
+            setActiveQuestion(qNum + 1);
+        } else {
+            // Jika sudah di soal terakhir, otomatis buka modal validasi akhir untuk simpan!
+            setShowValidationModal(true);
         }
     };
 
-    const handleModalReset = () => {
-        updateAnswer(activeQuestion, 'mistakes', 0);
-        updateAnswer(activeQuestion, 'is_reviewed', false);
+    const handleResetMistakes = (qNum = activeQuestion) => {
+        if (isLocked) return;
+        updateAnswer(qNum, 'mistakes', 0);
+        updateAnswer(qNum, 'is_reviewed', false);
         setAyahModal(null);
     };
 
@@ -536,17 +598,12 @@ export default function Assessment({
                 <AyahMistakeModal
                     verse={ayahModal.verse}
                     activeQuestion={activeQuestion}
+                    totalQuestions={totalQuestions}
                     currentData={currentData}
                     onSalah={handleModalSalah}
-                    onMumtaz={handleModalMumtaz}
-                    onReset={handleModalReset}
+                    onSelesaiSoal={() => handleCompleteQuestion(activeQuestion)}
+                    onReset={() => handleResetMistakes(activeQuestion)}
                     onClose={() => setAyahModal(null)}
-                    onLanjut={() => {
-                        setAyahModal(null);
-                        if (activeQuestion < totalQuestions) {
-                            setActiveQuestion(activeQuestion + 1);
-                        }
-                    }}
                     isLocked={isLocked}
                 />
             )}
@@ -822,29 +879,85 @@ export default function Assessment({
                     )}
                 </main>
 
-                {/* ── 5. FLOATING DOCK VALIDASI & SIMPAN (Saat Semua Soal Selesai) ──── */}
-                {showValidation && (
-                    <div className="shrink-0 bg-white border-t border-slate-200 px-3 py-2 shadow-lg z-20">
-                        <div className="max-w-xl mx-auto flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                                <div className="text-xs truncate">
-                                    <span className="font-bold text-slate-800">Semua Soal Terisi</span>
-                                    <span className="text-slate-500 text-[11px] ml-1">· Nilai: {totalPredictedScore.toFixed(0)}</span>
-                                </div>
+                {/* ── 5. BILAH KONTROL BAWAH PENILAIAN (Selalu Aktif Memandu Penguji) ──── */}
+                <div className="shrink-0 bg-white border-t border-slate-200/90 px-3 py-2 shadow-lg z-20">
+                    <div className="max-w-5xl mx-auto flex items-center justify-between gap-2">
+                        {/* Kiri: Ringkasan Status Soal Aktif */}
+                        <div className="flex items-center gap-2 min-w-0">
+                            <span className={`px-2.5 py-1 rounded-lg text-xs font-black shrink-0 ${
+                                activeQuestion === totalQuestions
+                                    ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                                    : 'bg-emerald-100 text-emerald-900 border border-emerald-200'
+                            }`}>
+                                Soal {activeQuestion}/{totalQuestions}
+                                {activeQuestion === totalQuestions && (
+                                    <span className="ml-1 text-[10px] font-bold text-amber-800 uppercase tracking-wider hidden xs:inline">
+                                        (Akhir)
+                                    </span>
+                                )}
+                            </span>
+
+                            <div className="flex items-center gap-2 text-xs truncate">
+                                <span className={`font-bold ${currentData.mistakes > 0 ? 'text-rose-600' : 'text-slate-600'}`}>
+                                    Salah: {currentData.mistakes || 0}
+                                </span>
+                                <span className="text-slate-300">•</span>
+                                <span className="font-extrabold text-slate-800">
+                                    Nilai Soal: {currentScore}
+                                </span>
+                                <span className="text-slate-400 text-[11px] hidden sm:inline">
+                                    (Prediksi Akhir: {totalPredictedScore.toFixed(0)})
+                                </span>
                             </div>
 
-                            <button
-                                type="button"
-                                onClick={() => setShowValidationModal(true)}
-                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-xs transition-all shrink-0 flex items-center gap-1.5"
-                            >
-                                <Save className="w-3.5 h-3.5" />
-                                <span>Validasi & Simpan</span>
-                            </button>
+                            {/* Tombol Cepat Tambah Salah Langsung di Layar */}
+                            {!isLocked && (
+                                <button
+                                    type="button"
+                                    onClick={() => handleAddMistake(activeQuestion)}
+                                    className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 active:scale-95 font-bold text-xs rounded-lg transition-all flex items-center gap-1 shrink-0 ml-1"
+                                    title="Tambah 1 kesalahan pada soal ini"
+                                >
+                                    <span>+ Salah</span>
+                                </button>
+                            )}
+
+                            {/* Tombol Reset Soal jika ada salah */}
+                            {currentData.mistakes > 0 && !isLocked && (
+                                <button
+                                    type="button"
+                                    onClick={() => handleResetMistakes(activeQuestion)}
+                                    className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 shrink-0"
+                                    title="Reset kesalahan soal ini ke 100"
+                                >
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Kanan: Tombol Aksi Lanjut Soal atau Selesai Ujian */}
+                        <div className="flex items-center gap-2 shrink-0">
+                            {activeQuestion < totalQuestions ? (
+                                <button
+                                    type="button"
+                                    onClick={() => handleCompleteQuestion(activeQuestion)}
+                                    className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5"
+                                >
+                                    <span>Selesai Soal {activeQuestion} ➔</span>
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => handleCompleteQuestion(activeQuestion)}
+                                    className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-95 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center gap-1.5 animate-pulse"
+                                >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    <span>🏁 Selesai Ujian & Simpan</span>
+                                </button>
+                            )}
                         </div>
                     </div>
-                )}
+                </div>
             </div>
 
             {/* ── 6. MODAL VALIDASI AKHIR (Popup Bersih Saat Klik Simpan) ───────── */}
@@ -858,11 +971,49 @@ export default function Assessment({
                         <div className="flex items-center justify-between border-b pb-3">
                             <div>
                                 <h3 className="font-bold text-base text-slate-900">Validasi Akhir Penilaian</h3>
-                                <p className="text-xs text-slate-500">Santri: {student?.name} (Nilai: {totalPredictedScore.toFixed(0)})</p>
+                                <p className="text-xs text-slate-500">Santri: {student?.name} (Nilai Akhir: {totalPredictedScore.toFixed(0)})</p>
                             </div>
                             <button onClick={() => setShowValidationModal(false)} className="p-1 rounded-full text-slate-400 hover:text-slate-700">
                                 <X className="w-5 h-5" />
                             </button>
+                        </div>
+
+                        {/* Rekapitulasi Nilai Tiap Soal (Transparan & Jelas) */}
+                        <div className="bg-slate-50 border border-slate-200/90 rounded-xl p-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                                    Rekap Nilai Tiap Soal
+                                </span>
+                                <span className="text-xs font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                                    Rata-rata: {totalPredictedScore.toFixed(0)}
+                                </span>
+                            </div>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                                {Array.from({ length: totalQuestions }, (_, i) => i + 1).map(qn => {
+                                    const ans = allAnswers[qn];
+                                    const score = Math.max(0, 10 - (ans?.mistakes || 0)) * 10;
+                                    return (
+                                        <div key={qn} className="p-2 rounded-lg bg-white border border-slate-200 text-xs flex items-center justify-between">
+                                            <div className="min-w-0 pr-1">
+                                                <div className="font-bold text-slate-700">Soal {qn}</div>
+                                                <div className="text-[10px] text-slate-400 truncate max-w-[85px]">
+                                                    {ans?.surah_name ? `${ans.surah_name}:${ans.verse_start || '1'}` : 'Belum pilih'}
+                                                </div>
+                                            </div>
+                                            <div className="text-right shrink-0">
+                                                <div className={`font-black text-xs ${
+                                                    score >= 90 ? 'text-emerald-600' : score >= 75 ? 'text-blue-600' : 'text-rose-600'
+                                                }`}>
+                                                    {score}
+                                                </div>
+                                                <div className="text-[10px] text-slate-400">
+                                                    {ans?.mistakes || 0} salah
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
 
                         {/* Keterangan Bacaan */}
