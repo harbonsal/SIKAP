@@ -109,6 +109,12 @@ export default function MainLayout({
 }) {
     const { auth, flash, app_settings } = usePage().props;
     const user = auth.user;
+    const userRole = user?.user_level?.name || '';
+    const userCategory = user?.user_level?.category || '';
+    const userRoles = Array.isArray(user?.roles) ? user.roles : (userRole ? [userRole] : []);
+    const isStudent = userRole.toLowerCase() === 'santri' || 
+                      userCategory.toLowerCase() === 'santri' || 
+                      userRoles.some(r => typeof r === 'string' && r.toLowerCase() === 'santri');
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [dismissedTypes, setDismissedTypes] = useState({});
     const [isStandalone, setIsStandalone] = useState(false);
@@ -325,7 +331,10 @@ export default function MainLayout({
                 {/* Mobile Bottom Navigation Dock (Thumb Zone) - Stationary Fixed in flex flow */}
                 {!hideMobileNav && (
                     <nav className="lg:hidden shrink-0 z-30 bg-background/95 backdrop-blur-lg border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.08)] px-2 py-1 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] print:hidden select-none">
-                    <div className="grid grid-cols-5 items-center justify-around max-w-md mx-auto">
+                    <div className={cn(
+                        "grid items-center justify-around max-w-md mx-auto",
+                        isStudent ? "grid-cols-3" : "grid-cols-5"
+                    )}>
                         {/* 1. Beranda */}
                         <Link
                             href={route('dashboard')}
@@ -354,33 +363,37 @@ export default function MainLayout({
                             <span className="text-[10px] leading-tight font-medium">Jadwal</span>
                         </Link>
 
-                        {/* 3. Jurnal KBM */}
-                        <Link
-                            href={route('journals.index')}
-                            className={cn(
-                                "flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-150 active:scale-95",
-                                route().current('journals.*')
-                                    ? "text-primary font-bold"
-                                    : "text-muted-foreground hover:text-foreground"
-                            )}
-                        >
-                            <BookOpen className={cn("h-5 w-5 mb-0.5", route().current('journals.*') && "stroke-[2.5px]")} />
-                            <span className="text-[10px] leading-tight font-medium">Jurnal</span>
-                        </Link>
+                        {/* 3. Jurnal KBM (Hanya tampil untuk Guru / Pegawai / Non-Santri) */}
+                        {!isStudent && (
+                            <Link
+                                href={route('journals.index')}
+                                className={cn(
+                                    "flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-150 active:scale-95",
+                                    route().current('journals.*')
+                                        ? "text-primary font-bold"
+                                        : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                <BookOpen className={cn("h-5 w-5 mb-0.5", route().current('journals.*') && "stroke-[2.5px]")} />
+                                <span className="text-[10px] leading-tight font-medium">Jurnal</span>
+                            </Link>
+                        )}
 
-                        {/* 4. Nilai */}
-                        <Link
-                            href={route('assessments.index')}
-                            className={cn(
-                                "flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-150 active:scale-95",
-                                route().current('assessments.*')
-                                    ? "text-primary font-bold"
-                                    : "text-muted-foreground hover:text-foreground"
-                            )}
-                        >
-                            <GraduationCap className={cn("h-5 w-5 mb-0.5", route().current('assessments.*') && "stroke-[2.5px]")} />
-                            <span className="text-[10px] leading-tight font-medium">Nilai</span>
-                        </Link>
+                        {/* 4. Nilai (Input Nilai - Hanya tampil untuk Guru / Pegawai / Non-Santri) */}
+                        {!isStudent && (
+                            <Link
+                                href={route('assessments.index')}
+                                className={cn(
+                                    "flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-150 active:scale-95",
+                                    route().current('assessments.*')
+                                        ? "text-primary font-bold"
+                                        : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                <GraduationCap className={cn("h-5 w-5 mb-0.5", route().current('assessments.*') && "stroke-[2.5px]")} />
+                                <span className="text-[10px] leading-tight font-medium">Nilai</span>
+                            </Link>
+                        )}
 
                         {/* 5. Menu / Lainnya */}
                         <button
