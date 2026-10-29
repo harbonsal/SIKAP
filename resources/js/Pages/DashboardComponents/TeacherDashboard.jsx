@@ -13,7 +13,7 @@ import {
     Users, GraduationCap, Clock, CalendarDays, BookOpen, FilePenLine, User, Calendar,
     Bot, Book, ChevronRight, Sparkles, BarChart2, CalendarRange, Download,
     SlidersHorizontal, Check, FileText, RotateCcw, X, Layers,
-    HeartPulse, Key, BookOpenCheck, Wallet, UserCheck, Activity, ClipboardCheck
+    HeartPulse, Key, BookOpenCheck, Wallet, UserCheck, Activity, ClipboardCheck, CheckSquare, ShieldAlert
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { cn } from '@/lib/utils';
@@ -151,6 +151,39 @@ const ALL_SHORTCUTS = [
         categoryLabel: 'Pengasuhan',
         color: 'from-emerald-600 to-teal-600',
         textColor: 'group-hover:text-emerald-600',
+    },
+    {
+        id: 'musyrif_performance_monitoring',
+        alias: 'musyrif_performance_monitoring',
+        label: 'Pantau Musyrif',
+        icon: ClipboardCheck,
+        route: () => route('care.musyrif-performance.monitoring'),
+        category: 'daily',
+        categoryLabel: 'Pengasuhan',
+        color: 'from-sky-500 to-indigo-600',
+        textColor: 'group-hover:text-sky-600',
+    },
+    {
+        id: 'musyrif_performance_logbook',
+        alias: 'musyrif_performance_logbook',
+        label: 'Logbook Musyrif',
+        icon: CheckSquare,
+        route: () => route('care.musyrif-performance.my-logbook'),
+        category: 'daily',
+        categoryLabel: 'Pengasuhan',
+        color: 'from-teal-500 to-emerald-600',
+        textColor: 'group-hover:text-teal-600',
+    },
+    {
+        id: 'oswan_monitor',
+        alias: 'oswan_monitor',
+        label: 'Pantau Ketertiban',
+        icon: ShieldAlert,
+        route: () => route('care.oswan.monitor'),
+        category: 'daily',
+        categoryLabel: 'Pengasuhan',
+        color: 'from-amber-600 to-orange-600',
+        textColor: 'group-hover:text-amber-600',
     },
     {
         id: 'silabus',

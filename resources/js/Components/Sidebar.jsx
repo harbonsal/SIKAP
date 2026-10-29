@@ -65,7 +65,7 @@ const navItems = [
                     { title: "Cetak Absensi Manual", href: "attendance.print.index", permission: 'print_manual_attendance' }, // Strict: Admin
                 ]
             },
-            { title: "Cari & Biodata Santri", href: "students.index", permission: 'view_students', allowRoles: ['Wali Kelas', 'Manager Tahfidz', 'Sekertaris Divisi', 'Sekretaris Divisi', 'Manager'] },
+            { title: "Cari & Biodata Santri", href: "students.index", permission: 'view_students', allowRoles: ['Wali Kelas', 'Manager Tahfidz', 'Sekertaris Divisi', 'Sekretaris Divisi', 'Manager', 'PJ Kemusrifan', 'PJ Musyrif'] },
             { title: "Manajemen Ijazah", href: "academic.ijazah.index", permission: 'manage_ijazah' }, 
             {
                 title: "Supervisi Guru",
@@ -115,22 +115,22 @@ const navItems = [
             {
                 title: "Kinerja Musyrif",
                 children: [
-                    { title: "Logbook Tugas Saya", href: "care.musyrif-performance.my-logbook", roles: ['Musrif', 'Musyrif', 'Musrif Asrama', 'Guru', 'Administrator', 'Manager Pengasuhan'] },
-                    { title: "Monitoring Kepatuhan", href: "care.musyrif-performance.monitoring", roles: ['Administrator', 'Manager Pengasuhan', 'Manager', 'OSWAN'] },
+                    { title: "Logbook Tugas Saya", href: "care.musyrif-performance.my-logbook", roles: ['Musrif', 'Musyrif', 'Musrif Asrama', 'Guru', 'Administrator', 'Manager Pengasuhan', 'PJ Kemusrifan', 'PJ Musyrif'] },
+                    { title: "Monitoring Kepatuhan", href: "care.musyrif-performance.monitoring", roles: ['Administrator', 'Manager Pengasuhan', 'Manager', 'OSWAN', 'PJ Kemusrifan', 'PJ Musyrif'] },
                 ]
             },
             {
                 title: "Musyrif Tarbiyah",
                 children: [
                     { title: "Dashboard Musyrif", href: "musyrif-tarbiyah.index" },
-                    { title: "Plotting Anak Asuh", href: "musyrif-tarbiyah.plotting.index", roles: ['Administrator', 'Manager Pengasuhan'] },
+                    { title: "Plotting Anak Asuh", href: "musyrif-tarbiyah.plotting.index", roles: ['Administrator', 'Manager Pengasuhan', 'PJ Kemusrifan', 'PJ Musyrif'] },
                 ]
             },
             {
                 title: "Penilaian Akhlak",
                 children: [
                     { title: "Input Akhlak", href: "assessments.character.index", permission: 'view_character_input' },
-                    { title: "Pemantauan Ketertiban", href: "care.oswan.monitor", roles: ['Administrator', 'Musrif', 'Musyrif', 'Musrif Asrama', 'Manager Pengasuhan', 'Wali Kelas', 'Guru', 'Guru Asuh'] },
+                    { title: "Pemantauan Ketertiban", href: "care.oswan.monitor", roles: ['Administrator', 'Musrif', 'Musyrif', 'Musrif Asrama', 'Manager Pengasuhan', 'Wali Kelas', 'Guru', 'Guru Asuh', 'PJ Kemusrifan', 'PJ Musyrif'] },
                     { title: "Input Ketertiban OSWAN", href: "care.oswan.index", roles: ['Administrator', 'OSWAN'] },
                     { title: "Rekap Kamar SM1 (Jul-Des)", href: "assessments.character.recap.index", params: { semester: 1 }, permission: 'view_character_recap' },
                     { title: "Rekap Kamar SM2 (Jan-Jun)", href: "assessments.character.recap.index", params: { semester: 2 }, permission: 'view_character_recap' },
@@ -144,7 +144,7 @@ const navItems = [
                     { title: "Plotting Anggota Kamar", href: "kamar-members.index", permission: 'view_kamar_members' },
                 ]
             },
-            { title: "Perizinan Santri", href: "rfid.scan", activeRoutes: ['rfid.scan', 'permissions.index', 'permissions.monitor'], permission: 'view_permissions', allowRoles: ['Sekertaris Divisi', 'Sekretaris Divisi', 'Musrif', 'Musyrif', 'Musrif Asrama', 'Manager Pengasuhan', 'Kepala Sekolah', 'Guru', 'Guru Kelas', 'Wali Kelas', 'Kurikulum', 'Staf Pendidikan'] },
+            { title: "Perizinan Santri", href: "rfid.scan", activeRoutes: ['rfid.scan', 'permissions.index', 'permissions.monitor'], permission: 'view_permissions', allowRoles: ['Sekertaris Divisi', 'Sekretaris Divisi', 'Musrif', 'Musyrif', 'Musrif Asrama', 'Manager Pengasuhan', 'Kepala Sekolah', 'Guru', 'Guru Kelas', 'Wali Kelas', 'Kurikulum', 'Staf Pendidikan', 'PJ Kemusrifan', 'PJ Musyrif'] },
             {
                 title: "Kesehatan",
                 children: [

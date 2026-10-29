@@ -3,7 +3,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { 
     Users, GraduationCap, School, Activity, CalendarDays, User, Calendar, 
-    Heart, Stethoscope, FileText, Search, ClipboardCheck, Book, BookOpen, 
+    Heart, Stethoscope, FileText, Search, ClipboardCheck, CheckSquare, ShieldAlert, Book, BookOpen, 
     HeartPulse, BarChart2, CalendarRange, Sparkles, Bot, BookOpenCheck, Key, Plus,
     Wallet, Download, UserCheck
 } from 'lucide-react';
@@ -309,6 +309,48 @@ export default function AdminDashboard({ stats, allowedWidgets = {}, activities 
             borderHover: 'hover:border-emerald-200',
             textHover: 'group-hover:text-emerald-700',
             shadow: 'shadow-emerald-500/30 ring-emerald-50',
+            default: false,
+        },
+        // 20. Monitoring Kinerja Musyrif
+        {
+            id: 'shortcut_musyrif_performance_monitoring',
+            alias: 'musyrif_performance_monitoring',
+            title: 'Monitoring Kinerja Musyrif',
+            subtitle: 'Kepatuhan & Checklist Tugas',
+            href: route('care.musyrif-performance.monitoring'),
+            icon: ClipboardCheck,
+            gradient: 'from-sky-600 to-indigo-600',
+            borderHover: 'hover:border-sky-200',
+            textHover: 'group-hover:text-sky-700',
+            shadow: 'shadow-sky-500/30 ring-sky-50',
+            default: false,
+        },
+        // 21. Logbook Tugas Musyrif
+        {
+            id: 'shortcut_musyrif_performance_logbook',
+            alias: 'musyrif_performance_logbook',
+            title: 'Logbook Tugas Musyrif',
+            subtitle: 'Digital Checklist Harian',
+            href: route('care.musyrif-performance.my-logbook'),
+            icon: CheckSquare,
+            gradient: 'from-teal-600 to-emerald-600',
+            borderHover: 'hover:border-teal-200',
+            textHover: 'group-hover:text-teal-700',
+            shadow: 'shadow-teal-500/30 ring-teal-50',
+            default: false,
+        },
+        // 22. Pemantauan Ketertiban OSWAN
+        {
+            id: 'shortcut_oswan_monitor',
+            alias: 'oswan_monitor',
+            title: 'Pantauan Ketertiban Santri',
+            subtitle: 'Rekap Pelanggaran OSWAN',
+            href: route('care.oswan.monitor'),
+            icon: ShieldAlert,
+            gradient: 'from-amber-600 to-orange-600',
+            borderHover: 'hover:border-amber-200',
+            textHover: 'group-hover:text-amber-700',
+            shadow: 'shadow-amber-500/30 ring-amber-50',
             default: false,
         },
         // 20. Pasang Aplikasi PWA

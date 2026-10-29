@@ -199,7 +199,7 @@ class MusyrifPerformanceController extends Controller
 
         // Ambil Seluruh Musyrif (dari UserLevel Musrif / Musyrif / yang mengampu Kamar)
         $musyrifs = User::whereHas('userLevel', function ($q) {
-            $q->whereIn('name', ['Musrif', 'Musyrif', 'Musrif Asrama']);
+            $q->whereIn('name', ['Musrif', 'Musyrif', 'Musrif Asrama', 'PJ Kemusrifan', 'PJ Musyrif']);
         })->orWhereHas('activeKamars', function ($q) {
             $q->whereNotNull('id');
         })->where('status', 'Aktif')
@@ -315,7 +315,7 @@ class MusyrifPerformanceController extends Controller
         $dayOfWeek = $carbonDate->dayOfWeek;
 
         $musyrifs = User::whereHas('userLevel', function ($q) {
-            $q->whereIn('name', ['Musrif', 'Musyrif', 'Musrif Asrama']);
+            $q->whereIn('name', ['Musrif', 'Musyrif', 'Musrif Asrama', 'PJ Kemusrifan', 'PJ Musyrif']);
         })->orWhereHas('activeKamars', function ($q) {
             $q->whereNotNull('id');
         })->where('status', 'Aktif')

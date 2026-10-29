@@ -683,10 +683,20 @@ Route::middleware('auth')->group(function () {
     Route::get('/pengasuhan/musyrif-performance/monitoring', [App\Http\Controllers\MusyrifPerformanceController::class, 'monitorIndex'])->name('care.musyrif-performance.monitoring');
     Route::get('/pengasuhan/musyrif-performance/export', [App\Http\Controllers\MusyrifPerformanceController::class, 'exportExcel'])->name('care.musyrif-performance.export');
 
+    Route::get('/system/setup-pj-kemusrifan', function () {
+        try {
+            \Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'PjKemusrifanRoleSeeder', '--force' => true]);
+            return '<h1>Role PJ Kemusrifan Berhasil Dibuat / Disinkronkan</h1><pre>' . \Illuminate\Support\Facades\Artisan::output() . '</pre><p><a href="/">Kembali ke Dashboard</a></p>';
+        } catch (\Exception $e) {
+            return '<h1>Gagal: ' . $e->getMessage() . '</h1>';
+        }
+    });
+
     Route::get('/run-migration', function () {
         try {
             \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
             \Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'MusyrifDutyTemplateSeeder', '--force' => true]);
+            \Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'PjKemusrifanRoleSeeder', '--force' => true]);
             return "<h1>Migrasi & Seeder Berhasil</h1><pre>" . \Illuminate\Support\Facades\Artisan::output() . "</pre>";
         } catch (\Exception $e) {
             return "<h1>Migrasi Gagal</h1><pre>" . $e->getMessage() . "</pre>";

@@ -568,6 +568,21 @@ class DashboardController extends Controller
             || $user->additionalLevels->contains('name', 'Manager Tahfidz')
             || (method_exists($user, 'hasRole') && $user->hasRole(['Manager Tahfidz', 'Administrator']));
 
+        // [Feature] PJ Kemusrifan Active Injection
+        $isPjKemusrifan = in_array($user->userLevel?->name ?? '', ['PJ Kemusrifan', 'PJ Musyrif'])
+            || ($user->additionalLevels && $user->additionalLevels->contains(fn($l) => in_array($l->name, ['PJ Kemusrifan', 'PJ Musyrif'])))
+            || (method_exists($user, 'hasRole') && $user->hasRole(['PJ Kemusrifan', 'PJ Musyrif']));
+
+        if ($isPjKemusrifan) {
+            $userWidgets['shortcut_musyrif_performance_monitoring'] = true;
+            $userWidgets['shortcut_musyrif_performance_logbook'] = true;
+            $userWidgets['shortcut_oswan_monitor'] = true;
+            $userWidgets['shortcut_students'] = true;
+            $userWidgets['shortcut_permissions'] = true;
+            $userWidgets['shortcut_permission_personal'] = true;
+            $userWidgets['shortcut_health'] = true;
+        }
+
         if ($isManagerTahfidz) {
             $userWidgets['shortcut_tahfidz'] = true;
             $userWidgets['shortcut_tahfidz_grades'] = true;
