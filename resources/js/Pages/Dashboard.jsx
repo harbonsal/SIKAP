@@ -5,13 +5,16 @@ import AdminDashboard from './DashboardComponents/AdminDashboard';
 import TeacherDashboard from './DashboardComponents/TeacherDashboard';
 import StudentDashboard from './DashboardComponents/StudentDashboard';
 import StudentHolidayDashboard from './DashboardComponents/StudentHolidayDashboard';
+import OswanDashboard from './DashboardComponents/OswanDashboard';
 
 export default function Dashboard({ stats, schedule, dashboard_type, allowed_widgets, available_dashboards }) {
     // If dashboard_type is not provided (legacy), try to guess
-    const type = dashboard_type || (stats.role === 'teacher' ? 'Teacher' : 'Admin');
+    const type = dashboard_type || (stats.role === 'teacher' ? 'Teacher' : (stats.role === 'oswan' ? 'Oswan' : 'Admin'));
 
     const renderDashboard = () => {
         switch (type) {
+            case 'Oswan':
+                return <OswanDashboard stats={stats} />;
             case 'Teacher':
                 return <TeacherDashboard stats={stats} schedule={schedule} allowedWidgets={allowed_widgets} />;
             case 'Admin':
@@ -54,9 +57,11 @@ export default function Dashboard({ stats, schedule, dashboard_type, allowed_wid
                                         )}
                                     >
                                         <span>
-                                            {dash.type === 'Teacher' 
-                                                ? '👨‍🏫 Guru / Pengajar' 
-                                                : (dash.type === 'Student' ? '🎓 Santri' : '👔 Manager Tahfidz / Admin')}
+                                            {dash.type === 'Oswan'
+                                                ? '🛡️ OSWAN'
+                                                : (dash.type === 'Teacher' 
+                                                    ? '👨‍🏫 Guru / Pengajar' 
+                                                    : (dash.type === 'Student' ? '🎓 Santri' : '👔 Manager Tahfidz / Admin'))}
                                         </span>
                                     </button>
                                 );

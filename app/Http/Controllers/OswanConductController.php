@@ -17,6 +17,51 @@ use Maatwebsite\Excel\Facades\Excel;
 class OswanConductController extends Controller
 {
     /**
+     * Deteksi bagian OSWAN dari akun yang sedang login
+     * Mengembalikan: 'bahasa' | 'ibadah' | 'tandzim' | 'all'
+     */
+    protected function resolveOswanSection($user, Request $request = null)
+    {
+        $levelName = strtolower($user->userLevel?->name ?? '');
+        $userName = strtolower($user->name ?? '');
+        $userNis = strtolower($user->nomor_induk ?? '');
+        $userEmail = strtolower($user->email ?? '');
+
+        // 1. Cek jika role / identitas spesifik akun
+        if (str_contains($levelName, 'lughoh') || str_contains($levelName, 'bahasa')
+            || str_contains($userNis, 'lughoh') || str_contains($userNis, 'bahasa')
+            || str_contains($userEmail, 'lughoh') || str_contains($userEmail, 'bahasa')
+            || str_contains($userName, 'lughoh') || str_contains($userName, 'bahasa')) {
+            return 'bahasa';
+        }
+
+        if (str_contains($levelName, 'ibadah') 
+            || str_contains($userNis, 'ibadah') 
+            || str_contains($userEmail, 'ibadah') 
+            || str_contains($userName, 'ibadah')) {
+            return 'ibadah';
+        }
+
+        if (str_contains($levelName, 'tandzim') || str_contains($levelName, 'ketertiban')
+            || str_contains($userNis, 'tandzim') || str_contains($userNis, 'ketertiban')
+            || str_contains($userEmail, 'tandzim') || str_contains($userEmail, 'ketertiban')
+            || str_contains($userName, 'tandzim') || str_contains($userName, 'ketertiban')) {
+            return 'tandzim';
+        }
+
+        // 2. Jika akun Administrator / Manager / Koordinator OSWAN:
+        // Izinkan memilih section lewat parameter request 'section', atau default 'all'
+        if ($request && $request->filled('section')) {
+            $reqSection = strtolower($request->input('section'));
+            if (in_array($reqSection, ['bahasa', 'ibadah', 'tandzim', 'all'])) {
+                return $reqSection;
+            }
+        }
+
+        return 'all';
+    }
+
+    /**
      * Halaman Input Rekap Mingguan untuk OSWAN
      */
     public function index(Request $request)
@@ -28,6 +73,11 @@ class OswanConductController extends Controller
         if (!$activeYear || !$activeSemester) {
             return redirect()->back()->with('error', 'Tahun ajaran atau semester aktif belum disetel.');
         }
+
+        $oswanSection = $this->resolveOswanSection($user, $request);
+        $isSectionLocked = in_array($oswanSection, ['bahasa', 'ibadah', 'tandzim']) && 
+            !$user->hasRole(['Administrator', 'Manager', 'Manager Pengasuhan']) &&
+            !str_contains(strtolower($user->userLevel?->name ?? ''), 'koordinator');
 
         // Tentukan periode default
         $currentMonth = (int) ($request->input('month', date('n')));
@@ -132,6 +182,8 @@ class OswanConductController extends Controller
             'existingRecords' => $existingRecords,
             'kamars' => $kamars,
             'classes' => $classes,
+            'oswanSection' => $oswanSection,
+            'isSectionLocked' => $isSectionLocked,
             'filters' => [
                 'month' => $currentMonth,
                 'year' => $currentYear,
@@ -139,6 +191,7 @@ class OswanConductController extends Controller
                 'active_kamar_id' => $selectedKamarId,
                 'active_class_id' => $selectedClassId,
                 'search' => $search,
+                'section' => $oswanSection,
             ],
             'academicYear' => $activeYear,
             'semester' => $activeSemester,
@@ -169,16 +222,39 @@ class OswanConductController extends Controller
             return redirect()->back()->with('error', 'Tahun ajaran atau semester aktif tidak ditemukan.');
         }
 
-        $userId = Auth::id();
+        $user = Auth::user();
+        $userId = $user->id;
+        $oswanSection = $this->resolveOswanSection($user, $request);
 
         foreach ($request->records as $r) {
-            $ibadah = (int) ($r['ibadah_count'] ?? 0);
-            $bahasa = (int) ($r['bahasa_count'] ?? 0);
-            $tidur = (int) ($r['tidur_count'] ?? 0);
-            $notes = $r['notes'] ?? null;
+            // Ambil record yang sudah ada agar tidak menimpa data qismu lain
+            $existing = OswanConductRecord::where([
+                'student_id' => $r['student_id'],
+                'academic_year_id' => $activeYear->id,
+                'semester_id' => $activeSemester->id,
+                'year' => $request->year,
+                'month' => $request->month,
+                'week_number' => $request->week_number,
+            ])->first();
 
-            // Jika semua 0 dan tidak ada catatan, tidak perlu simpan baris kosong,
-            // atau jika sudah pernah ada dan diubah jadi 0 semua, update tetap 0.
+            $ibadah = $existing ? (int) $existing->ibadah_count : 0;
+            $bahasa = $existing ? (int) $existing->bahasa_count : 0;
+            $tidur = $existing ? (int) $existing->tidur_count : 0;
+            $notes = isset($r['notes']) && $r['notes'] !== '' ? $r['notes'] : ($existing ? $existing->notes : null);
+
+            // Update hanya bagian yang menjadi hak akses qismu
+            if ($oswanSection === 'bahasa') {
+                $bahasa = (int) ($r['bahasa_count'] ?? 0);
+            } elseif ($oswanSection === 'ibadah') {
+                $ibadah = (int) ($r['ibadah_count'] ?? 0);
+            } elseif ($oswanSection === 'tandzim') {
+                $tidur = (int) ($r['tidur_count'] ?? 0);
+            } else { // 'all' (Admin / Koordinator)
+                $ibadah = (int) ($r['ibadah_count'] ?? 0);
+                $bahasa = (int) ($r['bahasa_count'] ?? 0);
+                $tidur = (int) ($r['tidur_count'] ?? 0);
+            }
+
             OswanConductRecord::updateOrCreate(
                 [
                     'student_id' => $r['student_id'],

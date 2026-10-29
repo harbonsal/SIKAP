@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, Link } from '@inertiajs/react';
 import MainLayout from '@/Layouts/MainLayout';
 import { 
     Clock, 
@@ -10,17 +10,16 @@ import {
     Save, 
     CheckCircle2, 
     AlertCircle, 
-    ChevronLeft, 
-    ChevronRight,
     Minus,
     Plus,
     UserCheck,
     RotateCcw,
-    Layers,
     FileSpreadsheet,
-    HelpCircle,
     Building2,
-    GraduationCap
+    GraduationCap,
+    Sparkles,
+    ShieldCheck,
+    ArrowLeft
 } from 'lucide-react';
 
 export default function OswanIndex({ 
@@ -30,7 +29,9 @@ export default function OswanIndex({
     classes = [], 
     filters = {}, 
     academicYear, 
-    semester 
+    semester,
+    oswanSection = 'all',
+    isSectionLocked = false
 }) {
     const [selectedMonth, setSelectedMonth] = useState(filters.month || new Date().getMonth() + 1);
     const [selectedYear, setSelectedYear] = useState(filters.year || new Date().getFullYear());
@@ -39,14 +40,16 @@ export default function OswanIndex({
     const [selectedClass, setSelectedClass] = useState(filters.active_class_id || '');
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
 
+    // Mode tampilan tab bagian jika user koordinator / admin
+    const [activeSectionTab, setActiveSectionTab] = useState(oswanSection !== 'all' ? oswanSection : (filters.section || 'all'));
+
     // Form data: { [student_id]: { student_id, ibadah_count: 0, bahasa_count: 0, tidur_count: 0, notes: '' } }
     const [records, setRecords] = useState({});
     const [isSaving, setIsSaving] = useState(false);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [saveSuccessMessage, setSaveSuccessMessage] = useState(false);
 
-    // Refs untuk navigasi keyboard cell tabel [rowIndex][colIndex]
-    // colIndex: 0 = ibadah, 1 = bahasa, 2 = tidur, 3 = notes
+    // Refs untuk navigasi keyboard cell tabel
     const inputRefs = useRef({});
 
     const months = [
@@ -55,6 +58,57 @@ export default function OswanIndex({
         { id: 7, name: 'Juli' }, { id: 8, name: 'Agustus' }, { id: 9, name: 'September' },
         { id: 10, name: 'Oktober' }, { id: 11, name: 'November' }, { id: 12, name: 'Desember' }
     ];
+
+    // Konfigurasi Tema Qismu
+    const sectionConfigs = {
+        bahasa: {
+            title: 'Qismu Lughoh (Bahasa)',
+            badge: 'Divisi Bahasa',
+            subtitle: 'Pencatatan Mukholafah Bahasa Arab & Inggris • Otomatis mengurangi Nilai Kedisiplinan Musyrif (Dasar 100)',
+            gradient: 'from-purple-600 via-indigo-600 to-teal-700',
+            accentColor: 'text-purple-600 dark:text-purple-400',
+            bgCard: 'bg-purple-50/40 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800',
+            icon: MessageSquare,
+            field: 'bahasa_count',
+            fieldName: 'Mukholafah Bahasa',
+        },
+        ibadah: {
+            title: 'Qismu Ibadah',
+            badge: 'Divisi Ibadah',
+            subtitle: 'Pencatatan Keterlambatan Salat & Jamaah • Otomatis mengurangi Nilai Ibadah Musyrif (Dasar 100)',
+            gradient: 'from-emerald-600 via-teal-600 to-cyan-700',
+            accentColor: 'text-emerald-600 dark:text-emerald-400',
+            bgCard: 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800',
+            icon: Clock,
+            field: 'ibadah_count',
+            fieldName: 'Telat Salat',
+        },
+        tandzim: {
+            title: 'Qismu Tandzim (Ketertiban)',
+            badge: 'Divisi Ketertiban',
+            subtitle: 'Pencatatan Jam Tidur & Ketertiban Santri • Otomatis mengurangi Nilai Kepatuhan Musyrif (Dasar 100)',
+            gradient: 'from-blue-600 via-indigo-600 to-slate-800',
+            accentColor: 'text-blue-600 dark:text-blue-400',
+            bgCard: 'bg-blue-50/40 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800',
+            icon: Moon,
+            field: 'tidur_count',
+            fieldName: 'Jam Tidur / Tertib',
+        },
+        all: {
+            title: 'Jurnal Ketertiban OSWAN (Semua Bagian)',
+            badge: 'Koordinator OSWAN',
+            subtitle: 'Rekapitulasi Gabungan: Bahasa (Kedisiplinan), Ibadah (Ibadah), dan Jam Tidur (Kepatuhan)',
+            gradient: 'from-slate-800 via-emerald-800 to-teal-900',
+            accentColor: 'text-emerald-600 dark:text-emerald-400',
+            bgCard: 'bg-muted/40 border-border',
+            icon: FileSpreadsheet,
+            field: null,
+            fieldName: 'Semua Bidang',
+        }
+    };
+
+    const currentConfig = sectionConfigs[activeSectionTab] || sectionConfigs.all;
+    const HeaderIcon = currentConfig.icon;
 
     // Inisialisasi data dari existingRecords
     useEffect(() => {
@@ -83,7 +137,7 @@ export default function OswanIndex({
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [records, selectedYear, selectedMonth, selectedWeek]);
+    }, [records, selectedYear, selectedMonth, selectedWeek, activeSectionTab]);
 
     const handleFilterChange = (updates = {}) => {
         const query = {
@@ -93,6 +147,7 @@ export default function OswanIndex({
             active_kamar_id: updates.active_kamar_id !== undefined ? updates.active_kamar_id : selectedKamar,
             active_class_id: updates.active_class_id !== undefined ? updates.active_class_id : selectedClass,
             search: updates.search !== undefined ? updates.search : searchQuery,
+            section: !isSectionLocked ? (updates.section !== undefined ? updates.section : activeSectionTab) : undefined,
         };
 
         router.get(route('care.oswan.index'), query, { 
@@ -114,6 +169,23 @@ export default function OswanIndex({
         setHasUnsavedChanges(true);
     };
 
+    // Tombol Cepat: Stepper +/- & +1
+    const handleStep = (studentId, field, delta) => {
+        setRecords(prev => {
+            const currentVal = Number(prev[studentId]?.[field]) || 0;
+            const nextVal = Math.max(0, currentVal + delta);
+            return {
+                ...prev,
+                [studentId]: {
+                    ...prev[studentId],
+                    student_id: studentId,
+                    [field]: nextVal
+                }
+            };
+        });
+        setHasUnsavedChanges(true);
+    };
+
     const handleNotesChange = (studentId, rawValue) => {
         setRecords(prev => ({
             ...prev,
@@ -129,8 +201,6 @@ export default function OswanIndex({
     // Navigasi keyboard Excel-like (Enter / Arrow keys)
     const handleCellKeyDown = (e, rowIndex, colIndex) => {
         const totalRows = students.length;
-        const totalCols = 4; // 0: ibadah, 1: bahasa, 2: tidur, 3: notes
-
         if (e.key === 'Enter' || e.key === 'ArrowDown') {
             e.preventDefault();
             const nextRow = Math.min(totalRows - 1, rowIndex + 1);
@@ -139,64 +209,6 @@ export default function OswanIndex({
             e.preventDefault();
             const prevRow = Math.max(0, rowIndex - 1);
             inputRefs.current[`${prevRow}-${colIndex}`]?.focus();
-        } else if (e.key === 'ArrowRight' && colIndex < totalCols - 1 && e.target.selectionStart === e.target.value.length) {
-            inputRefs.current[`${rowIndex}-${colIndex + 1}`]?.focus();
-        } else if (e.key === 'ArrowLeft' && colIndex > 0 && e.target.selectionStart === 0) {
-            inputRefs.current[`${rowIndex}-${colIndex - 1}`]?.focus();
-        }
-    };
-
-    // Paste dari Excel / Spreadsheet (Ctrl+V)
-    const handlePaste = (e, startRowIndex, startColIndex) => {
-        const pasteData = e.clipboardData.getData('text');
-        if (!pasteData) return;
-
-        // Cek jika multi baris atau multi kolom (ada tab atau newline)
-        if (pasteData.includes('\t') || pasteData.includes('\n')) {
-            e.preventDefault();
-            const rows = pasteData.trim().split(/\r\n|\n|\r/);
-            const fields = ['ibadah_count', 'bahasa_count', 'tidur_count', 'notes'];
-
-            setRecords(prev => {
-                const nextRecords = { ...prev };
-
-                rows.forEach((rowStr, rIdx) => {
-                    const targetRow = startRowIndex + rIdx;
-                    if (targetRow >= students.length) return;
-
-                    const student = students[targetRow];
-                    if (!student) return;
-
-                    const cols = rowStr.split('\t');
-                    cols.forEach((colVal, cIdx) => {
-                        const targetCol = startColIndex + cIdx;
-                        if (targetCol >= fields.length) return;
-
-                        const fieldName = fields[targetCol];
-                        const cleanVal = colVal.trim();
-
-                        if (!nextRecords[student.id]) {
-                            nextRecords[student.id] = {
-                                student_id: student.id,
-                                ibadah_count: 0,
-                                bahasa_count: 0,
-                                tidur_count: 0,
-                                notes: ''
-                            };
-                        }
-
-                        if (fieldName === 'notes') {
-                            nextRecords[student.id][fieldName] = cleanVal;
-                        } else {
-                            nextRecords[student.id][fieldName] = cleanVal === '' ? 0 : Math.max(0, parseInt(cleanVal, 10) || 0);
-                        }
-                    });
-                });
-
-                return nextRecords;
-            });
-
-            setHasUnsavedChanges(true);
         }
     };
 
@@ -208,13 +220,21 @@ export default function OswanIndex({
         setRecords(prev => {
             const nextRecords = { ...prev };
             students.forEach(s => {
-                nextRecords[s.id] = {
-                    student_id: s.id,
-                    ibadah_count: 0,
-                    bahasa_count: 0,
-                    tidur_count: 0,
-                    notes: ''
-                };
+                if (activeSectionTab === 'bahasa') {
+                    nextRecords[s.id] = { ...nextRecords[s.id], bahasa_count: 0 };
+                } else if (activeSectionTab === 'ibadah') {
+                    nextRecords[s.id] = { ...nextRecords[s.id], ibadah_count: 0 };
+                } else if (activeSectionTab === 'tandzim') {
+                    nextRecords[s.id] = { ...nextRecords[s.id], tidur_count: 0 };
+                } else {
+                    nextRecords[s.id] = {
+                        student_id: s.id,
+                        ibadah_count: 0,
+                        bahasa_count: 0,
+                        tidur_count: 0,
+                        notes: ''
+                    };
+                }
             });
             return nextRecords;
         });
@@ -229,6 +249,7 @@ export default function OswanIndex({
             year: selectedYear,
             month: selectedMonth,
             week_number: selectedWeek,
+            section: activeSectionTab,
             records: Object.values(records)
         };
 
@@ -248,58 +269,101 @@ export default function OswanIndex({
     // Total pelanggaran santri yang sedang tampil di tabel
     const totalViolationsInView = students.reduce((sum, s) => {
         const r = records[s.id] || {};
+        if (activeSectionTab === 'bahasa') return sum + (Number(r.bahasa_count) || 0);
+        if (activeSectionTab === 'ibadah') return sum + (Number(r.ibadah_count) || 0);
+        if (activeSectionTab === 'tandzim') return sum + (Number(r.tidur_count) || 0);
         return sum + (Number(r.ibadah_count) || 0) + (Number(r.bahasa_count) || 0) + (Number(r.tidur_count) || 0);
     }, 0);
 
     const totalStudentsViolating = students.filter(s => {
         const r = records[s.id] || {};
+        if (activeSectionTab === 'bahasa') return (Number(r.bahasa_count) || 0) > 0;
+        if (activeSectionTab === 'ibadah') return (Number(r.ibadah_count) || 0) > 0;
+        if (activeSectionTab === 'tandzim') return (Number(r.tidur_count) || 0) > 0;
         return (Number(r.ibadah_count) || 0) + (Number(r.bahasa_count) || 0) + (Number(r.tidur_count) || 0) > 0;
     }).length;
 
     return (
         <MainLayout>
-            <Head title="Jurnal Ketertiban Santri - OSWAN" />
+            <Head title={`Input ${currentConfig.title} - OSWAN`} />
 
-            <div className="space-y-5 pb-28 max-w-7xl mx-auto px-2 sm:px-4">
-                {/* Header Banner Ringkas */}
-                <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 rounded-2xl p-5 text-white shadow-md relative overflow-hidden">
-                    <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
-                            <div className="inline-flex items-center gap-2 px-3 py-0.5 bg-white/20 backdrop-blur-md rounded-full text-[11px] font-semibold uppercase tracking-wide mb-1.5 border border-white/20">
-                                <span>OSWAN</span>
+            <div className="space-y-4 pb-28 max-w-7xl mx-auto px-2 sm:px-4">
+                {/* ── 1. HEADER BANNER QISMU ─────────────────────────────────────────── */}
+                <div className={`bg-gradient-to-r ${currentConfig.gradient} rounded-2xl p-4 sm:p-5 text-white shadow-md relative overflow-hidden transition-all duration-300`}>
+                    <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full -translate-y-1/3 translate-x-1/3 blur-2xl pointer-events-none" />
+                    <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <div className="space-y-1">
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-white/20 backdrop-blur-md rounded-full text-[11px] font-bold uppercase tracking-wider border border-white/20">
+                                <HeaderIcon className="h-3 w-3" />
+                                <span>{currentConfig.badge}</span>
                                 <span>•</span>
-                                <span>Biro Pengasuhan</span>
+                                <span>OSWAN SIKAP</span>
                             </div>
-                            <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2">
-                                <FileSpreadsheet className="h-6 w-6" />
-                                Jurnal Rekapitulasi Ketertiban Massal
+                            <h1 className="text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2">
+                                <HeaderIcon className="h-6 w-6 shrink-0" />
+                                <span>{currentConfig.title}</span>
                             </h1>
-                            <p className="text-emerald-100 text-xs mt-1 max-w-xl">
-                                Input rekap mingguan keterlambatan salat, bahasa Arab, dan jam tidur santri. Gunakan keyboard <strong>Tab / Enter / Panah</strong> untuk berpindah baris secara cepat.
+                            <p className="text-white/85 text-xs max-w-2xl leading-relaxed">
+                                {currentConfig.subtitle}
                             </p>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2.5">
-                            <div className="bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-white/10 text-xs">
-                                <span className="opacity-80 block text-[10px]">Tahun / Semester</span>
+
+                        <div className="flex flex-wrap items-center gap-2 shrink-0">
+                            <div className="bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 text-xs">
+                                <span className="opacity-75 block text-[10px]">Tahun / Semester</span>
                                 <span className="font-bold">{academicYear?.name || '-'} ({semester?.name || '-'})</span>
                             </div>
                             <button
                                 type="button"
                                 onClick={handleSubmit}
                                 disabled={isSaving}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-emerald-800 hover:bg-emerald-50 font-bold rounded-xl text-xs sm:text-sm shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                                className="inline-flex items-center gap-1.5 px-4 py-2 bg-white text-slate-900 hover:bg-slate-100 font-extrabold rounded-xl text-xs sm:text-sm shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
                             >
                                 <Save className="h-4 w-4 text-emerald-600" />
-                                <span>{isSaving ? 'Menyimpan...' : 'Simpan Data (Ctrl+S)'}</span>
+                                <span>{isSaving ? 'Menyimpan...' : 'Simpan (Ctrl+S)'}</span>
                             </button>
                         </div>
                     </div>
                 </div>
 
-                {/* Filter Utama: Periode Bulan & Pekan */}
-                <div className="bg-card rounded-2xl border p-4 shadow-xs space-y-3">
+                {/* ── 2. TAB SWITCHER BAGIAN (Hanya untuk Koordinator / Admin) ───────── */}
+                {!isSectionLocked && (
+                    <div className="flex items-center gap-1.5 p-1.5 bg-muted/50 rounded-2xl border overflow-x-auto scrollbar-thin">
+                        <span className="text-[11px] font-bold text-muted-foreground uppercase px-2 shrink-0">
+                            Pilih Divisi:
+                        </span>
+                        {[
+                            { key: 'all', label: '🌟 Semua Bagian (3 Kolom)', icon: FileSpreadsheet },
+                            { key: 'bahasa', label: '🗣️ Qismu Lughoh (Bahasa)', icon: MessageSquare },
+                            { key: 'ibadah', label: '🕌 Qismu Ibadah (Salat)', icon: Clock },
+                            { key: 'tandzim', label: '📋 Qismu Tandzim (Ketertiban)', icon: Moon },
+                        ].map(tab => {
+                            const isActive = activeSectionTab === tab.key;
+                            return (
+                                <button
+                                    key={tab.key}
+                                    type="button"
+                                    onClick={() => {
+                                        setActiveSectionTab(tab.key);
+                                        handleFilterChange({ section: tab.key });
+                                    }}
+                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                                        isActive
+                                            ? 'bg-background text-foreground shadow-xs ring-1 ring-border'
+                                            : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                                    }`}
+                                >
+                                    {tab.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {/* ── 3. FILTER UTAMA: BULAN, PEKAN, KELAS, & SEARCH ─────────────────── */}
+                <div className="bg-card rounded-2xl border p-3.5 shadow-xs space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                        {/* Selector Bulan */}
+                        {/* Bulan Selector */}
                         <div className="flex items-center gap-2">
                             <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                                 Bulan:
@@ -319,8 +383,8 @@ export default function OswanIndex({
                             </select>
                         </div>
 
-                        {/* Selector Pekan */}
-                        <div className="flex items-center gap-1.5">
+                        {/* Pekan Selector */}
+                        <div className="flex items-center gap-1">
                             <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider mr-1">
                                 Pekan:
                             </span>
@@ -332,7 +396,7 @@ export default function OswanIndex({
                                         setSelectedWeek(w);
                                         handleFilterChange({ week_number: w });
                                     }}
-                                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-all border ${
+                                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-all border cursor-pointer ${
                                         selectedWeek === w
                                             ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
                                             : 'bg-muted/40 text-muted-foreground hover:bg-muted border-border'
@@ -345,7 +409,7 @@ export default function OswanIndex({
 
                         {/* Search Bar */}
                         <div className="relative min-w-[200px] flex-1 max-w-xs">
-                            <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
+                            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                             <input
                                 type="text"
                                 placeholder="Cari Nama / NIS..."
@@ -361,29 +425,27 @@ export default function OswanIndex({
                         </div>
                     </div>
 
-                    {/* Quick Kamar Selector (Tab Bar Kamar) */}
+                    {/* Quick Kamar & Kelas Selector */}
                     <div className="pt-2 border-t">
                         <div className="flex items-center justify-between gap-2 mb-1.5">
                             <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                                 <Building2 className="h-3.5 w-3.5 text-emerald-600" />
                                 Pilih Kamar Santri:
                             </span>
-                            <div className="flex items-center gap-3 text-xs">
-                                <select
-                                    value={selectedClass}
-                                    onChange={(e) => {
-                                        const val = e.target.value;
-                                        setSelectedClass(val);
-                                        handleFilterChange({ active_class_id: val });
-                                    }}
-                                    className="text-xs rounded-lg border border-input bg-background px-2 py-1 text-muted-foreground"
-                                >
-                                    <option value="">Semua Kelas</option>
-                                    {classes.map(c => (
-                                        <option key={c.id} value={c.id}>{c.name}</option>
-                                    ))}
-                                </select>
-                            </div>
+                            <select
+                                value={selectedClass}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setSelectedClass(val);
+                                    handleFilterChange({ active_class_id: val });
+                                }}
+                                className="text-xs rounded-lg border border-input bg-background px-2 py-1 text-muted-foreground"
+                            >
+                                <option value="">Semua Kelas</option>
+                                {classes.map(c => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                            </select>
                         </div>
 
                         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
@@ -393,7 +455,7 @@ export default function OswanIndex({
                                     setSelectedKamar('');
                                     handleFilterChange({ active_kamar_id: '' });
                                 }}
-                                className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors border ${
+                                className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors border cursor-pointer ${
                                     selectedKamar === ''
                                         ? 'bg-slate-800 text-white border-slate-800 dark:bg-slate-200 dark:text-slate-900'
                                         : 'bg-background hover:bg-muted text-muted-foreground border-border'
@@ -409,7 +471,7 @@ export default function OswanIndex({
                                         setSelectedKamar(k.id);
                                         handleFilterChange({ active_kamar_id: k.id });
                                     }}
-                                    className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors border ${
+                                    className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors border cursor-pointer ${
                                         String(selectedKamar) === String(k.id)
                                             ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
                                             : 'bg-background hover:bg-muted text-foreground border-border'
@@ -423,10 +485,10 @@ export default function OswanIndex({
 
                     {/* Indikator Status & Quick Action */}
                     <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t text-xs">
-                        <div className="flex items-center gap-3 text-muted-foreground">
+                        <div className="flex items-center gap-2 text-muted-foreground">
                             <span>Menampilkan: <strong className="text-foreground">{students.length} santri</strong></span>
                             <span>•</span>
-                            <span>Total Pelanggaran: <strong className="text-amber-600 dark:text-amber-400">{totalViolationsInView} kasus</strong></span>
+                            <span>Pelanggaran: <strong className="text-amber-600 dark:text-amber-400">{totalViolationsInView} kasus</strong></span>
                             <span>•</span>
                             <span>Santri Melanggar: <strong className="text-foreground">{totalStudentsViolating} anak</strong></span>
                         </div>
@@ -434,7 +496,7 @@ export default function OswanIndex({
                             <button
                                 type="button"
                                 onClick={handleClearAllInView}
-                                className="text-xs text-muted-foreground hover:text-red-600 transition-colors inline-flex items-center gap-1"
+                                className="text-xs text-muted-foreground hover:text-red-600 transition-colors inline-flex items-center gap-1 cursor-pointer"
                                 title="Kosongkan angka di tampilan saat ini"
                             >
                                 <RotateCcw className="h-3 w-3" />
@@ -456,52 +518,57 @@ export default function OswanIndex({
                     </div>
                 </div>
 
-                {/* Petunjuk Pintas Keyboard */}
-                <div className="bg-muted/30 border border-dashed rounded-xl px-4 py-2 text-[11px] text-muted-foreground flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                        <span className="font-semibold text-foreground">💡 Tip Cepat:</span>
-                        <span>Fokuskan kursor di kolom angka pertama, tekan <kbd className="px-1.5 py-0.5 bg-background border rounded text-[10px] font-mono">Enter</kbd> / <kbd className="px-1.5 py-0.5 bg-background border rounded text-[10px] font-mono">↓</kbd> untuk lanjut ke santri bawahnya.</span>
-                    </div>
-                    <span>Dapat paste langsung dari Excel / Spreadsheet (<kbd className="px-1.5 py-0.5 bg-background border rounded text-[10px] font-mono">Ctrl+V</kbd>)</span>
-                </div>
-
-                {/* Spreadsheet Table Input Massal */}
+                {/* ── 4. SPREADSHEET TABLE INPUT MASSAL ──────────────────────────────── */}
                 <form onSubmit={handleSubmit}>
                     <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
-                        <div className="overflow-x-auto min-h-[400px]">
+                        <div className="overflow-x-auto min-h-[350px]">
                             <table className="w-full text-xs text-left">
-                                <thead className="bg-muted/70 text-muted-foreground text-[11px] uppercase tracking-wider font-bold border-b">
+                                <thead className="bg-muted/70 text-muted-foreground text-[11px] uppercase tracking-wider font-bold border-b select-none">
                                     <tr>
                                         <th className="px-3 py-3 w-10 text-center">No</th>
-                                        <th className="px-4 py-3 min-w-[200px]">Nama Santri</th>
-                                        <th className="px-3 py-3 min-w-[100px]">Kamar</th>
-                                        <th className="px-3 py-3 min-w-[90px]">Kelas</th>
-                                        <th className="px-3 py-3 text-center w-28 bg-blue-50/50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300">
-                                            <div className="flex items-center justify-center gap-1">
-                                                <Clock className="h-3 w-3" />
-                                                <span>Telat Salat</span>
-                                            </div>
-                                        </th>
-                                        <th className="px-3 py-3 text-center w-28 bg-purple-50/50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300">
-                                            <div className="flex items-center justify-center gap-1">
-                                                <MessageSquare className="h-3 w-3" />
-                                                <span>Bahasa</span>
-                                            </div>
-                                        </th>
-                                        <th className="px-3 py-3 text-center w-28 bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300">
-                                            <div className="flex items-center justify-center gap-1">
-                                                <Moon className="h-3 w-3" />
-                                                <span>Jam Tidur</span>
-                                            </div>
-                                        </th>
-                                        <th className="px-3 py-3 text-center w-20">Total</th>
-                                        <th className="px-4 py-3 min-w-[240px]">Catatan Pelanggaran (Opsional)</th>
+                                        <th className="px-4 py-3 min-w-[180px]">Nama Santri</th>
+                                        <th className="px-3 py-3 min-w-[90px]">Kamar</th>
+                                        <th className="px-3 py-3 min-w-[80px]">Kelas</th>
+
+                                        {/* KOLOM KHUSUS / TERISOLASI BERDASARKAN BAGIAN */}
+                                        {(activeSectionTab === 'all' || activeSectionTab === 'ibadah') && (
+                                            <th className="px-3 py-3 text-center min-w-[140px] bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300">
+                                                <div className="flex items-center justify-center gap-1">
+                                                    <Clock className="h-3.5 w-3.5" />
+                                                    <span>Telat Salat (Ibadah)</span>
+                                                </div>
+                                            </th>
+                                        )}
+
+                                        {(activeSectionTab === 'all' || activeSectionTab === 'bahasa') && (
+                                            <th className="px-3 py-3 text-center min-w-[140px] bg-purple-50/50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300">
+                                                <div className="flex items-center justify-center gap-1">
+                                                    <MessageSquare className="h-3.5 w-3.5" />
+                                                    <span>Bahasa (Kedisiplinan)</span>
+                                                </div>
+                                            </th>
+                                        )}
+
+                                        {(activeSectionTab === 'all' || activeSectionTab === 'tandzim') && (
+                                            <th className="px-3 py-3 text-center min-w-[140px] bg-blue-50/50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300">
+                                                <div className="flex items-center justify-center gap-1">
+                                                    <Moon className="h-3.5 w-3.5" />
+                                                    <span>Jam Tidur (Kepatuhan)</span>
+                                                </div>
+                                            </th>
+                                        )}
+
+                                        {activeSectionTab === 'all' && (
+                                            <th className="px-3 py-3 text-center w-16">Total</th>
+                                        )}
+
+                                        <th className="px-4 py-3 min-w-[200px]">Catatan Kasus (Opsional)</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border">
                                     {students.length === 0 ? (
                                         <tr>
-                                            <td colSpan="9" className="px-6 py-14 text-center text-muted-foreground">
+                                            <td colSpan={activeSectionTab === 'all' ? 9 : 7} className="px-6 py-14 text-center text-muted-foreground">
                                                 <UserCheck className="h-10 w-10 mx-auto mb-2 opacity-30 text-emerald-500" />
                                                 <p className="font-semibold text-sm text-foreground">Tidak ada santri di filter ini</p>
                                                 <p className="text-xs mt-0.5">Pilih kamar lain atau sesuaikan kata kunci pencarian antum.</p>
@@ -511,13 +578,19 @@ export default function OswanIndex({
                                         students.map((student, rowIndex) => {
                                             const rec = records[student.id] || { ibadah_count: 0, bahasa_count: 0, tidur_count: 0, notes: '' };
                                             const subTotal = (rec.ibadah_count || 0) + (rec.bahasa_count || 0) + (rec.tidur_count || 0);
-                                            const hasViolation = subTotal > 0;
+                                            const sectionVal = activeSectionTab === 'bahasa' 
+                                                ? (rec.bahasa_count || 0) 
+                                                : (activeSectionTab === 'ibadah' 
+                                                    ? (rec.ibadah_count || 0) 
+                                                    : (activeSectionTab === 'tandzim' ? (rec.tidur_count || 0) : subTotal));
+
+                                            const hasViolation = sectionVal > 0;
 
                                             return (
                                                 <tr 
                                                     key={student.id} 
                                                     className={`transition-colors hover:bg-muted/40 ${
-                                                        hasViolation ? 'bg-amber-50/20 dark:bg-amber-950/15' : ''
+                                                        hasViolation ? 'bg-amber-50/25 dark:bg-amber-950/15' : ''
                                                     }`}
                                                 >
                                                     {/* No */}
@@ -549,87 +622,148 @@ export default function OswanIndex({
                                                         </span>
                                                     </td>
 
-                                                    {/* Col 0: Telat Salat */}
-                                                    <td className="px-2 py-1.5 text-center bg-blue-50/20 dark:bg-blue-950/10">
-                                                        <input
-                                                            ref={el => inputRefs.current[`${rowIndex}-0`] = el}
-                                                            type="text"
-                                                            inputMode="numeric"
-                                                            pattern="[0-9]*"
-                                                            value={rec.ibadah_count === 0 ? '' : rec.ibadah_count}
-                                                            placeholder="0"
-                                                            onChange={(e) => handleInputChange(student.id, 'ibadah_count', e.target.value)}
-                                                            onKeyDown={(e) => handleCellKeyDown(e, rowIndex, 0)}
-                                                            onPaste={(e) => handlePaste(e, rowIndex, 0)}
-                                                            className={`w-14 h-8 text-center font-bold text-xs rounded-lg border focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all ${
-                                                                (rec.ibadah_count || 0) > 0 
-                                                                    ? 'bg-blue-50 border-blue-400 text-blue-800 dark:bg-blue-950 dark:border-blue-700 dark:text-blue-200' 
-                                                                    : 'bg-background border-input text-muted-foreground focus:text-foreground'
-                                                            }`}
-                                                        />
-                                                    </td>
+                                                    {/* Input Ibadah */}
+                                                    {(activeSectionTab === 'all' || activeSectionTab === 'ibadah') && (
+                                                        <td className="px-2 py-1.5 text-center bg-emerald-50/20 dark:bg-emerald-950/10">
+                                                            <div className="inline-flex items-center justify-center gap-1">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleStep(student.id, 'ibadah_count', -1)}
+                                                                    disabled={(rec.ibadah_count || 0) <= 0}
+                                                                    className="w-6 h-6 rounded-md bg-muted hover:bg-muted/80 text-muted-foreground flex items-center justify-center disabled:opacity-30 cursor-pointer text-xs"
+                                                                    title="Kurangi 1"
+                                                                >
+                                                                    <Minus className="w-3 h-3" />
+                                                                </button>
+                                                                <input
+                                                                    ref={el => inputRefs.current[`${rowIndex}-ibadah`] = el}
+                                                                    type="text"
+                                                                    inputMode="numeric"
+                                                                    pattern="[0-9]*"
+                                                                    value={rec.ibadah_count === 0 ? '' : rec.ibadah_count}
+                                                                    placeholder="0"
+                                                                    onChange={(e) => handleInputChange(student.id, 'ibadah_count', e.target.value)}
+                                                                    onKeyDown={(e) => handleCellKeyDown(e, rowIndex, 'ibadah')}
+                                                                    className={`w-12 h-7 text-center font-bold text-xs rounded-lg border focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all ${
+                                                                        (rec.ibadah_count || 0) > 0 
+                                                                            ? 'bg-emerald-50 border-emerald-400 text-emerald-800 dark:bg-emerald-950 dark:border-emerald-700 dark:text-emerald-200' 
+                                                                            : 'bg-background border-input text-muted-foreground focus:text-foreground'
+                                                                    }`}
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleStep(student.id, 'ibadah_count', 1)}
+                                                                    className="w-6 h-6 rounded-md bg-emerald-100 hover:bg-emerald-200 text-emerald-800 dark:bg-emerald-950 dark:hover:bg-emerald-900 dark:text-emerald-300 flex items-center justify-center cursor-pointer font-bold text-xs"
+                                                                    title="Tambah 1"
+                                                                >
+                                                                    <Plus className="w-3 h-3" />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    )}
 
-                                                    {/* Col 1: Pelanggaran Bahasa */}
-                                                    <td className="px-2 py-1.5 text-center bg-purple-50/20 dark:bg-purple-950/10">
-                                                        <input
-                                                            ref={el => inputRefs.current[`${rowIndex}-1`] = el}
-                                                            type="text"
-                                                            inputMode="numeric"
-                                                            pattern="[0-9]*"
-                                                            value={rec.bahasa_count === 0 ? '' : rec.bahasa_count}
-                                                            placeholder="0"
-                                                            onChange={(e) => handleInputChange(student.id, 'bahasa_count', e.target.value)}
-                                                            onKeyDown={(e) => handleCellKeyDown(e, rowIndex, 1)}
-                                                            onPaste={(e) => handlePaste(e, rowIndex, 1)}
-                                                            className={`w-14 h-8 text-center font-bold text-xs rounded-lg border focus:ring-2 focus:ring-purple-500 focus:outline-none transition-all ${
-                                                                (rec.bahasa_count || 0) > 0 
-                                                                    ? 'bg-purple-50 border-purple-400 text-purple-800 dark:bg-purple-950 dark:border-purple-700 dark:text-purple-200' 
-                                                                    : 'bg-background border-input text-muted-foreground focus:text-foreground'
-                                                            }`}
-                                                        />
-                                                    </td>
+                                                    {/* Input Bahasa */}
+                                                    {(activeSectionTab === 'all' || activeSectionTab === 'bahasa') && (
+                                                        <td className="px-2 py-1.5 text-center bg-purple-50/20 dark:bg-purple-950/10">
+                                                            <div className="inline-flex items-center justify-center gap-1">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleStep(student.id, 'bahasa_count', -1)}
+                                                                    disabled={(rec.bahasa_count || 0) <= 0}
+                                                                    className="w-6 h-6 rounded-md bg-muted hover:bg-muted/80 text-muted-foreground flex items-center justify-center disabled:opacity-30 cursor-pointer text-xs"
+                                                                    title="Kurangi 1"
+                                                                >
+                                                                    <Minus className="w-3 h-3" />
+                                                                </button>
+                                                                <input
+                                                                    ref={el => inputRefs.current[`${rowIndex}-bahasa`] = el}
+                                                                    type="text"
+                                                                    inputMode="numeric"
+                                                                    pattern="[0-9]*"
+                                                                    value={rec.bahasa_count === 0 ? '' : rec.bahasa_count}
+                                                                    placeholder="0"
+                                                                    onChange={(e) => handleInputChange(student.id, 'bahasa_count', e.target.value)}
+                                                                    onKeyDown={(e) => handleCellKeyDown(e, rowIndex, 'bahasa')}
+                                                                    className={`w-12 h-7 text-center font-bold text-xs rounded-lg border focus:ring-2 focus:ring-purple-500 focus:outline-none transition-all ${
+                                                                        (rec.bahasa_count || 0) > 0 
+                                                                            ? 'bg-purple-50 border-purple-400 text-purple-800 dark:bg-purple-950 dark:border-purple-700 dark:text-purple-200' 
+                                                                            : 'bg-background border-input text-muted-foreground focus:text-foreground'
+                                                                    }`}
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleStep(student.id, 'bahasa_count', 1)}
+                                                                    className="w-6 h-6 rounded-md bg-purple-100 hover:bg-purple-200 text-purple-800 dark:bg-purple-950 dark:hover:bg-purple-900 dark:text-purple-300 flex items-center justify-center cursor-pointer font-bold text-xs"
+                                                                    title="Tambah 1"
+                                                                >
+                                                                    <Plus className="w-3 h-3" />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    )}
 
-                                                    {/* Col 2: Jam Tidur */}
-                                                    <td className="px-2 py-1.5 text-center bg-indigo-50/20 dark:bg-indigo-950/10">
-                                                        <input
-                                                            ref={el => inputRefs.current[`${rowIndex}-2`] = el}
-                                                            type="text"
-                                                            inputMode="numeric"
-                                                            pattern="[0-9]*"
-                                                            value={rec.tidur_count === 0 ? '' : rec.tidur_count}
-                                                            placeholder="0"
-                                                            onChange={(e) => handleInputChange(student.id, 'tidur_count', e.target.value)}
-                                                            onKeyDown={(e) => handleCellKeyDown(e, rowIndex, 2)}
-                                                            onPaste={(e) => handlePaste(e, rowIndex, 2)}
-                                                            className={`w-14 h-8 text-center font-bold text-xs rounded-lg border focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all ${
-                                                                (rec.tidur_count || 0) > 0 
-                                                                    ? 'bg-indigo-50 border-indigo-400 text-indigo-800 dark:bg-indigo-950 dark:border-indigo-700 dark:text-indigo-200' 
-                                                                    : 'bg-background border-input text-muted-foreground focus:text-foreground'
-                                                            }`}
-                                                        />
-                                                    </td>
+                                                    {/* Input Jam Tidur / Ketertiban */}
+                                                    {(activeSectionTab === 'all' || activeSectionTab === 'tandzim') && (
+                                                        <td className="px-2 py-1.5 text-center bg-blue-50/20 dark:bg-blue-950/10">
+                                                            <div className="inline-flex items-center justify-center gap-1">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleStep(student.id, 'tidur_count', -1)}
+                                                                    disabled={(rec.tidur_count || 0) <= 0}
+                                                                    className="w-6 h-6 rounded-md bg-muted hover:bg-muted/80 text-muted-foreground flex items-center justify-center disabled:opacity-30 cursor-pointer text-xs"
+                                                                    title="Kurangi 1"
+                                                                >
+                                                                    <Minus className="w-3 h-3" />
+                                                                </button>
+                                                                <input
+                                                                    ref={el => inputRefs.current[`${rowIndex}-tidur`] = el}
+                                                                    type="text"
+                                                                    inputMode="numeric"
+                                                                    pattern="[0-9]*"
+                                                                    value={rec.tidur_count === 0 ? '' : rec.tidur_count}
+                                                                    placeholder="0"
+                                                                    onChange={(e) => handleInputChange(student.id, 'tidur_count', e.target.value)}
+                                                                    onKeyDown={(e) => handleCellKeyDown(e, rowIndex, 'tidur')}
+                                                                    className={`w-12 h-7 text-center font-bold text-xs rounded-lg border focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all ${
+                                                                        (rec.tidur_count || 0) > 0 
+                                                                            ? 'bg-blue-50 border-blue-400 text-blue-800 dark:bg-blue-950 dark:border-blue-700 dark:text-blue-200' 
+                                                                            : 'bg-background border-input text-muted-foreground focus:text-foreground'
+                                                                    }`}
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleStep(student.id, 'tidur_count', 1)}
+                                                                    className="w-6 h-6 rounded-md bg-blue-100 hover:bg-blue-200 text-blue-800 dark:bg-blue-950 dark:hover:bg-blue-900 dark:text-blue-300 flex items-center justify-center cursor-pointer font-bold text-xs"
+                                                                    title="Tambah 1"
+                                                                >
+                                                                    <Plus className="w-3 h-3" />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    )}
 
-                                                    {/* Total Live */}
-                                                    <td className="px-3 py-2 text-center">
-                                                        <span className={`inline-block px-2 py-1 rounded-md font-bold text-xs ${
-                                                            hasViolation
-                                                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                                                                : 'text-muted-foreground/50'
-                                                        }`}>
-                                                            {subTotal}
-                                                        </span>
-                                                    </td>
+                                                    {/* Total Live (Khusus Mode 'all') */}
+                                                    {activeSectionTab === 'all' && (
+                                                        <td className="px-3 py-2 text-center">
+                                                            <span className={`inline-block px-2 py-0.5 rounded-md font-bold text-xs ${
+                                                                hasViolation
+                                                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                                                                    : 'text-muted-foreground/40'
+                                                            }`}>
+                                                                {subTotal}
+                                                            </span>
+                                                        </td>
+                                                    )}
 
-                                                    {/* Col 3: Catatan Ringkas */}
+                                                    {/* Catatan Ringkas */}
                                                     <td className="px-3 py-1.5">
                                                         <input
-                                                            ref={el => inputRefs.current[`${rowIndex}-3`] = el}
+                                                            ref={el => inputRefs.current[`${rowIndex}-notes`] = el}
                                                             type="text"
                                                             placeholder="Catatan..."
                                                             value={rec.notes || ''}
                                                             onChange={(e) => handleNotesChange(student.id, e.target.value)}
-                                                            onKeyDown={(e) => handleCellKeyDown(e, rowIndex, 3)}
-                                                            className="w-full h-8 text-xs rounded-lg border border-input bg-background px-2.5 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                                                            className="w-full h-7 text-xs rounded-lg border border-input bg-background px-2.5 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                                                         />
                                                     </td>
                                                 </tr>
@@ -641,15 +775,15 @@ export default function OswanIndex({
                         </div>
                     </div>
 
-                    {/* Bottom Floating Bar */}
-                    <div className="fixed bottom-4 left-0 right-0 z-40 px-4">
+                    {/* ── 5. BOTTOM FLOATING BAR (SIMPAN CEPAT) ───────────────────────── */}
+                    <div className="fixed bottom-4 left-0 right-0 z-40 px-3 sm:px-4">
                         <div className="max-w-2xl mx-auto bg-card/95 backdrop-blur-md border border-border shadow-2xl rounded-2xl p-3 flex items-center justify-between gap-4">
                             <div className="text-xs">
                                 <span className="font-bold block text-foreground">
                                     Pekan {selectedWeek} • {months.find(m => m.id === selectedMonth)?.name} {selectedYear}
                                 </span>
                                 <span className="text-muted-foreground text-[11px]">
-                                    {totalViolationsInView} pelanggaran tercatat ({students.length} santri di tampilan)
+                                    {totalViolationsInView} pelanggaran • {students.length} santri di tampilan
                                 </span>
                             </div>
                             <div className="flex items-center gap-2">

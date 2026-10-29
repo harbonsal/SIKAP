@@ -38,7 +38,9 @@ class DashboardController extends Controller
 
             // Map generic levels to types if needed (fallback logic)
             if ($type === 'Default' && $level) {
-                if (in_array($level->name, ['Guru', 'Wali Kelas', 'Kepala Sekolah'])) {
+                if (str_contains(strtolower($level->name), 'oswan')) {
+                    $type = 'Oswan';
+                } elseif (in_array($level->name, ['Guru', 'Wali Kelas', 'Kepala Sekolah'])) {
                     $type = 'Teacher';
                 } elseif ($level->name === 'Santri') {
                     $type = 'Student';
@@ -54,7 +56,7 @@ class DashboardController extends Controller
             // Avoid duplicates
             if (!isset($availableDashboards[$type])) {
                 $availableDashboards[$type] = [
-                    'label' => $type === 'Teacher' ? 'Guru' : ($type === 'Student' ? 'Santri' : 'Admin'),
+                    'label' => $type === 'Teacher' ? 'Guru' : ($type === 'Student' ? 'Santri' : ($type === 'Oswan' ? 'OSWAN' : 'Admin')),
                     'type' => $type
                 ];
             }
@@ -79,7 +81,9 @@ class DashboardController extends Controller
         $defaultType = $user->userLevel?->dashboard_type ?? 'Default';
 
         if ($defaultType === 'Default') {
-            if ($user->userLevel && $user->userLevel->name === 'Santri') {
+            if ($user->userLevel && str_contains(strtolower($user->userLevel->name), 'oswan')) {
+                $defaultType = 'Oswan';
+            } elseif ($user->userLevel && $user->userLevel->name === 'Santri') {
                 $defaultType = 'Student';
             } elseif ($hasActiveSubjects && $isTeacherRole) {
                 // FORCE Teacher Dashboard if they have active subjects and are a teacher
@@ -345,6 +349,72 @@ class DashboardController extends Controller
                     }
                 }
             }
+        }
+
+        if ($dashboardType === 'Oswan') {
+            $levelName = strtolower($user->userLevel?->name ?? '');
+            $userNis = strtolower($user->nomor_induk ?? '');
+            $userEmail = strtolower($user->email ?? '');
+            $userName = strtolower($user->name ?? '');
+
+            $oswanSection = 'all';
+            if (str_contains($levelName, 'lughoh') || str_contains($levelName, 'bahasa')
+                || str_contains($userNis, 'lughoh') || str_contains($userNis, 'bahasa')
+                || str_contains($userEmail, 'lughoh') || str_contains($userEmail, 'bahasa')
+                || str_contains($userName, 'lughoh') || str_contains($userName, 'bahasa')) {
+                $oswanSection = 'bahasa';
+            } elseif (str_contains($levelName, 'ibadah') 
+                || str_contains($userNis, 'ibadah') 
+                || str_contains($userEmail, 'ibadah') 
+                || str_contains($userName, 'ibadah')) {
+                $oswanSection = 'ibadah';
+            } elseif (str_contains($levelName, 'tandzim') || str_contains($levelName, 'ketertiban')
+                || str_contains($userNis, 'tandzim') || str_contains($userNis, 'ketertiban')
+                || str_contains($userEmail, 'tandzim') || str_contains($userEmail, 'ketertiban')
+                || str_contains($userName, 'tandzim') || str_contains($userName, 'ketertiban')) {
+                $oswanSection = 'tandzim';
+            }
+
+            $currentMonth = (int) date('n');
+            $currentYear = (int) date('Y');
+            $dayOfMonth = (int) date('j');
+            $currentWeek = min(5, max(1, (int) ceil($dayOfMonth / 7)));
+
+            $monthRecords = \App\Models\OswanConductRecord::where('academic_year_id', $academicYearId)
+                ->where('year', $currentYear)
+                ->where('month', $currentMonth)
+                ->get();
+
+            $weekRecords = $monthRecords->where('week_number', $currentWeek);
+
+            if ($oswanSection === 'bahasa') {
+                $totalWeek = $weekRecords->sum('bahasa_count');
+                $totalMonth = $monthRecords->sum('bahasa_count');
+                $studentsViolating = $monthRecords->where('bahasa_count', '>', 0)->pluck('student_id')->unique()->count();
+            } elseif ($oswanSection === 'ibadah') {
+                $totalWeek = $weekRecords->sum('ibadah_count');
+                $totalMonth = $monthRecords->sum('ibadah_count');
+                $studentsViolating = $monthRecords->where('ibadah_count', '>', 0)->pluck('student_id')->unique()->count();
+            } elseif ($oswanSection === 'tandzim') {
+                $totalWeek = $weekRecords->sum('tidur_count');
+                $totalMonth = $monthRecords->sum('tidur_count');
+                $studentsViolating = $monthRecords->where('tidur_count', '>', 0)->pluck('student_id')->unique()->count();
+            } else {
+                $totalWeek = $weekRecords->sum(fn($r) => ($r->bahasa_count ?? 0) + ($r->ibadah_count ?? 0) + ($r->tidur_count ?? 0));
+                $totalMonth = $monthRecords->sum(fn($r) => ($r->bahasa_count ?? 0) + ($r->ibadah_count ?? 0) + ($r->tidur_count ?? 0));
+                $studentsViolating = $monthRecords->filter(fn($r) => (($r->bahasa_count ?? 0) + ($r->ibadah_count ?? 0) + ($r->tidur_count ?? 0)) > 0)->pluck('student_id')->unique()->count();
+            }
+
+            $stats = [
+                'role' => 'oswan',
+                'oswan_section' => $oswanSection,
+                'total_violations_week' => (int) $totalWeek,
+                'total_violations_month' => (int) $totalMonth,
+                'total_students_violating' => (int) $studentsViolating,
+                'current_week' => $currentWeek,
+                'current_month' => $currentMonth,
+                'current_year' => $currentYear,
+            ];
         }
 
         if ($canViewStats) {

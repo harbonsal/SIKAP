@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { usePage, Link, router } from '@inertiajs/react';
-import { Menu, X, CheckCircle, XCircle, AlertTriangle, Info, Home, BookOpen, GraduationCap, User, Download, CalendarDays, Settings, LogOut, Calendar } from 'lucide-react';
+import { Menu, X, CheckCircle, XCircle, AlertTriangle, Info, Home, BookOpen, GraduationCap, User, Download, CalendarDays, Settings, LogOut, Calendar, FileSpreadsheet } from 'lucide-react';
 import Swal from 'sweetalert2';
 import Sidebar from '@/Components/Sidebar';
 import Dropdown from '@/Components/Dropdown';
@@ -115,6 +115,9 @@ export default function MainLayout({
     const isStudent = userRole.toLowerCase() === 'santri' || 
                       userCategory.toLowerCase() === 'santri' || 
                       userRoles.some(r => typeof r === 'string' && r.toLowerCase() === 'santri');
+    const isOswan = (userRole && userRole.toLowerCase().includes('oswan')) || 
+                    (user?.nomor_induk && String(user.nomor_induk).toLowerCase().includes('oswan')) ||
+                    (userRoles && userRoles.some(r => typeof r === 'string' && r.toLowerCase().includes('oswan')));
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [dismissedTypes, setDismissedTypes] = useState({});
     const [isStandalone, setIsStandalone] = useState(false);
@@ -333,7 +336,7 @@ export default function MainLayout({
                     <nav className="lg:hidden shrink-0 z-30 bg-background/95 backdrop-blur-lg border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.08)] px-2 py-1 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] print:hidden select-none">
                     <div className={cn(
                         "grid items-center justify-around max-w-md mx-auto",
-                        isStudent ? "grid-cols-3" : "grid-cols-5"
+                        (isStudent || isOswan) ? "grid-cols-3" : "grid-cols-5"
                     )}>
                         {/* 1. Beranda */}
                         <Link
@@ -349,19 +352,34 @@ export default function MainLayout({
                             <span className="text-[10px] leading-tight font-medium">Beranda</span>
                         </Link>
 
-                        {/* 2. Jadwal */}
-                        <Link
-                            href={route('academic.schedules.index')}
-                            className={cn(
-                                "flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-150 active:scale-95",
-                                route().current('academic.schedules.*')
-                                    ? "text-primary font-bold"
-                                    : "text-muted-foreground hover:text-foreground"
-                            )}
-                        >
-                            <CalendarDays className={cn("h-5 w-5 mb-0.5", route().current('academic.schedules.*') && "stroke-[2.5px]")} />
-                            <span className="text-[10px] leading-tight font-medium">Jadwal</span>
-                        </Link>
+                        {/* 2. Jadwal / Input OSWAN */}
+                        {isOswan ? (
+                            <Link
+                                href={route('care.oswan.index')}
+                                className={cn(
+                                    "flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-150 active:scale-95",
+                                    route().current('care.oswan.*')
+                                        ? "text-primary font-bold"
+                                        : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                <FileSpreadsheet className={cn("h-5 w-5 mb-0.5", route().current('care.oswan.*') && "stroke-[2.5px]")} />
+                                <span className="text-[10px] leading-tight font-medium">Input OSWAN</span>
+                            </Link>
+                        ) : (
+                            <Link
+                                href={route('academic.schedules.index')}
+                                className={cn(
+                                    "flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all duration-150 active:scale-95",
+                                    route().current('academic.schedules.*')
+                                        ? "text-primary font-bold"
+                                        : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                <CalendarDays className={cn("h-5 w-5 mb-0.5", route().current('academic.schedules.*') && "stroke-[2.5px]")} />
+                                <span className="text-[10px] leading-tight font-medium">Jadwal</span>
+                            </Link>
+                        )}
 
                         {/* 3. Jurnal KBM (Hanya tampil untuk Guru / Pegawai / Non-Santri) */}
                         {!isStudent && (

@@ -15,17 +15,7 @@ class OswanRoleSeeder extends Seeder
      */
     public function run(): void
     {
-        // 1. Pastikan Role / UserLevel OSWAN tersedia
-        $oswanRole = UserLevel::firstOrCreate(
-            ['name' => 'OSWAN'],
-            [
-                'category' => 'Santri',
-                'dashboard_type' => 'minimal',
-                'widgets' => [],
-            ]
-        );
-
-        // 2. Daftarkan Permissions
+        // 1. Daftarkan Permissions OSWAN
         $permissions = [
             'input_oswan_conduct' => 'Akses Input Rekap Ketertiban OSWAN',
             'view_oswan_conduct' => 'Akses Pemantauan Ketertiban Santri',
@@ -41,9 +31,82 @@ class OswanRoleSeeder extends Seeder
             $permissionModels[$name] = $perm->id;
         }
 
-        // Berikan izin input_oswan_conduct ke role OSWAN
-        if (isset($permissionModels['input_oswan_conduct'])) {
-            $oswanRole->permissions()->syncWithoutDetaching([$permissionModels['input_oswan_conduct']]);
+        // 2. Daftar 3 Qismu OSWAN + 1 Koordinator
+        $qismuList = [
+            [
+                'name' => 'OSWAN Lughoh',
+                'description' => 'Bagian Bahasa OSWAN (Pencatat Mukholafah Bahasa)',
+                'email' => 'oswan.lughoh@sikap.alwan.ac.id',
+                'nis' => 'oswan.lughoh',
+                'full_name' => 'OSWAN - Qismu Lughoh',
+            ],
+            [
+                'name' => 'OSWAN Ibadah',
+                'description' => 'Bagian Ibadah OSWAN (Pencatat Mukholafah Ibadah/Salat)',
+                'email' => 'oswan.ibadah@sikap.alwan.ac.id',
+                'nis' => 'oswan.ibadah',
+                'full_name' => 'OSWAN - Qismu Ibadah',
+            ],
+            [
+                'name' => 'OSWAN Tandzim',
+                'description' => 'Bagian Ketertiban OSWAN (Pencatat Mukholafah Tandzim/Tidur)',
+                'email' => 'oswan.tandzim@sikap.alwan.ac.id',
+                'nis' => 'oswan.tandzim',
+                'full_name' => 'OSWAN - Qismu Tandzim',
+            ],
+            [
+                'name' => 'OSWAN',
+                'description' => 'Koordinator OSWAN (Pencatat & Pemantau Seluruh Bagian)',
+                'email' => 'oswan@sikap.alwan.ac.id',
+                'nis' => 'oswan',
+                'full_name' => 'Pengurus Koordinator OSWAN',
+            ],
+        ];
+
+        foreach ($qismuList as $qismu) {
+            // Pastikan Role / UserLevel OSWAN tersedia
+            $role = UserLevel::firstOrCreate(
+                ['name' => $qismu['name']],
+                [
+                    'category' => 'Santri',
+                    'dashboard_type' => 'Oswan',
+                    'description' => $qismu['description'],
+                    'widgets' => [],
+                ]
+            );
+
+            // Update dashboard_type ke 'Oswan' jika sebelumnya masih 'minimal' atau 'Default'
+            if ($role->dashboard_type !== 'Oswan') {
+                $role->update(['dashboard_type' => 'Oswan']);
+            }
+
+            // Berikan izin input_oswan_conduct & view_oswan_conduct
+            if (isset($permissionModels['input_oswan_conduct'])) {
+                $role->permissions()->syncWithoutDetaching([
+                    $permissionModels['input_oswan_conduct'],
+                    $permissionModels['view_oswan_conduct'],
+                ]);
+            }
+
+            // Pastikan Akun User Tersedia
+            $user = User::firstOrCreate(
+                ['email' => $qismu['email']],
+                [
+                    'name' => $qismu['full_name'],
+                    'password' => Hash::make('password'),
+                    'user_level_id' => $role->id,
+                    'status' => 'Aktif',
+                    'nomor_induk' => $qismu['nis'],
+                ]
+            );
+
+            // Sinkronkan data jika sudah pernah ada
+            $user->update([
+                'name' => $qismu['full_name'],
+                'user_level_id' => $role->id,
+                'status' => 'Aktif',
+                'nomor_induk' => $qismu['nis'],
+            ]);
         }
 
         // Berikan izin view_all_oswan_conduct ke Administrator dan Manager
@@ -58,27 +121,6 @@ class OswanRoleSeeder extends Seeder
             if (isset($permissionModels['view_oswan_conduct'])) {
                 $mr->permissions()->syncWithoutDetaching([$permissionModels['view_oswan_conduct']]);
             }
-        }
-
-        // 3. Buat / Pastikan User Akun Default OSWAN
-        $defaultOswanUser = User::firstOrCreate(
-            ['email' => 'oswan@sikap.alwan.ac.id'],
-            [
-                'name' => 'Pengurus OSWAN',
-                'password' => Hash::make('password'),
-                'user_level_id' => $oswanRole->id,
-                'status' => 'Aktif',
-                'nomor_induk' => 'oswan',
-            ]
-        );
-
-        if ($defaultOswanUser->nomor_induk !== 'oswan') {
-            $defaultOswanUser->update(['nomor_induk' => 'oswan']);
-        }
-
-        // Pastikan role tersinkronisasi jika user sudah ada sebelumnya
-        if ($defaultOswanUser->user_level_id !== $oswanRole->id) {
-            $defaultOswanUser->update(['user_level_id' => $oswanRole->id]);
         }
     }
 }
