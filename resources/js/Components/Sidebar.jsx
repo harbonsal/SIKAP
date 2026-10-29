@@ -113,6 +113,13 @@ const navItems = [
         allowRoles: ['Sekertaris Divisi', 'Sekretaris Divisi'],
         children: [
             {
+                title: "Kinerja Musyrif",
+                children: [
+                    { title: "Logbook Tugas Saya", href: "care.musyrif-performance.my-logbook", roles: ['Musrif', 'Musyrif', 'Musrif Asrama', 'Guru', 'Administrator', 'Manager Pengasuhan'] },
+                    { title: "Monitoring Kepatuhan", href: "care.musyrif-performance.monitoring", roles: ['Administrator', 'Manager Pengasuhan', 'Manager', 'OSWAN'] },
+                ]
+            },
+            {
                 title: "Musyrif Tarbiyah",
                 children: [
                     { title: "Dashboard Musyrif", href: "musyrif-tarbiyah.index" },

@@ -677,10 +677,17 @@ Route::middleware('auth')->group(function () {
     Route::get('/pengasuhan/musyrif-tarbiyah/profil/{student_id}', [App\Http\Controllers\MusyrifTarbiyahProfileController::class, 'show'])->name('musyrif-tarbiyah.profile.show');
     Route::post('/pengasuhan/musyrif-tarbiyah/profil/{student_id}/violation', [App\Http\Controllers\MusyrifTarbiyahProfileController::class, 'storeViolation'])->name('musyrif-tarbiyah.profile.violation.store');
 
+    // Modul Pemantauan Kinerja & Logbook Tugas Musyrif
+    Route::get('/pengasuhan/musyrif-performance/my-logbook', [App\Http\Controllers\MusyrifPerformanceController::class, 'myLogbook'])->name('care.musyrif-performance.my-logbook');
+    Route::post('/pengasuhan/musyrif-performance/check', [App\Http\Controllers\MusyrifPerformanceController::class, 'toggleCheck'])->name('care.musyrif-performance.check');
+    Route::get('/pengasuhan/musyrif-performance/monitoring', [App\Http\Controllers\MusyrifPerformanceController::class, 'monitorIndex'])->name('care.musyrif-performance.monitoring');
+    Route::get('/pengasuhan/musyrif-performance/export', [App\Http\Controllers\MusyrifPerformanceController::class, 'exportExcel'])->name('care.musyrif-performance.export');
+
     Route::get('/run-migration', function () {
         try {
             \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
-            return "<h1>Migrasi Berhasil</h1><pre>" . \Illuminate\Support\Facades\Artisan::output() . "</pre>";
+            \Illuminate\Support\Facades\Artisan::call('db:seed', ['--class' => 'MusyrifDutyTemplateSeeder', '--force' => true]);
+            return "<h1>Migrasi & Seeder Berhasil</h1><pre>" . \Illuminate\Support\Facades\Artisan::output() . "</pre>";
         } catch (\Exception $e) {
             return "<h1>Migrasi Gagal</h1><pre>" . $e->getMessage() . "</pre>";
         }

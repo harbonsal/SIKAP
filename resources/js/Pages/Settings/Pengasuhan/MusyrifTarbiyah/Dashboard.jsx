@@ -48,17 +48,32 @@ export default function Dashboard({ plottings, isAdmin, summary }) {
                             Pantau dan kelola pendampingan santri asuh Anda.
                         </p>
                     </div>
-                    {isAdmin && (
-                        <div className="mt-4 sm:mt-0 flex gap-2">
+                    <div className="mt-4 sm:mt-0 flex flex-wrap gap-2">
+                        <Link 
+                            href={route('care.musyrif-performance.my-logbook')} 
+                            className="inline-flex items-center justify-center rounded-xl text-xs sm:text-sm font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white h-10 py-2 px-4 shadow-sm transition-all active:scale-95 cursor-pointer"
+                        >
+                            <CalendarDays className="mr-1.5 h-4 w-4" />
+                            Logbook Tugas Asrama
+                        </Link>
+                        {isAdmin && (
+                            <Link 
+                                href={route('care.musyrif-performance.monitoring')} 
+                                className="inline-flex items-center justify-center rounded-xl text-xs sm:text-sm font-extrabold bg-slate-800 hover:bg-slate-900 text-white h-10 py-2 px-4 shadow-sm transition-all active:scale-95 cursor-pointer"
+                            >
+                                <UsersRound className="mr-1.5 h-4 w-4" />
+                                Monitoring Kinerja
+                            </Link>
+                        )}
+                        {isAdmin && (
                             <Link 
                                 href={route('musyrif-tarbiyah.plotting.index')} 
-                                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 py-2 px-4 bg-gray-200 text-gray-800"
+                                className="inline-flex items-center justify-center rounded-xl text-xs sm:text-sm font-bold bg-gray-100 hover:bg-gray-200 text-gray-800 h-10 py-2 px-3.5 border transition-all active:scale-95 cursor-pointer"
                             >
-                                <UsersRound className="mr-2 h-4 w-4" />
                                 Plotting Anak Asuh
                             </Link>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
 
                 {/* Summary Cards */}
