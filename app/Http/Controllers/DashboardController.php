@@ -563,10 +563,10 @@ class DashboardController extends Controller
         $userWidgets = $mergedWidgets;
 
         // [Feature] Manager Tahfidz Active Injection
-        // If user has 'Manager Tahfidz' role (primary or additional) or menu_tahfidz permission, enable all Tahfidz shortcuts
+        // HANYA jika user memiliki role 'Manager Tahfidz' atau 'Administrator'
         $isManagerTahfidz = ($user->userLevel?->name === 'Manager Tahfidz') 
             || $user->additionalLevels->contains('name', 'Manager Tahfidz')
-            || $user->hasPermission('menu_tahfidz');
+            || (method_exists($user, 'hasRole') && $user->hasRole(['Manager Tahfidz', 'Administrator']));
 
         if ($isManagerTahfidz) {
             $userWidgets['shortcut_tahfidz'] = true;
@@ -577,6 +577,9 @@ class DashboardController extends Controller
             $userWidgets['shortcut_skrining'] = true;
             $userWidgets['shortcut_ikhtabir'] = true;
             $userWidgets['shortcut_quran'] = true;
+        } else {
+            // Pastikan user non-Manager Tahfidz & non-Admin TIDAK mendapatkan shortcut plotting penguji
+            $userWidgets['shortcut_tahfidz_testers'] = false;
         }
 
         // [Feature] Teacher & Academic Shortcuts Active Injection
@@ -599,6 +602,9 @@ class DashboardController extends Controller
             }
             if ($dashboardType === 'Teacher') {
                 $userWidgets['shortcut_tahfidz'] = $isTahfidzExamPeriod || $isManagerTahfidz;
+                if (!$isManagerTahfidz) {
+                    $userWidgets['shortcut_tahfidz_testers'] = false;
+                }
             }
         }
 

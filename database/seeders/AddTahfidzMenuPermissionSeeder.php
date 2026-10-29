@@ -14,8 +14,8 @@ class AddTahfidzMenuPermissionSeeder extends Seeder
         $permission = Permission::firstOrCreate(['name' => 'menu_tahfidz']);
         $permissionTesters = Permission::firstOrCreate(['name' => 'view_tahfidz_testers']);
 
-        // 2. Assign 'menu_tahfidz' to Roles
-        $roles_to_assign = ['Administrator', 'Guru', 'Kepala Sekolah'];
+        // 2. Assign 'menu_tahfidz' to Manager & Admin (Bukan Guru biasa)
+        $roles_to_assign = ['Administrator', 'Manager Tahfidz', 'Kepala Sekolah'];
         foreach ($roles_to_assign as $roleName) {
             $role = UserLevel::where('name', $roleName)->first();
             if ($role) {
@@ -23,10 +23,16 @@ class AddTahfidzMenuPermissionSeeder extends Seeder
             }
         }
 
-        // 3. Assign 'view_tahfidz_testers' ONLY to Administrator
-        $adminRole = UserLevel::where('name', 'Administrator')->first();
-        if ($adminRole) {
-            $adminRole->permissions()->syncWithoutDetaching([$permissionTesters->id]);
+        // 3. Pastikan 'view_tahfidz_testers' HANYA untuk Administrator dan Manager Tahfidz
+        $adminRoles = UserLevel::whereIn('name', ['Administrator', 'Manager Tahfidz'])->get();
+        foreach ($adminRoles as $ar) {
+            $ar->permissions()->syncWithoutDetaching([$permissionTesters->id]);
+        }
+
+        // 4. Cabut permission manajerial dari role Guru
+        $guruRole = UserLevel::where('name', 'Guru')->first();
+        if ($guruRole) {
+            $guruRole->permissions()->detach([$permissionTesters->id]);
         }
     }
 }

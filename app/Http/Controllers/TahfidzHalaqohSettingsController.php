@@ -14,8 +14,32 @@ use Carbon\Carbon;
 
 class TahfidzHalaqohSettingsController extends Controller
 {
+    protected function authorizeTahfidzManager()
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(401);
+        }
+
+        $levelName = $user->userLevel?->name ?? '';
+        $additionalLevels = $user->additionalLevels ? $user->additionalLevels->pluck('name')->toArray() : [];
+        $allLevels = array_merge([$levelName], $additionalLevels);
+
+        $isAllowed = in_array('Administrator', $allLevels)
+            || in_array('Manager Tahfidz', $allLevels)
+            || in_array('Manager', $allLevels)
+            || (method_exists($user, 'hasRole') && $user->hasRole(['Administrator', 'Manager Tahfidz', 'Manager']))
+            || $user->hasPermission('manage_tahfidz_testers')
+            || $user->hasPermission('manage_tahfidz_settings');
+
+        if (!$isAllowed) {
+            abort(403, 'Akses Ditolak. Pengaturan Halaqoh & Petugas hanya dapat diakses oleh Administrator atau Manager Tahfidz.');
+        }
+    }
+
     public function index(Request $request)
     {
+        $this->authorizeTahfidzManager();
         $sessions = TahfidzHalaqohSession::all();
 
         // Filter officers by month/year, default to current month
@@ -71,6 +95,7 @@ class TahfidzHalaqohSettingsController extends Controller
 
     public function storeSession(Request $request)
     {
+        $this->authorizeTahfidzManager();
         $request->validate([
             'name' => 'required|string',
             'start_time' => 'required',
@@ -97,6 +122,7 @@ class TahfidzHalaqohSettingsController extends Controller
 
     public function storeOfficer(Request $request)
     {
+        $this->authorizeTahfidzManager();
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'session_id' => 'required|exists:tahfidz_halaqoh_sessions,id',
@@ -126,6 +152,7 @@ class TahfidzHalaqohSettingsController extends Controller
 
     public function storeMusyrif(Request $request)
     {
+        $this->authorizeTahfidzManager();
         $request->validate([
             'user_id' => 'required_without_all:student_id,bulk_nip_nis',
             'student_id' => 'required_without_all:user_id,bulk_nip_nis',

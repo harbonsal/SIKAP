@@ -76,17 +76,6 @@ const ALL_SHORTCUTS = [
         textColor: 'group-hover:text-lime-600',
     },
     {
-        id: 'tahfidz_testers',
-        alias: 'shortcut_tahfidz_testers',
-        label: 'Plot Penguji',
-        icon: Users,
-        route: () => route('settings.tahfidz.index'),
-        category: 'daily',
-        categoryLabel: 'Tahfidz',
-        color: 'from-orange-500 to-amber-600',
-        textColor: 'group-hover:text-orange-600',
-    },
-    {
         id: 'tahfidz_monitoring',
         alias: 'shortcut_tahfidz_monitoring',
         label: 'Pantau Halaqoh',
@@ -293,7 +282,7 @@ export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} 
         const defaultRecommended = [
             'students', 'journals', 'schedule', 'tahfidz', 'skrining', 
             'ikhtabir', 'quran', 'silabus', 'grades', 'recap', 'calendar', 'profile', 'install_app',
-            'tahfidz_recap', 'tahfidz_testers', 'tahfidz_monitoring'
+            'tahfidz_recap', 'tahfidz_monitoring'
         ];
         return defaultRecommended.includes(shortcutId) || (alias && defaultRecommended.includes(alias));
     };
@@ -301,6 +290,14 @@ export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} 
     // Seluruh pintasan yang diizinkan Admin untuk peran ini
     const adminAllowedShortcuts = ALL_SHORTCUTS.filter(s => {
         if (s.id === 'install_app' && isStandalone) return false;
+        // Plotting Penguji / Jadwal Tahfidz HANYA untuk Administrator atau Manager Tahfidz
+        if (s.id === 'tahfidz_testers' || s.alias === 'shortcut_tahfidz_testers') {
+            const isManagerOrAdmin = user?.user_level?.name === 'Manager Tahfidz' || 
+                                     user?.user_level?.name === 'Administrator' ||
+                                     user?.roles?.includes('Manager Tahfidz') ||
+                                     user?.roles?.includes('Administrator');
+            if (!isManagerOrAdmin) return false;
+        }
         return isAllowedByAdmin(s.id, s.alias);
     });
 

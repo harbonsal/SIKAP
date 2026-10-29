@@ -1563,10 +1563,18 @@ Route::get('/system/fix-tahfidz-permissions', function () {
     // Revoke sensitive from Guru
     $guru = \App\Models\UserLevel::where('name', 'Guru')->first();
     if ($guru) {
-        $sensitive = ['view_all_tahfidz_grades', 'manage_tahfidz_testers', 'view_all_assessments'];
+        $sensitive = ['view_all_tahfidz_grades', 'manage_tahfidz_testers', 'view_tahfidz_testers', 'view_all_assessments', 'manage_tahfidz_halaqoh', 'manage_tahfidz_settings'];
         $ids = \App\Models\Permission::whereIn('name', $sensitive)->pluck('id');
         $guru->permissions()->detach($ids);
-        $output .= "[OK] Revoked sensitive permissions from Role: Guru\n";
+
+        // Bersihkan widget shortcut_tahfidz_testers dari role Guru jika pernah tersimpan
+        $widgets = is_array($guru->widgets) ? $guru->widgets : [];
+        if (isset($widgets['shortcut_tahfidz_testers'])) {
+            $widgets['shortcut_tahfidz_testers'] = false;
+            $guru->update(['widgets' => $widgets]);
+        }
+
+        $output .= "[OK] Revoked sensitive permissions & disabled shortcut_tahfidz_testers from Role: Guru\n";
     }
 
     return "<pre>$output\n--- Done ---</pre>";

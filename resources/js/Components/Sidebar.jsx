@@ -100,7 +100,7 @@ const navItems = [
                 roles: ['Administrator', 'Manager Tahfidz'],
                 children: [
                     { title: "Pengaturan Master Tahfidz", href: "settings.tahfidz.index", roles: ['Administrator', 'Manager Tahfidz'] },
-                    { title: "Pengaturan Halaqoh", href: "tahfidz.halaqoh-settings.index", permission: 'view_tahfidz_halaqoh' },
+                    { title: "Pengaturan Halaqoh", href: "tahfidz.halaqoh-settings.index", roles: ['Administrator', 'Manager Tahfidz'] },
                 ]
             },
         ]

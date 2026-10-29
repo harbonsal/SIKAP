@@ -11,8 +11,32 @@ use Illuminate\Http\Request;
 
 class TahfidzPlottingJuzController extends Controller
 {
+    protected function authorizeTahfidzManager()
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(401);
+        }
+
+        $levelName = $user->userLevel?->name ?? '';
+        $additionalLevels = $user->additionalLevels ? $user->additionalLevels->pluck('name')->toArray() : [];
+        $allLevels = array_merge([$levelName], $additionalLevels);
+
+        $isAllowed = in_array('Administrator', $allLevels)
+            || in_array('Manager Tahfidz', $allLevels)
+            || in_array('Manager', $allLevels)
+            || (method_exists($user, 'hasRole') && $user->hasRole(['Administrator', 'Manager Tahfidz', 'Manager']))
+            || $user->hasPermission('manage_tahfidz_testers')
+            || $user->hasPermission('manage_tahfidz_settings');
+
+        if (!$isAllowed) {
+            abort(403, 'Akses Ditolak. Pengaturan Plotting Target Juz hanya untuk Administrator dan Manager Tahfidz.');
+        }
+    }
+
     public function getData(Request $request)
     {
+        $this->authorizeTahfidzManager();
         $activeClassId = $request->active_class_id;
         $semester = $request->semester;
 
@@ -74,6 +98,7 @@ class TahfidzPlottingJuzController extends Controller
 
     public function storeClass(Request $request)
     {
+        $this->authorizeTahfidzManager();
         $request->validate([
             'active_class_id' => 'required|exists:active_classes,id',
             'semester' => 'required|integer',
@@ -95,6 +120,7 @@ class TahfidzPlottingJuzController extends Controller
 
     public function storeStudent(Request $request)
     {
+        $this->authorizeTahfidzManager();
         $request->validate([
             'active_class_id' => 'required|exists:active_classes,id',
             'semester' => 'required|integer',

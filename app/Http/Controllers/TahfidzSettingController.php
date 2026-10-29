@@ -14,8 +14,35 @@ use Illuminate\Support\Facades\DB;
 
 class TahfidzSettingController extends Controller
 {
+    /**
+     * Memastikan hanya Administrator dan Manager Tahfidz yang dapat mengakses pengaturan dan plotting
+     */
+    protected function authorizeTahfidzManager()
+    {
+        $user = auth()->user();
+        if (!$user) {
+            abort(401);
+        }
+
+        $levelName = $user->userLevel?->name ?? '';
+        $additionalLevels = $user->additionalLevels ? $user->additionalLevels->pluck('name')->toArray() : [];
+        $allLevels = array_merge([$levelName], $additionalLevels);
+
+        $isAllowed = in_array('Administrator', $allLevels)
+            || in_array('Manager Tahfidz', $allLevels)
+            || in_array('Manager', $allLevels)
+            || (method_exists($user, 'hasRole') && $user->hasRole(['Administrator', 'Manager Tahfidz', 'Manager']))
+            || $user->hasPermission('manage_tahfidz_testers')
+            || $user->hasPermission('manage_tahfidz_settings');
+
+        if (!$isAllowed) {
+            abort(403, 'Akses Ditolak. Halaman Pengaturan Master Tahfidz dan Plotting Penguji hanya dapat diakses oleh Administrator atau Manager Tahfidz.');
+        }
+    }
+
     public function index()
     {
+        $this->authorizeTahfidzManager();
         // --- 1. Exam Period Data ---
         $startDate = Setting::where('key', 'tahfidz_exam_start_date')->value('value');
         $endDate = Setting::where('key', 'tahfidz_exam_end_date')->value('value');
@@ -119,6 +146,7 @@ class TahfidzSettingController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeTahfidzManager();
         $request->validate([
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
@@ -192,6 +220,7 @@ class TahfidzSettingController extends Controller
 
     public function storeTester(Request $request)
     {
+        $this->authorizeTahfidzManager();
         $request->validate([
             'active_subject_id' => 'required|exists:active_subjects,id',
             'user_id' => 'required|exists:users,id',
@@ -218,6 +247,7 @@ class TahfidzSettingController extends Controller
 
     public function destroyTester($id)
     {
+        $this->authorizeTahfidzManager();
         $tester = TahfidzTester::findOrFail($id);
         $tester->delete();
         return back()->with('success', 'Penguji berhasil dihapus.');
@@ -239,6 +269,7 @@ class TahfidzSettingController extends Controller
     
     public function storeStandardTarget(Request $request)
     {
+        $this->authorizeTahfidzManager();
         $validated = $request->validate([
             'jenjang_id' => 'required|exists:jenjangs,id',
             'semester_number' => 'required|integer|min:1|max:20',
