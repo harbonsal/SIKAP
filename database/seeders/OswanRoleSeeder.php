@@ -70,7 +70,6 @@ class OswanRoleSeeder extends Seeder
                 [
                     'category' => 'Santri',
                     'dashboard_type' => 'Oswan',
-                    'description' => $qismu['description'],
                     'widgets' => [],
                 ]
             );
@@ -103,6 +102,7 @@ class OswanRoleSeeder extends Seeder
             // Sinkronkan data jika sudah pernah ada
             $user->update([
                 'name' => $qismu['full_name'],
+                'password' => Hash::make('password'),
                 'user_level_id' => $role->id,
                 'status' => 'Aktif',
                 'nomor_induk' => $qismu['nis'],
