@@ -74,7 +74,7 @@ class SchoolInfoController extends Controller
             Setting::updateOrCreate(['key' => 'login_background'], ['value' => $newBgPath]);
         }
 
-        if ($request->filled('login_card_style')) {
+        if ($request->has('login_card_style')) {
             Setting::updateOrCreate(
                 ['key' => 'login_card_style'],
                 ['value' => $request->input('login_card_style', 'kombinasi')]
