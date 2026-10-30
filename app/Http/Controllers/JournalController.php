@@ -178,15 +178,12 @@ class JournalController extends Controller
                 $q->where('start_time', '<=', $endOfDay)
                   ->where('end_time', '>=', $startOfDay);
             })
-            ->where(function ($q) use ($startOfDay, $endOfDay) {
+            ->where(function ($q) use ($startOfDay) {
                 $q->whereIn('status', ['Pending', 'Out'])
                   ->orWhereNull('return_at')
-                  ->orWhere(function ($sub) use ($startOfDay, $endOfDay) {
+                  ->orWhere(function ($sub) use ($startOfDay) {
                       $sub->where('status', 'Returned')
-                          ->whereHas('permissionGroup', function($pg) use ($startOfDay, $endOfDay) {
-                              $pg->where('start_time', '<=', $endOfDay)
-                                 ->where('end_time', '>=', $startOfDay);
-                          });
+                          ->where('return_at', '>=', $startOfDay);
                   });
             })
             ->with('permissionGroup')
@@ -674,15 +671,12 @@ class JournalController extends Controller
                 $q->where('start_time', '<=', $endOfDay)
                   ->where('end_time', '>=', $startOfDay);
             })
-            ->where(function ($q) use ($startOfDay, $endOfDay) {
+            ->where(function ($q) use ($startOfDay) {
                 $q->whereIn('status', ['Pending', 'Out'])
                   ->orWhereNull('return_at')
-                  ->orWhere(function ($sub) use ($startOfDay, $endOfDay) {
+                  ->orWhere(function ($sub) use ($startOfDay) {
                       $sub->where('status', 'Returned')
-                          ->whereHas('permissionGroup', function($pg) use ($startOfDay, $endOfDay) {
-                              $pg->where('start_time', '<=', $endOfDay)
-                                 ->where('end_time', '>=', $startOfDay);
-                          });
+                          ->where('return_at', '>=', $startOfDay);
                   });
             })
             ->with('permissionGroup')
