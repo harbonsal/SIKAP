@@ -93,6 +93,11 @@ class User extends Authenticatable
         return $this->belongsToMany(UserLevel::class, 'user_additional_levels');
     }
 
+    public function activeKamars()
+    {
+        return $this->hasMany(ActiveKamar::class, 'musrif_id');
+    }
+
     public function isCurrentHomeroomTeacher(): bool
     {
         $currentAcademicYear = \App\Services\AcademicStateService::currentAcademicYear();

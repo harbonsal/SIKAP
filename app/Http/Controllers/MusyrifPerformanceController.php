@@ -198,19 +198,29 @@ class MusyrifPerformanceController extends Controller
         $dayOfWeek = $carbonDate->dayOfWeek;
 
         // Ambil Seluruh Musyrif (dari UserLevel Musrif / Musyrif / yang mengampu Kamar)
-        $musyrifs = User::whereHas('userLevel', function ($q) {
-            $q->whereIn('name', ['Musrif', 'Musyrif', 'Musrif Asrama', 'PJ Kemusrifan', 'PJ Musyrif']);
-        })->orWhereHas('activeKamars', function ($q) {
-            $q->whereNotNull('id');
-        })->where('status', 'Aktif')
-          ->orderBy('name')
-          ->get(['id', 'name', 'nomor_induk']);
+        $musyrifs = User::where('status', 'Aktif')
+            ->where(function ($query) {
+                $query->whereHas('userLevel', function ($q) {
+                    $q->whereIn('name', ['Musrif', 'Musyrif', 'Musrif Asrama', 'PJ Kemusrifan', 'PJ Musyrif']);
+                })->orWhereHas('additionalLevels', function ($q) {
+                    $q->whereIn('name', ['Musrif', 'Musyrif', 'Musrif Asrama', 'PJ Kemusrifan', 'PJ Musyrif']);
+                })->orWhereHas('activeKamars');
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'nomor_induk']);
 
         // Jika tidak ada dari level, ambil semua user dengan kategori Musrif atau staff pengasuhan
         if ($musyrifs->isEmpty()) {
-            $musyrifs = User::whereHas('userLevel', function ($q) {
-                $q->where('category', 'Musrif');
-            })->where('status', 'Aktif')->orderBy('name')->get(['id', 'name', 'nomor_induk']);
+            $musyrifs = User::where('status', 'Aktif')
+                ->where(function ($query) {
+                    $query->whereHas('userLevel', function ($q) {
+                        $q->where('category', 'Musrif');
+                    })->orWhereHas('additionalLevels', function ($q) {
+                        $q->where('category', 'Musrif');
+                    });
+                })
+                ->orderBy('name')
+                ->get(['id', 'name', 'nomor_induk']);
         }
 
         // Ambil Template Tugas Hari Tersebut
@@ -314,13 +324,29 @@ class MusyrifPerformanceController extends Controller
         $carbonDate = Carbon::parse($date);
         $dayOfWeek = $carbonDate->dayOfWeek;
 
-        $musyrifs = User::whereHas('userLevel', function ($q) {
-            $q->whereIn('name', ['Musrif', 'Musyrif', 'Musrif Asrama', 'PJ Kemusrifan', 'PJ Musyrif']);
-        })->orWhereHas('activeKamars', function ($q) {
-            $q->whereNotNull('id');
-        })->where('status', 'Aktif')
-          ->orderBy('name')
-          ->get();
+        $musyrifs = User::where('status', 'Aktif')
+            ->where(function ($query) {
+                $query->whereHas('userLevel', function ($q) {
+                    $q->whereIn('name', ['Musrif', 'Musyrif', 'Musrif Asrama', 'PJ Kemusrifan', 'PJ Musyrif']);
+                })->orWhereHas('additionalLevels', function ($q) {
+                    $q->whereIn('name', ['Musrif', 'Musyrif', 'Musrif Asrama', 'PJ Kemusrifan', 'PJ Musyrif']);
+                })->orWhereHas('activeKamars');
+            })
+            ->orderBy('name')
+            ->get();
+
+        if ($musyrifs->isEmpty()) {
+            $musyrifs = User::where('status', 'Aktif')
+                ->where(function ($query) {
+                    $query->whereHas('userLevel', function ($q) {
+                        $q->where('category', 'Musrif');
+                    })->orWhereHas('additionalLevels', function ($q) {
+                        $q->where('category', 'Musrif');
+                    });
+                })
+                ->orderBy('name')
+                ->get();
+        }
 
         $allTemplates = MusyrifDutyTemplate::where('is_active', true)->orderBy('order_num')->get();
         $dutiesToday = $allTemplates->filter(function ($t) use ($dayOfWeek) {
