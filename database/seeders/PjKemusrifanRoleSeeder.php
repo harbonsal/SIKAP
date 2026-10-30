@@ -73,7 +73,7 @@ class PjKemusrifanRoleSeeder extends Seeder
                 $role = UserLevel::firstOrCreate(
                     ['name' => $roleName],
                     [
-                        'category' => 'Musrif',
+                        'category' => 'Ustadz',
                         'dashboard_type' => 'Admin',
                         'widgets' => $defaultWidgets,
                     ]
@@ -81,7 +81,7 @@ class PjKemusrifanRoleSeeder extends Seeder
 
                 // Perbarui category & dashboard_type jika belum pas
                 $role->update([
-                    'category' => 'Musrif',
+                    'category' => 'Ustadz',
                     'dashboard_type' => 'Admin',
                     'widgets' => array_merge($role->widgets ?? [], $defaultWidgets),
                 ]);
