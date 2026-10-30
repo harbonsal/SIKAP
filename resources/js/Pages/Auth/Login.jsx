@@ -173,30 +173,10 @@ export default function Login({ status, canResetPassword }) {
                 </div>
             </form>
 
-            {/* Clean Subtle Last Update & Quick Style Switcher */}
+            {/* Clean Subtle Last Update */}
             <div className="mt-5 pt-3 border-t border-slate-200/70 dark:border-slate-800 text-center">
-                <div className="flex flex-wrap items-center justify-center gap-1.5 mb-2">
-                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mr-0.5">
-                        🎨 Gaya:
-                    </span>
-                    {[
-                        { id: 'kombinasi', label: '🌟 Kombinasi' },
-                        { id: 'geometri', label: '🏛️ Geometri' },
-                        { id: 'cahaya', label: '✨ Cahaya' },
-                        { id: 'mihrab', label: '🕌 Mihrab' },
-                        { id: 'polos', label: '⚪ Polos' },
-                    ].map((st) => (
-                        <a
-                            key={st.id}
-                            href={`/login?style=${st.id}`}
-                            className="px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-bold bg-white/80 dark:bg-slate-800 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 text-slate-600 dark:text-slate-300 transition-all border border-slate-200 dark:border-slate-700 active:scale-95 shadow-2xs"
-                        >
-                            {st.label}
-                        </a>
-                    ))}
-                </div>
                 <span className="text-[11px] font-mono text-slate-400 dark:text-slate-500">
-                    ⚡ Last Update: 30 Okt 2026 16:58 WIB
+                    ⚡ Last Update: 30 Okt 2026 17:30 WIB
                 </span>
             </div>
         </GuestLayout>
