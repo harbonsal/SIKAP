@@ -16,6 +16,7 @@ class SchoolInfoController extends Controller
             'schoolInfo' => SchoolInfo::firstOrNew(),
             'appLogo' => Setting::where('key', 'app_logo')->value('value'),
             'loginBackground' => Setting::where('key', 'login_background')->value('value'),
+            'loginCardStyle' => Setting::where('key', 'login_card_style')->value('value') ?? 'kombinasi',
         ]);
     }
 
@@ -31,6 +32,7 @@ class SchoolInfoController extends Controller
             'headmaster_signature' => 'nullable|image|max:2048',
             'app_logo' => 'nullable|image|mimes:png,jpg,jpeg|max:2048',
             'login_background' => 'nullable|image|max:5120',
+            'login_card_style' => 'nullable|string|in:kombinasi,geometri,cahaya,mihrab,polos',
             'kop_image' => 'nullable|image|max:2048',
             'use_system_header' => 'nullable|boolean',
             'yayasan_name' => 'nullable|string|max:255',
@@ -70,6 +72,13 @@ class SchoolInfoController extends Controller
             if ($oldBg) Storage::disk('public')->delete($oldBg);
             $newBgPath = $request->file('login_background')->store('school_assets', 'public');
             Setting::updateOrCreate(['key' => 'login_background'], ['value' => $newBgPath]);
+        }
+
+        if ($request->filled('login_card_style')) {
+            Setting::updateOrCreate(
+                ['key' => 'login_card_style'],
+                ['value' => $request->input('login_card_style', 'kombinasi')]
+            );
         }
 
         // Fill other data

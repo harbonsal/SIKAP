@@ -9,7 +9,7 @@ import { Save, Calendar, FileImage, AlertCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 
-export default function Edit({ auth, schoolInfo, appLogo, loginBackground }) {
+export default function Edit({ auth, schoolInfo, appLogo, loginBackground, loginCardStyle }) {
     const { flash } = usePage().props;
     const { data, setData, post, errors, processing, recentlySuccessful } = useForm({
         name: schoolInfo.name || '',
@@ -17,6 +17,7 @@ export default function Edit({ auth, schoolInfo, appLogo, loginBackground }) {
         city: schoolInfo.city || '',
         app_logo: null,
         login_background: null,
+        login_card_style: loginCardStyle || 'kombinasi',
         sem1_weight: schoolInfo.grade_config?.sem1_weight ?? 1,
         sem2_weight: schoolInfo.grade_config?.sem2_weight ?? 2,
         _method: 'POST',
@@ -191,6 +192,46 @@ export default function Edit({ auth, schoolInfo, appLogo, loginBackground }) {
                                                 Maks ukuran file <strong>2MB</strong> (Sesuai batas server).
                                             </p>
                                             <InputError className="mt-2" message={errors.login_background} />
+                                        </div>
+
+                                        <div className="pt-2 border-t border-gray-100">
+                                            <InputLabel value="Gaya Ornamen Kartu Login" />
+                                            <p className="text-xs text-gray-500 mt-0.5 mb-3">
+                                                Personalisasikan tampilan kartu login agar tidak tampak putih polos dengan ornamen warna khas pesantren.
+                                            </p>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                {[
+                                                    { id: 'kombinasi', name: '🌟 Kombinasi Harmonis', desc: 'Pola geometri bintang mikro + pendaran cahaya 4 warna fajar (Rekomendasi)' },
+                                                    { id: 'geometri', name: '🏛️ Geometri Islami', desc: 'Watermark motif bintang 8-sudut Islami mikro yang rapi' },
+                                                    { id: 'cahaya', name: '✨ Pendaran Cahaya', desc: 'Semburat radial 4 warna (merah, emas, zamrud, safir)' },
+                                                    { id: 'mihrab', name: '🕌 Siluet Mihrab', desc: 'Garis kontur lengkungan kubah arsitektur Islami' },
+                                                    { id: 'polos', name: '⚪ Putih Standar', desc: 'Permukaan putih bersih polos tanpa tekstur' },
+                                                ].map((opt) => (
+                                                    <label
+                                                        key={opt.id}
+                                                        onClick={() => setData('login_card_style', opt.id)}
+                                                        className={`relative flex flex-col p-3 rounded-xl border cursor-pointer transition-all ${
+                                                            data.login_card_style === opt.id
+                                                                ? 'border-emerald-600 bg-emerald-50/60 ring-2 ring-emerald-500/20'
+                                                                : 'border-gray-200 hover:border-gray-300 bg-white'
+                                                        }`}
+                                                    >
+                                                        <div className="flex items-center justify-between mb-1">
+                                                            <span className="text-xs font-bold text-gray-900">{opt.name}</span>
+                                                            <input
+                                                                type="radio"
+                                                                name="login_card_style"
+                                                                value={opt.id}
+                                                                checked={data.login_card_style === opt.id}
+                                                                onChange={() => setData('login_card_style', opt.id)}
+                                                                className="text-emerald-600 focus:ring-emerald-500 w-3.5 h-3.5"
+                                                            />
+                                                        </div>
+                                                        <span className="text-[11px] text-gray-500 leading-snug">{opt.desc}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                            <InputError className="mt-2" message={errors.login_card_style} />
                                         </div>
                                     </div>
                                 </div>

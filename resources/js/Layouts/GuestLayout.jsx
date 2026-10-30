@@ -5,6 +5,15 @@ export default function GuestLayout({ children }) {
     const { app_settings } = usePage().props;
     const schoolName = app_settings?.app_name?.replace('SIKAP ', '') || 'Pesantren Alwan';
 
+    // Deteksi style dari query param URL (?style=geometri / ?style=cahaya / ?style=mihrab / ?style=polos) atau dari app_settings
+    const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    const urlStyle = searchParams ? searchParams.get('style') : null;
+    const activeStyle = urlStyle || app_settings?.login_card_style || 'kombinasi';
+
+    const hasGeometri = ['kombinasi', 'geometri'].includes(activeStyle);
+    const hasCahaya = ['kombinasi', 'cahaya'].includes(activeStyle);
+    const hasMihrab = activeStyle === 'mihrab';
+
     return (
         <div
             className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden bg-slate-950 font-sans selection:bg-amber-500 selection:text-white"
@@ -73,7 +82,36 @@ export default function GuestLayout({ children }) {
             <div className="relative z-10 w-full sm:max-w-md my-auto">
                 {/* Outer Glass Card Halo */}
                 <div className="rounded-[28px] p-[1.5px] bg-gradient-to-b from-white/35 via-amber-400/25 to-emerald-500/25 shadow-2xl shadow-black/60">
-                    <div className="w-full overflow-hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-[26px]">
+                    <div className="w-full overflow-hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-[26px] relative">
+                        {/* 4a. Ambient Quad-Color Dawn Bloom behind Logo */}
+                        {hasCahaya && (
+                            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-gradient-to-tr from-red-500/10 via-amber-400/20 via-emerald-500/15 to-blue-500/15 blur-3xl pointer-events-none -z-0"></div>
+                        )}
+
+                        {/* 4b. Subtle Micro Islamic Geometric Star Pattern */}
+                        {hasGeometri && (
+                            <div
+                                className="absolute inset-0 pointer-events-none opacity-[0.035] dark:opacity-[0.025] -z-0"
+                                style={{
+                                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 0l5 10 10-5-5 10 10 5-10 5 5 10-10-5-5 10-5-10-10 5 5-10-10-5 10-5-5-10 10 5z' fill='%23059669' fill-rule='evenodd'/%3E%3C/svg%3E")`,
+                                    backgroundSize: '36px 36px',
+                                }}
+                            ></div>
+                        )}
+
+                        {/* 4c. Subtle Islamic Mihrab / Arch Contour */}
+                        {hasMihrab && (
+                            <div 
+                                className="absolute inset-0 pointer-events-none opacity-40 dark:opacity-20 -z-0"
+                                style={{
+                                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='400' height='560' viewBox='0 0 400 560' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30,560 L30,260 C30,120 120,45 200,12 C280,45 370,120 370,260 L370,560' stroke='%23059669' stroke-opacity='0.16' stroke-width='2' stroke-dasharray='6 6'/%3E%3Cpath d='M50,560 L50,270 C50,145 130,75 200,45 C270,75 350,145 350,270 L350,560' stroke='%23f59e0b' stroke-opacity='0.14' stroke-width='1.5'/%3E%3C/svg%3E")`,
+                                    backgroundRepeat: 'no-repeat',
+                                    backgroundPosition: 'center top 25px',
+                                    backgroundSize: '95% auto',
+                                }}
+                            ></div>
+                        )}
+
                         {/* Elegant Flowing 4-Color Wave Crown (Merah, Kuning, Hijau, Biru) */}
                         <div className="relative w-full h-7 sm:h-8 overflow-hidden select-none">
                             <svg 
