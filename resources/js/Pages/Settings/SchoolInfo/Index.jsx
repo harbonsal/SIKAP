@@ -1,15 +1,15 @@
 import MasterSekolahLayout from '@/Layouts/MasterSekolahLayout';
-import { Head, useForm, usePage } from '@inertiajs/react'; // Add usePage
+import { Head, useForm, usePage } from '@inertiajs/react';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import { Transition } from '@headlessui/react';
-import { Save, Calendar, FileImage, AlertCircle } from 'lucide-react';
+import { Save, Calendar, FileImage, AlertCircle, Upload, RotateCcw, Info, Check } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 
-export default function Edit({ auth, schoolInfo, appLogo, loginBackground, loginCardStyle }) {
+export default function Edit({ auth, schoolInfo, appLogo, loginBackground }) {
     const { flash } = usePage().props;
     const { data, setData, post, errors, processing, recentlySuccessful } = useForm({
         name: schoolInfo.name || '',
@@ -17,7 +17,7 @@ export default function Edit({ auth, schoolInfo, appLogo, loginBackground, login
         city: schoolInfo.city || '',
         app_logo: null,
         login_background: null,
-        login_card_style: loginCardStyle || 'kombinasi',
+        remove_login_background: false,
         sem1_weight: schoolInfo.grade_config?.sem1_weight ?? 1,
         sem2_weight: schoolInfo.grade_config?.sem2_weight ?? 2,
         _method: 'POST',
@@ -46,13 +46,29 @@ export default function Edit({ auth, schoolInfo, appLogo, loginBackground, login
     const handleFileChange = (e, key) => {
         const file = e.target.files[0];
         if (file) {
-            setData(key, file);
+            setData(prev => ({
+                ...prev,
+                [key]: file,
+                ...(key === 'login_background' ? { remove_login_background: false } : {})
+            }));
             const reader = new FileReader();
             reader.onloadend = () => {
                 setPreviews(prev => ({ ...prev, [key]: reader.result }));
             };
             reader.readAsDataURL(file);
         }
+    };
+
+    const handleResetBackground = () => {
+        setData(prev => ({
+            ...prev,
+            login_background: null,
+            remove_login_background: true
+        }));
+        setPreviews(prev => ({
+            ...prev,
+            login_background: null
+        }));
     };
 
     const submit = (e) => {
@@ -121,117 +137,143 @@ export default function Edit({ auth, schoolInfo, appLogo, loginBackground, login
                             </section>
                         </div>
 
-                        {/* Section 1.5: Branding & Tema */}
+                        {/* Section 1.5: Branding & Background */}
                         <div className="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
-                            <section className="max-w-xl">
+                            <section className="max-w-3xl">
                                 <header>
                                     <h2 className="text-lg font-medium text-gray-900">Branding Aplikasi (White-Label)</h2>
                                     <p className="mt-1 text-sm text-gray-600">
-                                        Atur logo aplikasi dan latar belakang (background) pada halaman login.
+                                        Sesuaikan identitas visual aplikasi berupa logo utama dan latar belakang (background) layar login pesantren.
                                     </p>
                                 </header>
 
-                                <div className="mt-6 space-y-6">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div>
-                                            <InputLabel value="Logo Utama SIKAP" />
-                                            <div className="mt-2 flex items-center gap-x-3">
+                                <div className="mt-6 space-y-8">
+                                    {/* 1. Upload Logo Utama */}
+                                    <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/50">
+                                        <InputLabel value="Logo Utama SIKAP" className="font-semibold text-gray-800" />
+                                        <p className="text-xs text-gray-500 mt-0.5 mb-3">
+                                            Logo yang tampil pada kartu login, navigasi atas, dan dokumen resmi.
+                                        </p>
+                                        <div className="flex flex-wrap items-center gap-4">
+                                            <div className="h-20 w-24 p-2 bg-white border border-gray-200 rounded-xl flex items-center justify-center shadow-xs">
                                                 {previews.app_logo ? (
-                                                    <img src={previews.app_logo} alt="App Logo Preview" className="h-20 w-auto object-contain border rounded-md bg-gray-50" />
+                                                    <img src={previews.app_logo} alt="App Logo Preview" className="h-full w-auto object-contain" />
                                                 ) : (
-                                                    <div className="h-20 w-20 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center text-gray-400 text-xs px-1 text-center">
-                                                        Belum ada logo
-                                                    </div>
+                                                    <span className="text-xs text-gray-400 text-center">Belum ada logo</span>
                                                 )}
+                                            </div>
+                                            <div className="space-y-1.5">
                                                 <label
                                                     htmlFor="app_logo"
-                                                    className="rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 cursor-pointer"
+                                                    className="inline-flex items-center gap-2 rounded-lg bg-white px-3.5 py-2 text-xs font-semibold text-gray-800 shadow-xs ring-1 ring-inset ring-gray-300 hover:bg-gray-50 cursor-pointer transition-all"
                                                 >
-                                                    Upload Logo
+                                                    <Upload className="w-3.5 h-3.5 text-gray-500" />
+                                                    Pilih File Logo
                                                     <input
                                                         type="file"
                                                         id="app_logo"
                                                         className="sr-only"
                                                         onChange={(e) => handleFileChange(e, 'app_logo')}
-                                                        accept="image/png"
+                                                        accept="image/png,image/jpeg,image/jpg"
                                                     />
                                                 </label>
+                                                <p className="text-[11px] text-gray-500">
+                                                    Format: <strong>PNG / JPG / JPEG</strong> (Transparan disarankan). Maksimal <strong>2 MB</strong>.
+                                                </p>
                                             </div>
-                                            <p className="mt-2 text-xs text-gray-500">
-                                                Dapat menggunakan format <strong>PNG/JPG/JPEG</strong>.<br/>
-                                                Maks ukuran file <strong>2MB</strong>.
-                                            </p>
-                                            <InputError className="mt-2" message={errors.app_logo} />
+                                        </div>
+                                        <InputError className="mt-2" message={errors.app_logo} />
+                                    </div>
+
+                                    {/* 2. Upload Background Halaman Login */}
+                                    <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/50">
+                                        <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                                            <div>
+                                                <InputLabel value="Background Halaman Login" className="font-semibold text-gray-800 text-base" />
+                                                <p className="text-xs text-gray-500 mt-0.5">
+                                                    Foto latar belakang layar penuh yang tampil saat santri, wali santri, ustadz, dan admin membuka portal login.
+                                                </p>
+                                            </div>
+                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                                                previews.login_background 
+                                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                                                    : 'bg-blue-100 text-blue-800 border border-blue-200'
+                                            }`}>
+                                                {previews.login_background ? '🟢 Background Kustom Aktif' : '🔵 Background Default (Bawaan)'}
+                                            </span>
                                         </div>
 
-                                        <div>
-                                            <InputLabel value="Background Login" />
-                                            <div className="mt-2 flex flex-col gap-y-3">
-                                                {previews.login_background ? (
-                                                    <img src={previews.login_background} alt="Login Bg Preview" className="h-20 w-full object-cover border rounded-md bg-gray-50" />
-                                                ) : (
-                                                    <div className="h-20 w-full border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center text-gray-400 text-xs px-1 text-center">
-                                                        Belum ada background
-                                                    </div>
-                                                )}
-                                                <label
-                                                    htmlFor="login_background"
-                                                    className="inline-flex items-center justify-center rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 cursor-pointer self-start"
+                                        {/* Preview Area (16:9 Landscape) */}
+                                        <div className="mt-3 relative w-full aspect-video sm:h-52 sm:w-auto rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-slate-900 group">
+                                            <img
+                                                src={previews.login_background || '/masjid_login.webp'}
+                                                alt="Login Background Preview"
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                            />
+                                            {/* Preview Overlay Badge */}
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 flex flex-col justify-between p-3 pointer-events-none">
+                                                <span className="self-start text-[11px] font-mono px-2 py-0.5 rounded bg-black/60 text-white backdrop-blur-xs">
+                                                    Pratinjau Layar Login
+                                                </span>
+                                                <span className="self-end text-[11px] font-medium text-white/90 drop-shadow">
+                                                    {previews.login_background ? 'Gambar kustom sekolah' : 'Foto arsitektur masjid bawaan'}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Action Buttons */}
+                                        <div className="mt-4 flex flex-wrap items-center gap-2.5">
+                                            <label
+                                                htmlFor="login_background"
+                                                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 cursor-pointer active:scale-95 transition-all"
+                                            >
+                                                <Upload className="w-3.5 h-3.5 text-white" />
+                                                Ganti Background Baru
+                                                <input
+                                                    type="file"
+                                                    id="login_background"
+                                                    className="sr-only"
+                                                    onChange={(e) => handleFileChange(e, 'login_background')}
+                                                    accept="image/jpeg,image/png,image/webp"
+                                                />
+                                            </label>
+
+                                            {(previews.login_background || data.login_background) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={handleResetBackground}
+                                                    className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3.5 py-2 text-xs font-semibold text-rose-700 shadow-xs ring-1 ring-inset ring-rose-200 hover:bg-rose-50 active:scale-95 transition-all"
                                                 >
-                                                    Upload Background
-                                                    <input
-                                                        type="file"
-                                                        id="login_background"
-                                                        className="sr-only"
-                                                        onChange={(e) => handleFileChange(e, 'login_background')}
-                                                        accept="image/*"
-                                                    />
-                                                </label>
-                                            </div>
-                                            <p className="mt-2 text-xs text-gray-500">
-                                                Maks ukuran file <strong>2MB</strong> (Sesuai batas server).
-                                            </p>
-                                            <InputError className="mt-2" message={errors.login_background} />
+                                                    <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+                                                    Reset ke Background Bawaan
+                                                </button>
+                                            )}
                                         </div>
+                                        <InputError className="mt-2" message={errors.login_background} />
 
-                                        <div className="pt-2 border-t border-gray-100">
-                                            <InputLabel value="Gaya Ornamen Kartu Login" />
-                                            <p className="text-xs text-gray-500 mt-0.5 mb-3">
-                                                Personalisasikan tampilan kartu login agar tidak tampak putih polos dengan ornamen warna khas pesantren.
-                                            </p>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                {[
-                                                    { id: 'kombinasi', name: '🌟 Kombinasi Harmonis', desc: 'Pola geometri bintang mikro + pendaran cahaya 4 warna fajar (Rekomendasi)' },
-                                                    { id: 'geometri', name: '🏛️ Geometri Islami', desc: 'Watermark motif bintang 8-sudut Islami mikro yang rapi' },
-                                                    { id: 'cahaya', name: '✨ Pendaran Cahaya', desc: 'Semburat radial 4 warna (merah, emas, zamrud, safir)' },
-                                                    { id: 'mihrab', name: '🕌 Siluet Mihrab', desc: 'Garis kontur lengkungan kubah arsitektur Islami' },
-                                                    { id: 'polos', name: '⚪ Putih Standar', desc: 'Permukaan putih bersih polos tanpa tekstur' },
-                                                ].map((opt) => (
-                                                    <label
-                                                        key={opt.id}
-                                                        onClick={() => setData('login_card_style', opt.id)}
-                                                        className={`relative flex flex-col p-3 rounded-xl border cursor-pointer transition-all ${
-                                                            data.login_card_style === opt.id
-                                                                ? 'border-emerald-600 bg-emerald-50/60 ring-2 ring-emerald-500/20'
-                                                                : 'border-gray-200 hover:border-gray-300 bg-white'
-                                                        }`}
-                                                    >
-                                                        <div className="flex items-center justify-between mb-1">
-                                                            <span className="text-xs font-bold text-gray-900">{opt.name}</span>
-                                                            <input
-                                                                type="radio"
-                                                                name="login_card_style"
-                                                                value={opt.id}
-                                                                checked={data.login_card_style === opt.id}
-                                                                onChange={() => setData('login_card_style', opt.id)}
-                                                                className="text-emerald-600 focus:ring-emerald-500 w-3.5 h-3.5"
-                                                            />
-                                                        </div>
-                                                        <span className="text-[11px] text-gray-500 leading-snug">{opt.desc}</span>
-                                                    </label>
-                                                ))}
+                                        {/* Keterangan Spesifikasi Ukuran & Rekomendasi Gambar */}
+                                        <div className="mt-4 p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/80 text-amber-950 text-xs space-y-2">
+                                            <div className="flex items-center gap-2 font-bold text-amber-900">
+                                                <Info className="w-4 h-4 text-amber-700 flex-shrink-0" />
+                                                <span>Ketentuan & Rekomendasi Ukuran Gambar Background:</span>
                                             </div>
-                                            <InputError className="mt-2" message={errors.login_card_style} />
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-amber-900/90 pl-6">
+                                                <div>
+                                                    <span className="font-semibold text-amber-950">📐 Rasio Aspek:</span> 16:9 (Landscape / Melebar)
+                                                </div>
+                                                <div>
+                                                    <span className="font-semibold text-amber-950">📏 Resolusi Ideal:</span> 1920 × 1080 px (Min. 1280 × 720 px)
+                                                </div>
+                                                <div>
+                                                    <span className="font-semibold text-amber-950">📁 Format File:</span> JPG, JPEG, PNG, atau WebP
+                                                </div>
+                                                <div>
+                                                    <span className="font-semibold text-amber-950">⚖️ Ukuran File Maks:</span> 2 MB (Disarankan &lt; 1 MB)
+                                                </div>
+                                            </div>
+                                            <p className="text-[11px] text-amber-800/90 pl-6 leading-relaxed border-t border-amber-200/60 pt-2">
+                                                💡 <strong>Saran Visual:</strong> Gunakan foto lanskap gedung utama pesantren, masjid, atau gerbang kampus. Karena formulir login berada di tengah layar, pilih foto dengan subjek yang menyebar atau latar belakang pemandangan yang indah agar terlihat elegan dan nyaman dilihat.
+                                            </p>
                                         </div>
                                     </div>
                                 </div>

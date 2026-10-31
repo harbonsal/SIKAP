@@ -5,58 +5,6 @@ export default function GuestLayout({ children }) {
     const { app_settings } = usePage().props;
     const schoolName = app_settings?.app_name?.replace('SIKAP ', '') || 'Pesantren Alwan';
 
-    // Deteksi style dari query param URL (?style=geometri / ?style=cahaya / ?style=mihrab / ?style=polos) atau dari app_settings
-    const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-    const urlStyle = searchParams ? searchParams.get('style') : null;
-    const activeStyle = urlStyle || app_settings?.login_card_style || 'kombinasi';
-
-    const cardThemes = {
-        kombinasi: {
-            containerBg: 'bg-gradient-to-b from-amber-50/90 via-white to-emerald-50/70 dark:from-slate-900 dark:via-slate-850 dark:to-emerald-950/40',
-            patternOpacity: 'opacity-[0.14] dark:opacity-[0.08]',
-            patternColor: '%23059669',
-            showBloom: true,
-            showArch: false,
-            bloomGradient: 'from-amber-400/30 via-emerald-400/20 to-blue-500/15',
-            haloBorder: 'from-white/50 via-amber-400/40 to-emerald-500/40',
-        },
-        geometri: {
-            containerBg: 'bg-gradient-to-b from-emerald-50/75 via-white to-slate-50/80 dark:from-slate-900 dark:via-slate-850 dark:to-slate-900',
-            patternOpacity: 'opacity-[0.20] dark:opacity-[0.12]',
-            patternColor: '%23047857',
-            showBloom: false,
-            showArch: false,
-            haloBorder: 'from-white/40 via-emerald-400/45 to-teal-500/40',
-        },
-        cahaya: {
-            containerBg: 'bg-gradient-to-br from-red-50/60 via-amber-50/70 via-white to-blue-50/60 dark:from-slate-900 dark:via-slate-850 dark:to-blue-950/40',
-            patternOpacity: 'opacity-0',
-            patternColor: '%23059669',
-            showBloom: true,
-            showArch: false,
-            bloomGradient: 'from-red-500/25 via-amber-400/35 via-emerald-400/20 to-blue-500/25',
-            haloBorder: 'from-white/45 via-amber-400/40 to-blue-500/40',
-        },
-        mihrab: {
-            containerBg: 'bg-gradient-to-b from-amber-50/85 via-white to-emerald-50/70 dark:from-slate-900 dark:via-slate-850 dark:to-emerald-950/30',
-            patternOpacity: 'opacity-0',
-            patternColor: '%23059669',
-            showBloom: false,
-            showArch: true,
-            haloBorder: 'from-white/40 via-amber-400/50 to-emerald-500/40',
-        },
-        polos: {
-            containerBg: 'bg-white/95 dark:bg-slate-900/95',
-            patternOpacity: 'opacity-0',
-            patternColor: '%23059669',
-            showBloom: false,
-            showArch: false,
-            haloBorder: 'from-white/30 via-slate-400/20 to-slate-500/20',
-        }
-    };
-
-    const currentTheme = cardThemes[activeStyle] || cardThemes.kombinasi;
-
     return (
         <div
             className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden bg-slate-950 font-sans selection:bg-amber-500 selection:text-white"
@@ -114,7 +62,6 @@ export default function GuestLayout({ children }) {
                             <stop offset="100%" stopColor="#1E40AF" stopOpacity="0.8" />
                         </linearGradient>
                     </defs>
-                    {/* Deep undulating brand color waves */}
                     <path d="M0,130 C300,210 460,80 760,140 C1060,200 1240,90 1440,150 L1440,240 L0,240 Z" fill="url(#bg-wave-3)" />
                     <path d="M0,165 C340,95 560,200 880,130 C1140,75 1300,175 1440,160 L1440,240 L0,240 Z" fill="url(#bg-wave-2)" />
                     <path d="M0,195 C260,155 500,220 780,175 C1060,130 1260,195 1440,185 L1440,240 L0,240 Z" fill="url(#bg-wave-1)" />
@@ -124,35 +71,8 @@ export default function GuestLayout({ children }) {
             {/* 4. Center Content Wrapper */}
             <div className="relative z-10 w-full sm:max-w-md my-auto">
                 {/* Outer Glass Card Halo */}
-                <div className={`rounded-[28px] p-[1.5px] bg-gradient-to-b ${currentTheme.haloBorder} shadow-2xl shadow-black/60 transition-all duration-300`}>
-                    <div className={`w-full overflow-hidden ${currentTheme.containerBg} backdrop-blur-2xl rounded-[26px] relative shadow-inner transition-all duration-300`}>
-                        {/* 4a. Ambient Quad-Color Dawn Bloom behind Logo */}
-                        {currentTheme.showBloom && (
-                            <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full bg-gradient-to-b ${currentTheme.bloomGradient} blur-2xl pointer-events-none -z-0`}></div>
-                        )}
-
-                        {/* 4b. Micro Islamic Geometric Star Pattern */}
-                        <div
-                            className={`absolute inset-0 pointer-events-none ${currentTheme.patternOpacity} -z-0 transition-opacity duration-300`}
-                            style={{
-                                backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 0l5 10 10-5-5 10 10 5-10 5 5 10-10-5-5 10-5-10-10 5 5-10-10-5 10-5-5-10 10 5z' fill='${currentTheme.patternColor}' fill-rule='evenodd'/%3E%3C/svg%3E")`,
-                                backgroundSize: '36px 36px',
-                            }}
-                        ></div>
-
-                        {/* 4c. Islamic Mihrab / Arch Contour */}
-                        {currentTheme.showArch && (
-                            <div 
-                                className="absolute inset-0 pointer-events-none opacity-85 dark:opacity-40 -z-0"
-                                style={{
-                                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='400' height='560' viewBox='0 0 400 560' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M25,560 L25,250 C25,110 110,35 200,8 C290,35 375,110 375,250 L375,560' stroke='%23059669' stroke-opacity='0.35' stroke-width='2.5' stroke-dasharray='6 6'/%3E%3Cpath d='M45,560 L45,260 C45,130 120,65 200,38 C280,65 355,130 355,260 L355,560' stroke='%23f59e0b' stroke-opacity='0.40' stroke-width='2'/%3E%3Ccircle cx='200' cy='8' r='4' fill='%23f59e0b'/%3E%3C/svg%3E")`,
-                                    backgroundRepeat: 'no-repeat',
-                                    backgroundPosition: 'center top 25px',
-                                    backgroundSize: '95% auto',
-                                }}
-                            ></div>
-                        )}
-
+                <div className="rounded-[28px] p-[1.5px] bg-gradient-to-b from-white/60 via-slate-200/50 to-slate-300/30 dark:from-slate-700/60 dark:via-slate-800/50 dark:to-slate-900/30 shadow-2xl shadow-black/40">
+                    <div className="w-full overflow-hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-[26px] relative shadow-inner">
                         {/* Elegant Flowing 4-Color Wave Crown (Merah, Kuning, Hijau, Biru) */}
                         <div className="relative w-full h-7 sm:h-8 overflow-hidden select-none">
                             <svg 
