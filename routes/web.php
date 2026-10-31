@@ -334,8 +334,9 @@ Route::get('/run-reminder-test', function (\Illuminate\Http\Request $request) {
 </html>';
 
         return response($html);
-    } catch (\Exception $e) {
-        return '<h1>Gagal!</h1><pre>' . $e->getMessage() . '</pre>';
+    } catch (\Throwable $e) {
+        return '<h1>Terjadi Kesalahan (Server Error):</h1><pre style="background:#220000;color:#ff6666;padding:15px;border-radius:8px;font-family:monospace;font-size:13px;white-space:pre-wrap;">' . 
+            htmlspecialchars($e->getMessage()) . "\n\nFile: " . $e->getFile() . ':' . $e->getLine() . "\n\nTrace:\n" . htmlspecialchars($e->getTraceAsString()) . '</pre><br><a href="/dashboard">Kembali ke Dashboard</a>';
     }
 });
 Route::get('/run-reminder-kbm-test', function () {

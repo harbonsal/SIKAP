@@ -58,6 +58,24 @@ class WebPushService
     }
 
     /**
+     * Send notification to a single PushSubscription model.
+     */
+    public function sendToSubscription(PushSubscription $subscription, string $title, string $body, string $url = '/dashboard', array $extra = []): bool
+    {
+        $res = $this->dispatchNotifications(collect([$subscription]), $title, $body, $url, $extra);
+        return $res['success'] > 0;
+    }
+
+    /**
+     * Send notification to all registered subscriptions in the system.
+     */
+    public function sendToAllSubscriptions(string $title, string $body, string $url = '/dashboard', array $extra = []): array
+    {
+        $subscriptions = PushSubscription::all();
+        return $this->dispatchNotifications($subscriptions, $title, $body, $url, $extra);
+    }
+
+    /**
      * Dispatch notification payload to subscriptions list.
      */
     protected function dispatchNotifications($subscriptions, string $title, string $body, string $url, array $extra = []): array
