@@ -221,7 +221,8 @@ class HandleInertiaRequests extends Middleware
             'app_settings' => fn() => [
                 'app_name' => 'SIKAP ' . (\App\Models\SchoolInfo::first()?->name ?? 'Alwan'),
                 'app_logo' => \App\Models\Setting::where('key', 'app_logo')->value('value') ? asset('storage/' . \App\Models\Setting::where('key', 'app_logo')->value('value')) : '/images/logo.png',
-                'login_background' => \App\Models\Setting::where('key', 'login_background')->value('value') ? asset('storage/' . \App\Models\Setting::where('key', 'login_background')->value('value')) : '/masjid_login.webp',
+                'login_card_background' => (\App\Models\Setting::where('key', 'login_card_background')->value('value') ?: \App\Models\Setting::where('key', 'login_background')->value('value')) ? asset('storage/' . (\App\Models\Setting::where('key', 'login_card_background')->value('value') ?: \App\Models\Setting::where('key', 'login_background')->value('value'))) : null,
+                'login_background' => '/masjid_login.webp',
             ],
             'app_version' => fn() => [
                 'build_time' => file_exists(public_path('build/manifest.json')) ? filemtime(public_path('build/manifest.json')) : time(),

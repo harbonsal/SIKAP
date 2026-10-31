@@ -4,6 +4,7 @@ import AppUpdateDetector from '@/Components/AppUpdateDetector';
 export default function GuestLayout({ children }) {
     const { app_settings } = usePage().props;
     const schoolName = app_settings?.app_name?.replace('SIKAP ', '') || 'Pesantren Alwan';
+    const cardBackground = app_settings?.login_card_background;
 
     return (
         <div
@@ -73,8 +74,19 @@ export default function GuestLayout({ children }) {
                 {/* Outer Glass Card Halo */}
                 <div className="rounded-[28px] p-[1.5px] bg-gradient-to-b from-white/60 via-slate-200/50 to-slate-300/30 dark:from-slate-700/60 dark:via-slate-800/50 dark:to-slate-900/30 shadow-2xl shadow-black/40">
                     <div className="w-full overflow-hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-[26px] relative shadow-inner">
+                        {/* Custom Kotak Login Background Image with Soft Frosted Glass Shield */}
+                        {cardBackground && (
+                            <div 
+                                className="absolute inset-0 pointer-events-none bg-cover bg-center -z-0"
+                                style={{ backgroundImage: `url(${cardBackground})` }}
+                            >
+                                {/* Frosted Glass / Soft Whitewash Overlay: guarantees form text, inputs, and buttons are 100% crisp & readable */}
+                                <div className="absolute inset-0 bg-white/85 dark:bg-slate-900/90 backdrop-blur-[1.5px]"></div>
+                            </div>
+                        )}
+
                         {/* Elegant Flowing 4-Color Wave Crown (Merah, Kuning, Hijau, Biru) */}
-                        <div className="relative w-full h-7 sm:h-8 overflow-hidden select-none">
+                        <div className="relative z-10 w-full h-7 sm:h-8 overflow-hidden select-none">
                             <svg 
                                 className="w-full h-full block" 
                                 viewBox="0 0 500 32" 
@@ -124,7 +136,7 @@ export default function GuestLayout({ children }) {
                         </div>
 
                         {/* Top Branding Section */}
-                        <div className="pt-5 pb-3 px-5 sm:px-8 text-center bg-gradient-to-b from-slate-50/50 to-transparent dark:from-slate-800/30">
+                        <div className="relative z-10 pt-5 pb-3 px-5 sm:px-8 text-center bg-gradient-to-b from-slate-50/50 to-transparent dark:from-slate-800/30">
                             {/* Logo with 4-Color Wave Ambient Glow */}
                             <div className="flex justify-center mb-2.5">
                                 <Link href="/" className="group inline-block transition-transform active:scale-95">
@@ -155,10 +167,10 @@ export default function GuestLayout({ children }) {
                         </div>
 
                         {/* Wave Decorative Divider Line (Merah, Kuning, Hijau, Biru) */}
-                        <div className="h-[2px] w-full bg-gradient-to-r from-red-500/40 via-amber-400/60 via-emerald-500/60 to-blue-500/40"></div>
+                        <div className="relative z-10 h-[2px] w-full bg-gradient-to-r from-red-500/40 via-amber-400/60 via-emerald-500/60 to-blue-500/40"></div>
 
                         {/* Card Body (Forms & Actions) */}
-                        <div className="px-5 py-5 sm:px-8 sm:py-6">
+                        <div className="relative z-10 px-5 py-5 sm:px-8 sm:py-6">
                             {children}
                         </div>
                     </div>

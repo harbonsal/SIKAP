@@ -185,95 +185,124 @@ export default function Edit({ auth, schoolInfo, appLogo, loginBackground }) {
                                         <InputError className="mt-2" message={errors.app_logo} />
                                     </div>
 
-                                    {/* 2. Upload Background Halaman Login */}
+                                    {/* 2. Upload Background Kotak Login */}
                                     <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/50">
                                         <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
                                             <div>
-                                                <InputLabel value="Background Halaman Login" className="font-semibold text-gray-800 text-base" />
+                                                <InputLabel value="Background Kotak Login (Kartu Formulir)" className="font-semibold text-gray-800 text-base" />
                                                 <p className="text-xs text-gray-500 mt-0.5">
-                                                    Foto latar belakang layar penuh yang tampil saat santri, wali santri, ustadz, dan admin membuka portal login.
+                                                    Foto latar khusus yang tampil di dalam kotak kartu login (menggantikan area putih polos).
                                                 </p>
                                             </div>
                                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
                                                 previews.login_background 
                                                     ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
-                                                    : 'bg-blue-100 text-blue-800 border border-blue-200'
+                                                    : 'bg-slate-100 text-slate-700 border border-slate-200'
                                             }`}>
-                                                {previews.login_background ? '🟢 Background Kustom Aktif' : '🔵 Background Default (Bawaan)'}
+                                                {previews.login_background ? '🟢 Background Kotak Aktif' : '⚪ Putih Standar (Default)'}
                                             </span>
                                         </div>
 
-                                        {/* Preview Area (16:9 Landscape) */}
-                                        <div className="mt-3 relative w-full aspect-video sm:h-52 sm:w-auto rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-slate-900 group">
-                                            <img
-                                                src={previews.login_background || '/masjid_login.webp'}
-                                                alt="Login Background Preview"
-                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                            />
-                                            {/* Preview Overlay Badge */}
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 flex flex-col justify-between p-3 pointer-events-none">
-                                                <span className="self-start text-[11px] font-mono px-2 py-0.5 rounded bg-black/60 text-white backdrop-blur-xs">
-                                                    Pratinjau Layar Login
-                                                </span>
-                                                <span className="self-end text-[11px] font-medium text-white/90 drop-shadow">
-                                                    {previews.login_background ? 'Gambar kustom sekolah' : 'Foto arsitektur masjid bawaan'}
-                                                </span>
-                                            </div>
-                                        </div>
+                                        {/* Preview Area (Vertical Card Preview) */}
+                                        <div className="mt-3 flex flex-col sm:flex-row items-center sm:items-start gap-5">
+                                            <div className="relative w-48 aspect-[3/4] rounded-2xl overflow-hidden border-2 border-slate-200 shadow-md bg-white flex-shrink-0 group">
+                                                {/* Top Wave Preview */}
+                                                <div className="h-4 w-full bg-gradient-to-r from-red-500 via-amber-400 via-emerald-500 to-blue-500"></div>
 
-                                        {/* Action Buttons */}
-                                        <div className="mt-4 flex flex-wrap items-center gap-2.5">
-                                            <label
-                                                htmlFor="login_background"
-                                                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 cursor-pointer active:scale-95 transition-all"
-                                            >
-                                                <Upload className="w-3.5 h-3.5 text-white" />
-                                                Ganti Background Baru
-                                                <input
-                                                    type="file"
-                                                    id="login_background"
-                                                    className="sr-only"
-                                                    onChange={(e) => handleFileChange(e, 'login_background')}
-                                                    accept="image/jpeg,image/png,image/webp"
-                                                />
-                                            </label>
+                                                {/* Card Background / Frosted Mockup */}
+                                                {previews.login_background ? (
+                                                    <div 
+                                                        className="absolute inset-0 bg-cover bg-center"
+                                                        style={{ backgroundImage: `url(${previews.login_background})` }}
+                                                    >
+                                                        <div className="absolute inset-0 bg-white/80 backdrop-blur-[1px]"></div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="absolute inset-0 bg-slate-50 flex flex-col items-center justify-center p-3 text-center">
+                                                        <span className="text-xs text-gray-400 font-medium">Kotak Putih Standar</span>
+                                                    </div>
+                                                )}
 
-                                            {(previews.login_background || data.login_background) && (
-                                                <button
-                                                    type="button"
-                                                    onClick={handleResetBackground}
-                                                    className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3.5 py-2 text-xs font-semibold text-rose-700 shadow-xs ring-1 ring-inset ring-rose-200 hover:bg-rose-50 active:scale-95 transition-all"
-                                                >
-                                                    <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
-                                                    Reset ke Background Bawaan
-                                                </button>
-                                            )}
-                                        </div>
-                                        <InputError className="mt-2" message={errors.login_background} />
+                                                {/* Mini Mockup Elements on Card */}
+                                                <div className="relative z-10 p-3 flex flex-col items-center h-full justify-between pointer-events-none">
+                                                    <div className="flex flex-col items-center mt-1">
+                                                        <div className="w-9 h-9 rounded-lg bg-white/90 shadow-xs border border-gray-200 flex items-center justify-center p-1 mb-1">
+                                                            {previews.app_logo ? (
+                                                                <img src={previews.app_logo} alt="Logo" className="w-full h-full object-contain" />
+                                                            ) : (
+                                                                <span className="text-[8px] text-gray-400">Logo</span>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-[10px] font-bold text-gray-800">SIKAP</span>
+                                                        <span className="text-[8px] text-gray-500">Masuk ke Akun</span>
+                                                    </div>
 
-                                        {/* Keterangan Spesifikasi Ukuran & Rekomendasi Gambar */}
-                                        <div className="mt-4 p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/80 text-amber-950 text-xs space-y-2">
-                                            <div className="flex items-center gap-2 font-bold text-amber-900">
-                                                <Info className="w-4 h-4 text-amber-700 flex-shrink-0" />
-                                                <span>Ketentuan & Rekomendasi Ukuran Gambar Background:</span>
-                                            </div>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-amber-900/90 pl-6">
-                                                <div>
-                                                    <span className="font-semibold text-amber-950">📐 Rasio Aspek:</span> 16:9 (Landscape / Melebar)
-                                                </div>
-                                                <div>
-                                                    <span className="font-semibold text-amber-950">📏 Resolusi Ideal:</span> 1920 × 1080 px (Min. 1280 × 720 px)
-                                                </div>
-                                                <div>
-                                                    <span className="font-semibold text-amber-950">📁 Format File:</span> JPG, JPEG, PNG, atau WebP
-                                                </div>
-                                                <div>
-                                                    <span className="font-semibold text-amber-950">⚖️ Ukuran File Maks:</span> 2 MB (Disarankan &lt; 1 MB)
+                                                    <div className="w-full space-y-1.5 my-auto">
+                                                        <div className="h-4 w-full rounded bg-white/90 border border-gray-200 shadow-xs"></div>
+                                                        <div className="h-4 w-full rounded bg-white/90 border border-gray-200 shadow-xs"></div>
+                                                        <div className="h-4 w-full rounded bg-emerald-600 shadow-xs"></div>
+                                                    </div>
+
+                                                    <span className="text-[8px] font-mono text-gray-400 mb-1">Pratinjau Kotak</span>
                                                 </div>
                                             </div>
-                                            <p className="text-[11px] text-amber-800/90 pl-6 leading-relaxed border-t border-amber-200/60 pt-2">
-                                                💡 <strong>Saran Visual:</strong> Gunakan foto lanskap gedung utama pesantren, masjid, atau gerbang kampus. Karena formulir login berada di tengah layar, pilih foto dengan subjek yang menyebar atau latar belakang pemandangan yang indah agar terlihat elegan dan nyaman dilihat.
-                                            </p>
+
+                                            {/* Action & Description */}
+                                            <div className="flex-1 space-y-3">
+                                                <div className="flex flex-wrap items-center gap-2.5">
+                                                    <label
+                                                        htmlFor="login_background"
+                                                        className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 cursor-pointer active:scale-95 transition-all"
+                                                    >
+                                                        <Upload className="w-3.5 h-3.5 text-white" />
+                                                        Pilih Gambar Kotak Login
+                                                        <input
+                                                            type="file"
+                                                            id="login_background"
+                                                            className="sr-only"
+                                                            onChange={(e) => handleFileChange(e, 'login_background')}
+                                                            accept="image/jpeg,image/png,image/webp"
+                                                        />
+                                                    </label>
+
+                                                    {(previews.login_background || data.login_background) && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleResetBackground}
+                                                            className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3.5 py-2 text-xs font-semibold text-rose-700 shadow-xs ring-1 ring-inset ring-rose-200 hover:bg-rose-50 active:scale-95 transition-all"
+                                                        >
+                                                            <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+                                                            Hapus Background (Kembali Putih)
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <InputError className="mt-2" message={errors.login_background} />
+
+                                                {/* Keterangan Spesifikasi Ukuran Khusus Kotak Login */}
+                                                <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/80 text-amber-950 text-xs space-y-2">
+                                                    <div className="flex items-center gap-2 font-bold text-amber-900">
+                                                        <Info className="w-4 h-4 text-amber-700 flex-shrink-0" />
+                                                        <span>Spesifikasi Ukuran untuk Kotak Login:</span>
+                                                    </div>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-amber-900/90 pl-6">
+                                                        <div>
+                                                            <span className="font-semibold text-amber-950">📐 Bentuk/Rasio:</span> <strong>3:4</strong> atau <strong>4:5</strong> (Potret / Vertikal Tegak)
+                                                        </div>
+                                                        <div>
+                                                            <span className="font-semibold text-amber-950">📏 Resolusi Ideal:</span> <strong>600 × 800 px</strong> s/d <strong>800 × 1000 px</strong>
+                                                        </div>
+                                                        <div>
+                                                            <span className="font-semibold text-amber-950">📁 Format File:</span> JPG, JPEG, PNG, atau WebP
+                                                        </div>
+                                                        <div>
+                                                            <span className="font-semibold text-amber-950">⚖️ Ukuran File:</span> Maks. 2 MB (Disarankan 300 - 500 KB)
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-[11px] text-amber-800/90 pl-6 leading-relaxed border-t border-amber-200/60 pt-2">
+                                                        ✨ <strong>Keamanan Visual:</strong> Gambar otomatis diberi lapisan kaca transparan (*frosted glass shield*) sehingga input email, password, dan tombol masuk tetap terbaca 100% tajam dan mudah diisi santri/wali.
+                                                    </p>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

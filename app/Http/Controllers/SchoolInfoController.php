@@ -15,7 +15,7 @@ class SchoolInfoController extends Controller
         return Inertia::render('Settings/SchoolInfo/Index', [
             'schoolInfo' => SchoolInfo::firstOrNew(),
             'appLogo' => Setting::where('key', 'app_logo')->value('value'),
-            'loginBackground' => Setting::where('key', 'login_background')->value('value'),
+            'loginBackground' => Setting::where('key', 'login_card_background')->value('value') ?: Setting::where('key', 'login_background')->value('value'),
         ]);
     }
 
@@ -67,13 +67,15 @@ class SchoolInfoController extends Controller
         }
 
         if ($request->boolean('remove_login_background')) {
-            $oldBg = Setting::where('key', 'login_background')->value('value');
+            $oldBg = Setting::where('key', 'login_card_background')->value('value') ?: Setting::where('key', 'login_background')->value('value');
             if ($oldBg) Storage::disk('public')->delete($oldBg);
+            Setting::where('key', 'login_card_background')->delete();
             Setting::where('key', 'login_background')->delete();
         } elseif ($request->hasFile('login_background')) {
-            $oldBg = Setting::where('key', 'login_background')->value('value');
+            $oldBg = Setting::where('key', 'login_card_background')->value('value') ?: Setting::where('key', 'login_background')->value('value');
             if ($oldBg) Storage::disk('public')->delete($oldBg);
             $newBgPath = $request->file('login_background')->store('school_assets', 'public');
+            Setting::updateOrCreate(['key' => 'login_card_background'], ['value' => $newBgPath]);
             Setting::updateOrCreate(['key' => 'login_background'], ['value' => $newBgPath]);
         }
 
