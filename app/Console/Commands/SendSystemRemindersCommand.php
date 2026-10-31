@@ -28,7 +28,10 @@ class SendSystemRemindersCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'sikap:send-reminders {--type=all : Reminder type (academic, tarbiyah, kbm, all)} {--force : Send regardless of throttling or time window}';
+    protected $signature = 'sikap:send-reminders 
+        {--type=all : Jenis reminder (academic, tarbiyah, kbm, all, broadcast)} 
+        {--force : Abaikan jeda throttling waktu/cache} 
+        {--to-user= : Kirim simulasi pengingat langsung ke ID user tertentu}';
 
     /**
      * The console command description.
@@ -48,44 +51,116 @@ class SendSystemRemindersCommand extends Command
     public function handle(): int
     {
         $type = $this->option('type') ?: 'all';
-        $this->info("Memulai pengiriman reminder (Type: {$type})...");
+        $toUserId = $this->option('to-user') ? (int)$this->option('to-user') : null;
+
+        $this->info("=======================================================");
+        $this->info("🚀 SIKAP SYSTEM REMINDER ENGINE (Tipe: " . strtoupper($type) . ")");
+        $this->info("=======================================================");
+
+        $totalActiveSubscriptions = PushSubscription::count();
+        $this->line("📱 Total Perangkat HP Terdaftar di Sistem: {$totalActiveSubscriptions} perangkat.");
+
+        if ($totalActiveSubscriptions === 0 && !$toUserId) {
+            $this->warn("⚠️  PERHATIAN: Saat ini BELUM ADA satupun perangkat HP/browser yang mengaktifkan izin notifikasi di tabel push_subscriptions.");
+            $this->warn("    Notifikasi hanya dapat terkirim secara fisik jika pengguna telah mengaktifkan izin push notifikasi di perangkat mereka.");
+        }
+
+        // Mode Broadcast Tes ke Seluruh Perangkat
+        if ($type === 'broadcast') {
+            $sent = $this->broadcastTestNotification();
+            $this->info("Broadcast selesai. Notifikasi terkirim ke {$sent} perangkat.");
+            return Command::SUCCESS;
+        }
 
         $academicYear = AcademicStateService::activeAcademicYear();
         $semester = AcademicStateService::activeSemester();
 
         if (!$academicYear || !$semester) {
-            $this->warn('Tahun ajaran atau semester aktif tidak ditemukan.');
+            $this->error('Tahun ajaran atau semester aktif tidak ditemukan di sistem.');
             return Command::SUCCESS;
         }
+
+        $this->line("📅 Tahun Ajaran: {$academicYear->name} | Semester: {$semester->name}");
+        $this->newLine();
 
         $sentCount = 0;
 
         // 1. Pengingat Jam Mengajar KBM (lewat 10 menit belum isi jurnal/absensi)
         if (in_array($type, ['all', 'kbm'])) {
-            $sentCount += $this->remindKbmJournals($academicYear);
+            $sentCount += $this->remindKbmJournals($academicYear, $toUserId);
+            $this->newLine();
         }
 
         // 2. Pengingat Batas Akhir Input Nilai Akademik
         if (in_array($type, ['all', 'academic'])) {
-            $sentCount += $this->remindAcademicGrades($academicYear, $semester);
+            $sentCount += $this->remindAcademicGrades($academicYear, $semester, $toUserId);
+            $this->newLine();
         }
 
         // 3. Pengingat Musrif Tarbiyah (Bimbingan Santri Asuh)
         if (in_array($type, ['all', 'tarbiyah'])) {
-            $sentCount += $this->remindMusyrifTarbiyah($academicYear);
+            $sentCount += $this->remindMusyrifTarbiyah($academicYear, $toUserId);
+            $this->newLine();
         }
 
-        $this->info("Pengiriman selesai. Total notifikasi terkirim: {$sentCount}");
+        $this->info("=======================================================");
+        $this->info("🏁 Pengiriman selesai. Total notifikasi terkirim: {$sentCount}");
+        $this->info("=======================================================");
+
         return Command::SUCCESS;
+    }
+
+    /**
+     * Broadcast pengujian ke seluruh perangkat yang terdaftar.
+     */
+    protected function broadcastTestNotification(): int
+    {
+        $this->line('Mengirim pesan pengujian broadcast ke seluruh perangkat terdaftar...');
+        $subscriptions = PushSubscription::with('user')->get();
+
+        if ($subscriptions->isEmpty()) {
+            $this->warn('Belum ada perangkat yang terdaftar di database.');
+            return 0;
+        }
+
+        $sent = 0;
+        foreach ($subscriptions as $sub) {
+            $user = $sub->user;
+            $title = '🔔 Pengingat SIKAP Berfungsi!';
+            $body = 'Alhamdulillah, sistem pengingat otomatis HP SIKAP Pesantren terhubung dengan sukses di perangkat ' . ($sub->device_name ?: 'Anda') . '.';
+            $url = route('dashboard', [], false);
+
+            $result = $this->pushService->sendToSubscription(
+                $sub,
+                $title,
+                $body,
+                $url,
+                ['tag' => 'broadcast-test-' . time()]
+            );
+
+            if ($result) {
+                $sent++;
+                $this->info("✅ Terkirim ke: " . ($user?->name ?? 'User #' . $sub->user_id) . " ({$sub->device_name})");
+            } else {
+                $this->warn("❌ Gagal mengirim ke: " . ($user?->name ?? 'User #' . $sub->user_id) . " ({$sub->device_name})");
+            }
+        }
+
+        return $sent;
     }
 
     /**
      * Kirim reminder ke guru yang sedang mengajar hari ini jika sudah lewat 10 menit
      * tetapi jurnal KBM / absensi santri belum diisi.
      */
-    protected function remindKbmJournals($academicYear): int
+    protected function remindKbmJournals($academicYear, ?int $toUserId = null): int
     {
-        $this->line('Memeriksa jadwal KBM hari ini dan kepatuhan pengisian jurnal/absensi...');
+        $this->info("--- [1] PENGECEKAN JURNAL & ABSENSI KBM 10 MENIT ---");
+
+        // Jika mode simulasi user spesifik
+        if ($toUserId) {
+            return $this->simulateKbmReminder($toUserId);
+        }
 
         Carbon::setLocale('id');
         $now = Carbon::now();
@@ -110,8 +185,11 @@ class SendSystemRemindersCommand extends Command
             ])
             ->get();
 
+        $this->line("-> Hari ini: {$dayName}, {$todayDate}");
+        $this->line("-> Total jadwal KBM terdaftar hari ini: " . $schedules->count() . " sesi");
+
         if ($schedules->isEmpty()) {
-            $this->line("Tidak ada jadwal KBM aktif untuk hari {$dayName}.");
+            $this->line("-> Tidak ada jadwal KBM aktif untuk hari {$dayName}.");
             return 0;
         }
 
@@ -161,18 +239,18 @@ class SendSystemRemindersCommand extends Command
                 continue;
             }
 
-            $hasSubs = PushSubscription::where('user_id', $schedule->teacher_id)->exists();
-            if (!$hasSubs) {
-                continue;
-            }
-
             $teacherName = $schedule->teacher->name;
             $subjectName = $schedule->activeSubject?->mapel?->name ?? 'Mata Pelajaran';
             $className = trim(($schedule->activeClass?->kelas?->name ?? '') . ' ' . ($schedule->activeClass?->kelasParalel?->name ?? ''));
 
+            $subsCount = PushSubscription::where('user_id', $schedule->teacher_id)->count();
+            if ($subsCount === 0) {
+                $this->warn("   [!] Ustadz {$teacherName} belum isi jurnal ({$subjectName} {$className} - Jam {$hourNum}), TETAPI BELUM mengaktifkan notifikasi di HP (0 perangkat).");
+                continue;
+            }
+
             $title = '⏰ Pengingat Jurnal & Absensi KBM';
             $body = "Ustadz {$teacherName}, jam mengajar {$subjectName} di kelas {$className} (Jam ke-{$hourNum}) sudah berjalan lebih dari 10 menit. Mohon segera isi jurnal KBM & absensi santri.";
-
             $url = route('journals.create', [], false);
 
             $result = $this->pushService->sendToUser(
@@ -186,7 +264,7 @@ class SendSystemRemindersCommand extends Command
             if ($result['success'] > 0) {
                 Cache::put($cacheKey, true, now()->addHours(8));
                 $sentCount += $result['success'];
-                $this->info("Reminder KBM terkirim ke: {$teacherName} ({$subjectName} {$className} - Jam ke-{$hourNum})");
+                $this->info("   ✅ Terkirim ke: {$teacherName} ({$subjectName} {$className} - Jam ke-{$hourNum}) [{$result['success']} perangkat]");
             }
         }
 
@@ -196,9 +274,9 @@ class SendSystemRemindersCommand extends Command
     /**
      * Kirim reminder batas akhir pengisian nilai akademik ke guru-guru yang belum tuntas.
      */
-    protected function remindAcademicGrades($academicYear, $semester): int
+    protected function remindAcademicGrades($academicYear, $semester, ?int $toUserId = null): int
     {
-        $this->line('Memeriksa batas akhir dan kelengkapan nilai akademik guru...');
+        $this->info("--- [2] PENGECEKAN BATAS AKHIR INPUT NILAI AKADEMIK ---");
 
         Carbon::setLocale('id');
         $today = Carbon::now()->startOfDay();
@@ -235,9 +313,17 @@ class SendSystemRemindersCommand extends Command
                 $deadlineDate = Carbon::parse($gradeDeadlineStr)->startOfDay();
                 $daysLeft = (int)$today->diffInDays($deadlineDate, false);
                 $deadlineFormatted = $deadlineDate->translatedFormat('d F Y');
+                $this->line("-> Konfigurasi Batas Akhir (Deadline): {$gradeDeadlineStr} ({$deadlineFormatted}) | Tersisa: {$daysLeft} hari.");
             } catch (\Throwable $e) {
                 $daysLeft = null;
             }
+        } else {
+            $this->warn("-> [INFO] Batas akhir input nilai rapor belum ditentukan di Pengaturan Lembaga (/settings/school-info).");
+        }
+
+        // Jika mode simulasi langsung ke user tertentu
+        if ($toUserId) {
+            return $this->simulateAcademicReminder($toUserId, $daysLeft, $deadlineFormatted);
         }
 
         // Ambil semua guru yang memiliki mapel aktif di tahun ajaran berjalan
@@ -247,6 +333,8 @@ class SendSystemRemindersCommand extends Command
         ->whereNotNull('teacher_id')
         ->with(['teacher', 'mapel', 'activeClass.kelas', 'activeClass.kelasParalel'])
         ->get();
+
+        $this->line("-> Total mata pelajaran aktif di semester ini: " . $activeSubjects->count());
 
         $teachersWithPendingGrades = [];
 
@@ -260,8 +348,10 @@ class SendSystemRemindersCommand extends Command
                 continue;
             }
 
+            // Hitung santri yang sudah memiliki nilai riil (bukan null)
             $gradedCount = StudentGrade::where('active_subject_id', $subject->id)
                 ->where('semester_id', $semester->id)
+                ->whereNotNull('score')
                 ->distinct('student_id')
                 ->count('student_id');
 
@@ -280,26 +370,37 @@ class SendSystemRemindersCommand extends Command
             }
         }
 
+        $this->line("-> Guru terdeteksi memiliki nilai belum lengkap: " . count($teachersWithPendingGrades) . " orang.");
+
+        if (empty($teachersWithPendingGrades)) {
+            $this->info("-> Alhamdulillah, seluruh guru telah melengkapi nilai santri di tahun ajaran & semester aktif ini!");
+            return 0;
+        }
+
         $sentCount = 0;
 
         foreach ($teachersWithPendingGrades as $teacherId => $data) {
-            $hasSubs = PushSubscription::where('user_id', $teacherId)->exists();
-            if (!$hasSubs) {
-                continue;
-            }
-
-            // Throttle: Maksimal 1x notifikasi nilai per hari untuk setiap guru
-            $cacheKey = "academic_grade_reminder_sent_{$teacherId}_{$todayDate}";
-            if (!$isForce && Cache::has($cacheKey)) {
-                continue;
-            }
+            $teacherName = $data['teacher']->name;
+            $subsCount = PushSubscription::where('user_id', $teacherId)->count();
 
             $subjectListStr = implode(', ', array_slice($data['pending_subjects'], 0, 2));
             if (count($data['pending_subjects']) > 2) {
                 $subjectListStr .= ' dan ' . (count($data['pending_subjects']) - 2) . ' kelas lainnya';
             }
 
-            $teacherName = $data['teacher']->name;
+            $this->line("   • [Guru] {$teacherName}: Belum lengkap pada {$subjectListStr} ({$data['missing_students_count']} santri)");
+
+            if ($subsCount === 0) {
+                $this->warn("     -> Dilewati: Ustadz {$teacherName} BELUM mengaktifkan notifikasi di HP (0 perangkat terdaftar).");
+                continue;
+            }
+
+            // Throttle: Maksimal 1x notifikasi nilai per hari untuk setiap guru
+            $cacheKey = "academic_grade_reminder_sent_{$teacherId}_{$todayDate}";
+            if (!$isForce && Cache::has($cacheKey)) {
+                $this->line("     -> Dilewati: Sudah dikirim hari ini (Throttle). Gunakan --force untuk mengabaikan.");
+                continue;
+            }
 
             // Variasi Pesan Berdasarkan Batas Waktu (Deadline)
             if ($daysLeft !== null) {
@@ -332,7 +433,7 @@ class SendSystemRemindersCommand extends Command
             if ($result['success'] > 0) {
                 Cache::put($cacheKey, true, now()->addHours(18));
                 $sentCount += $result['success'];
-                $this->info("Reminder nilai terkirim ke: {$teacherName} ({$result['success']} perangkat)");
+                $this->info("     ✅ Terkirim ke {$teacherName} ({$result['success']} perangkat HP)");
             }
         }
 
@@ -342,9 +443,14 @@ class SendSystemRemindersCommand extends Command
     /**
      * Kirim reminder ke musrif tarbiyah yang santri asuhnya belum dicatat mutabaah dalam sepekan terakhir.
      */
-    protected function remindMusyrifTarbiyah($academicYear): int
+    protected function remindMusyrifTarbiyah($academicYear, ?int $toUserId = null): int
     {
-        $this->line('Memeriksa bimbingan santri asuh musrif tarbiyah...');
+        $this->info("--- [3] PENGECEKAN BIMBINGAN SANTRI ASUH MUSRIF TARBIYAH ---");
+
+        // Jika mode simulasi langsung ke user tertentu
+        if ($toUserId) {
+            return $this->simulateTarbiyahReminder($toUserId);
+        }
 
         $now = Carbon::now();
         $todayDate = $now->toDateString();
@@ -357,17 +463,18 @@ class SendSystemRemindersCommand extends Command
             ->pluck('user_id')
             ->toArray();
 
+        $this->line("-> Total musrif tarbiyah terdata: " . count($musyrifIds) . " orang.");
+
+        if (empty($musyrifIds)) {
+            $this->warn("-> [INFO] Belum ada data plotting santri asuh ke musrif tarbiyah di tahun ajaran ini (/pengasuhan/musyrif-tarbiyah).");
+            return 0;
+        }
+
         $sentCount = 0;
 
         foreach ($musyrifIds as $musrifId) {
-            $hasSubs = PushSubscription::where('user_id', $musrifId)->exists();
-            if (!$hasSubs) {
-                continue;
-            }
-
-            // Throttle: 1x reminder tarbiyah per hari
-            $cacheKey = "tarbiyah_reminder_sent_{$musrifId}_{$todayDate}";
-            if (!$isForce && Cache::has($cacheKey)) {
+            $user = User::find($musrifId);
+            if (!$user) {
                 continue;
             }
 
@@ -398,40 +505,155 @@ class SendSystemRemindersCommand extends Command
                 }
             }
 
-            // Jika ada santri asuh yang belum dimutaba'ah dalam 7 hari terakhir
-            if (!empty($pendingStudents)) {
-                $user = User::find($musrifId);
-                if (!$user) {
-                    continue;
-                }
+            if (empty($pendingStudents)) {
+                $this->line("   • [Musrif] {$user->name}: Seluruh santri asuh ({$plottings->count()} santri) sudah dibimbing dalam sepekan terakhir.");
+                continue;
+            }
 
-                $totalPending = count($pendingStudents);
-                $namesPreview = implode(', ', array_slice($pendingStudents, 0, 2));
-                if ($totalPending > 2) {
-                    $namesPreview .= ' dan ' . ($totalPending - 2) . ' santri lainnya';
-                }
+            $totalPending = count($pendingStudents);
+            $namesPreview = implode(', ', array_slice($pendingStudents, 0, 2));
+            if ($totalPending > 2) {
+                $namesPreview .= ' dan ' . ($totalPending - 2) . ' santri lainnya';
+            }
 
-                $title = '🤝 Pengingat Musrif Tarbiyah';
-                $body = "Ustadz {$user->name}, antum memiliki {$totalPending} santri asuh yang belum dicatat mutaba'ahnya dalam 1 pekan terakhir ({$namesPreview}). Mohon luangkan waktu membimbing adik asuh antum.";
+            $subsCount = PushSubscription::where('user_id', $musrifId)->count();
+            $this->line("   • [Musrif] {$user->name}: Ada {$totalPending} santri asuh belum dimutabaah sepekan terakhir ({$namesPreview})");
 
-                $url = route('musyrif-tarbiyah.index', [], false);
+            if ($subsCount === 0) {
+                $this->warn("     -> Dilewati: Musrif {$user->name} BELUM mengaktifkan notifikasi di HP (0 perangkat terdaftar).");
+                continue;
+            }
 
-                $result = $this->pushService->sendToUser(
-                    $musrifId,
-                    $title,
-                    $body,
-                    $url,
-                    ['tag' => 'sikap-tarbiyah-reminder-' . $musrifId . '-' . $todayDate]
-                );
+            // Throttle: 1x reminder tarbiyah per hari
+            $cacheKey = "tarbiyah_reminder_sent_{$musrifId}_{$todayDate}";
+            if (!$isForce && Cache::has($cacheKey)) {
+                $this->line("     -> Dilewati: Sudah dikirim hari ini (Throttle). Gunakan --force untuk mengabaikan.");
+                continue;
+            }
 
-                if ($result['success'] > 0) {
-                    Cache::put($cacheKey, true, now()->addHours(18));
-                    $sentCount += $result['success'];
-                    $this->info("Reminder tarbiyah terkirim ke: {$user->name} ({$totalPending} santri asuh belum dimutaba'ah)");
-                }
+            $title = '🤝 Pengingat Musrif Tarbiyah';
+            $body = "Ustadz {$user->name}, antum memiliki {$totalPending} santri asuh yang belum dicatat mutaba'ahnya dalam 1 pekan terakhir ({$namesPreview}). Mohon luangkan waktu membimbing adik asuh antum.";
+            $url = route('musyrif-tarbiyah.index', [], false);
+
+            $result = $this->pushService->sendToUser(
+                $musrifId,
+                $title,
+                $body,
+                $url,
+                ['tag' => 'sikap-tarbiyah-reminder-' . $musrifId . '-' . $todayDate]
+            );
+
+            if ($result['success'] > 0) {
+                Cache::put($cacheKey, true, now()->addHours(18));
+                $sentCount += $result['success'];
+                $this->info("     ✅ Terkirim ke {$user->name} ({$result['success']} perangkat HP)");
             }
         }
 
         return $sentCount;
+    }
+
+    /**
+     * Simulasi pengiriman notifikasi pengingat nilai ke user tertentu.
+     */
+    protected function simulateAcademicReminder(int $userId, ?int $daysLeft, ?string $deadlineFormatted): int
+    {
+        $user = User::find($userId);
+        if (!$user) {
+            $this->error("User ID #{$userId} tidak ditemukan.");
+            return 0;
+        }
+
+        $subsCount = PushSubscription::where('user_id', $userId)->count();
+        $this->line("-> Simulasi Pengingat Nilai ditargetkan ke: {$user->name} (User ID #{$userId})");
+        $this->line("-> Perangkat HP terdaftar untuk akun ini: {$subsCount} perangkat");
+
+        if ($subsCount === 0) {
+            $this->warn("❌ Akun {$user->name} BELUM memiliki perangkat HP yang terdaftar di tabel push_subscriptions.");
+            $this->warn("   Silakan buka SIKAP di HP dan izinkan notifikasi terlebih dahulu.");
+            return 0;
+        }
+
+        $sisaText = $daysLeft !== null ? "tersisa {$daysLeft} hari ({$deadlineFormatted})" : "segera berakhir";
+        $title = "📋 [TES SIMULASI] Batas Input Nilai Santri";
+        $body = "Ustadz {$user->name}, batas akhir input nilai rapor {$sisaText}. Ini adalah simulasi notifikasi ke HP antum.";
+        $url = route('assessments.index', [], false);
+
+        $result = $this->pushService->sendToUser($userId, $title, $body, $url, ['tag' => 'simulasi-nilai-' . time()]);
+        if ($result['success'] > 0) {
+            $this->info("✅ Simulasi berhasil terkirim ke {$result['success']} perangkat HP {$user->name}!");
+            return $result['success'];
+        }
+
+        $this->warn("❌ Gagal mengirim notifikasi ke perangkat HP.");
+        return 0;
+    }
+
+    /**
+     * Simulasi pengiriman pengingat tarbiyah ke user tertentu.
+     */
+    protected function simulateTarbiyahReminder(int $userId): int
+    {
+        $user = User::find($userId);
+        if (!$user) {
+            $this->error("User ID #{$userId} tidak ditemukan.");
+            return 0;
+        }
+
+        $subsCount = PushSubscription::where('user_id', $userId)->count();
+        $this->line("-> Simulasi Pengingat Tarbiyah ditargetkan ke: {$user->name} (User ID #{$userId})");
+        $this->line("-> Perangkat HP terdaftar untuk akun ini: {$subsCount} perangkat");
+
+        if ($subsCount === 0) {
+            $this->warn("❌ Akun {$user->name} BELUM memiliki perangkat HP yang terdaftar di tabel push_subscriptions.");
+            return 0;
+        }
+
+        $title = "🤝 [TES SIMULASI] Pengingat Musrif Tarbiyah";
+        $body = "Ustadz {$user->name}, antum memiliki santri asuh yang belum dicatat mutaba'ahnya. Ini adalah simulasi pengingat bimbingan santri ke HP antum.";
+        $url = route('musyrif-tarbiyah.index', [], false);
+
+        $result = $this->pushService->sendToUser($userId, $title, $body, $url, ['tag' => 'simulasi-tarbiyah-' . time()]);
+        if ($result['success'] > 0) {
+            $this->info("✅ Simulasi berhasil terkirim ke {$result['success']} perangkat HP {$user->name}!");
+            return $result['success'];
+        }
+
+        $this->warn("❌ Gagal mengirim notifikasi ke perangkat HP.");
+        return 0;
+    }
+
+    /**
+     * Simulasi pengiriman pengingat KBM ke user tertentu.
+     */
+    protected function simulateKbmReminder(int $userId): int
+    {
+        $user = User::find($userId);
+        if (!$user) {
+            $this->error("User ID #{$userId} tidak ditemukan.");
+            return 0;
+        }
+
+        $subsCount = PushSubscription::where('user_id', $userId)->count();
+        $this->line("-> Simulasi Pengingat KBM ditargetkan ke: {$user->name} (User ID #{$userId})");
+        $this->line("-> Perangkat HP terdaftar untuk akun ini: {$subsCount} perangkat");
+
+        if ($subsCount === 0) {
+            $this->warn("❌ Akun {$user->name} BELUM memiliki perangkat HP yang terdaftar di tabel push_subscriptions.");
+            return 0;
+        }
+
+        $title = "⏰ [TES SIMULASI] Pengingat Jurnal & Absensi KBM";
+        $body = "Ustadz {$user->name}, jam mengajar sudah berjalan 10 menit. Ini adalah simulasi pengingat jurnal KBM ke HP antum.";
+        $url = route('journals.create', [], false);
+
+        $result = $this->pushService->sendToUser($userId, $title, $body, $url, ['tag' => 'simulasi-kbm-' . time()]);
+        if ($result['success'] > 0) {
+            $this->info("✅ Simulasi berhasil terkirim ke {$result['success']} perangkat HP {$user->name}!");
+            return $result['success'];
+        }
+
+        $this->warn("❌ Gagal mengirim notifikasi ke perangkat HP.");
+        return 0;
     }
 }

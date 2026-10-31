@@ -63,12 +63,277 @@ Route::get('/run-migrate-push', function () {
 Route::get('/run-reminder-test', function (\Illuminate\Http\Request $request) {
     try {
         $type = $request->query('type', 'all');
-        $exitCode = \Illuminate\Support\Facades\Artisan::call('sikap:send-reminders', ['--type' => $type, '--force' => true]);
+        $user = auth()->user();
+        
+        $params = ['--type' => $type, '--force' => true];
+        if ($request->query('simulate_user') === 'me' && $user) {
+            $params['--to-user'] = $user->id;
+        } elseif ($request->filled('to_user')) {
+            $params['--to-user'] = (int)$request->query('to_user');
+        }
+
+        $exitCode = \Illuminate\Support\Facades\Artisan::call('sikap:send-reminders', $params);
         $output = \Illuminate\Support\Facades\Artisan::output();
-        return '<h1>Status Uji Coba Pengingat (' . strtoupper($type) . '): ' . ($exitCode === 0 ? 'Selesai' : 'Peringatan') . '</h1>' .
-            '<p>Pilihan tes tipe: <a href="?type=all">[SEMUA]</a> | <a href="?type=kbm">[KBM 10 Menit]</a> | <a href="?type=academic">[Batas Nilai]</a> | <a href="?type=tarbiyah">[Musrif Tarbiyah]</a></p>' .
-            '<pre style="background:#111;color:#0f0;padding:14px;border-radius:8px;font-size:14px;">' . htmlspecialchars($output) . '</pre>' .
-            '<a href="/dashboard">Kembali ke Dashboard</a>';
+
+        $totalSubs = \App\Models\PushSubscription::count();
+        $userSubs = $user ? \App\Models\PushSubscription::where('user_id', $user->id)->get() : collect();
+        $allSubs = \App\Models\PushSubscription::with('user')->latest()->take(15)->get();
+        $vapidKey = config('webpush.vapid.public_key');
+        $csrfToken = csrf_token();
+
+        $html = '<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIKAP Reminder & Push Notification Center</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #059669; --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --muted: #94a3b8; --border: #334155; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: "Plus Jakarta Sans", sans-serif; background: var(--bg); color: var(--text); padding: 24px 16px; line-height: 1.5; }
+        .container { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+        .header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); padding-bottom: 16px; }
+        .title { font-size: 22px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 10px; }
+        .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+        .badge-green { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+        .badge-red { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+        .badge-amber { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); }
+        .card-title { font-size: 15px; font-weight: 700; color: #cbd5e1; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
+        .nav-links { display: flex; flex-wrap: wrap; gap: 8px; }
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 700; text-decoration: none; border: none; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: linear-gradient(135deg, #059669, #0d9488); color: white; }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-outline { background: #334155; color: #f1f5f9; }
+        .btn-outline:hover { background: #475569; }
+        .btn-simulate { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; }
+        .btn-broadcast { background: linear-gradient(135deg, #ea580c, #dc2626); color: white; }
+        .terminal { background: #030712; border: 1px solid #1f2937; border-radius: 14px; padding: 18px; font-family: "JetBrains Mono", monospace; font-size: 13px; color: #4ade80; white-space: pre-wrap; word-break: break-word; overflow-x: auto; max-height: 500px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #334155; }
+        th { color: #94a3b8; font-weight: 600; text-transform: uppercase; font-size: 11px; }
+        .status-box { display: flex; flex-direction: column; gap: 10px; }
+        .user-info { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="title">
+            <span>⚡ SIKAP Push Notification Center</span>
+        </div>
+        <div>
+            <a href="/dashboard" class="btn btn-outline">← Kembali ke Dashboard</a>
+        </div>
+    </div>
+
+    <!-- Status Perangkat Pengguna Saat Ini -->
+    <div class="card">
+        <div class="card-title">📱 Status Perangkat Anda Saat Ini</div>
+        <div class="status-box">
+            <div class="user-info">
+                <div>
+                    <strong>Pengguna Login:</strong> ' . ($user ? htmlspecialchars($user->name) . ' (' . htmlspecialchars($user->email) . ')' : '<span class="badge badge-amber">Belum Login</span>') . '
+                </div>
+                <div>
+                    <strong>Status di Database SIKAP:</strong>
+                    ' . ($userSubs->isNotEmpty() 
+                        ? '<span class="badge badge-green">✅ ' . $userSubs->count() . ' Perangkat Terdaftar</span>' 
+                        : '<span class="badge badge-red">❌ Belum Ada Perangkat Terdaftar</span>') . '
+                </div>
+                <div>
+                    <strong>Izin Browser Ini:</strong> <span id="browserPermBadge" class="badge badge-amber">Memeriksa...</span>
+                </div>
+            </div>
+
+            <div style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px;">
+                <button type="button" id="btnRegisterThisDevice" class="btn btn-primary" onclick="registerDevice()">
+                    🔔 Aktifkan / Daftarkan Browser Ini ke Notifikasi HP
+                </button>
+                <button type="button" id="btnTestThisDevice" class="btn btn-simulate" onclick="testNotificationToMe()">
+                    📲 Tes Langsung Kirim Notifikasi ke Perangkat Ini
+                </button>
+            </div>
+            <div id="actionMsg" style="font-size: 13px; font-weight: 600; margin-top: 6px;"></div>
+        </div>
+    </div>
+
+    <!-- Pilihan Menu Pengujian -->
+    <div class="card">
+        <div class="card-title">🧪 Uji Coba Pengingat Sistem (Cron Engine)</div>
+        <div style="margin-bottom: 12px; font-size: 13px; color: var(--muted);">
+            Pilih jenis reminder yang ingin dievaluasi oleh mesin cron:
+        </div>
+        <div class="nav-links">
+            <a href="?type=academic" class="btn btn-outline ' . ($type === 'academic' ? 'btn-primary' : '') . '">📋 Batas Input Nilai</a>
+            <a href="?type=tarbiyah" class="btn btn-outline ' . ($type === 'tarbiyah' ? 'btn-primary' : '') . '">🤝 Musrif Tarbiyah</a>
+            <a href="?type=kbm" class="btn btn-outline ' . ($type === 'kbm' ? 'btn-primary' : '') . '">⏰ KBM 10 Menit</a>
+            <a href="?type=all" class="btn btn-outline ' . ($type === 'all' ? 'btn-primary' : '') . '">🌟 Jalankan Semua</a>
+            ' . ($user ? '<a href="?type=academic&simulate_user=me" class="btn btn-simulate">🎯 Simulasi Nilai ke HP Saya</a>' : '') . '
+            ' . ($user ? '<a href="?type=tarbiyah&simulate_user=me" class="btn btn-simulate">🎯 Simulasi Tarbiyah ke HP Saya</a>' : '') . '
+            <a href="?type=broadcast" class="btn btn-broadcast">📢 Broadcast ke SEMUA HP Terdaftar</a>
+        </div>
+    </div>
+
+    <!-- Terminal Output -->
+    <div class="card" style="padding: 14px;">
+        <div class="card-title" style="margin-bottom: 8px;">📟 Hasil Eksekusi Log Mesin Pengingat (' . strtoupper($type) . ')</div>
+        <div class="terminal">' . htmlspecialchars($output) . '</div>
+    </div>
+
+    <!-- Database Subscriptions Overview -->
+    <div class="card">
+        <div class="card-title">🗄️ Ringkasan Database: ' . $totalSubs . ' Perangkat HP Terdaftar di Sistem</div>
+        ' . ($allSubs->isEmpty() ? '<p style="font-size: 13px; color: #f87171;">Belum ada perangkat yang terdaftar di tabel <code>push_subscriptions</code>. Asatidzah perlu membuka web SIKAP dan mengizinkan notifikasi di HP mereka.</p>' : '
+        <div style="overflow-x:auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nama Pengguna</th>
+                        <th>Email</th>
+                        <th>Perangkat (Device)</th>
+                        <th>Waktu Registrasi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ' . implode('', $allSubs->map(function ($s) {
+                        return '<tr>
+                            <td><strong>' . htmlspecialchars($s->user?->name ?? 'User #' . $s->user_id) . '</strong></td>
+                            <td>' . htmlspecialchars($s->user?->email ?? '-') . '</td>
+                            <td>' . htmlspecialchars($s->device_name ?: 'Web Browser') . '</td>
+                            <td>' . $s->created_at->format('d M Y H:i') . ' WIB</td>
+                        </tr>';
+                    })->toArray()) . '
+                </tbody>
+            </table>
+        </div>') . '
+    </div>
+</div>
+
+<script>
+    const vapidPublicKey = "' . $vapidKey . '";
+    const csrfToken = "' . $csrfToken . '";
+
+    function updatePermBadge() {
+        const badge = document.getElementById("browserPermBadge");
+        if (!("Notification" in window)) {
+            badge.className = "badge badge-red";
+            badge.innerText = "Tidak Didukung Browser Ini";
+            return;
+        }
+        if (Notification.permission === "granted") {
+            badge.className = "badge badge-green";
+            badge.innerText = "✅ Diizinkan (Granted)";
+        } else if (Notification.permission === "denied") {
+            badge.className = "badge badge-red";
+            badge.innerText = "❌ Diblokir (Denied)";
+        } else {
+            badge.className = "badge badge-amber";
+            badge.innerText = "⏳ Belum Diputuskan (Default)";
+        }
+    }
+    updatePermBadge();
+
+    function urlBase64ToUint8Array(base64String) {
+        const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+        const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    }
+
+    async function registerDevice() {
+        const msg = document.getElementById("actionMsg");
+        msg.style.color = "#38bdf8";
+        msg.innerText = "Meminta izin browser & mendaftarkan perangkat...";
+        try {
+            if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+                msg.style.color = "#f87171";
+                msg.innerText = "Browser ini tidak mendukung Push Notification.";
+                return;
+            }
+
+            const permission = await Notification.requestPermission();
+            updatePermBadge();
+
+            if (permission !== "granted") {
+                msg.style.color = "#f87171";
+                msg.innerText = "Izin notifikasi ditolak/diblokir oleh browser. Mohon izinkan lewat ikon setelan situs/gembok di URL browser.";
+                return;
+            }
+
+            const reg = await navigator.serviceWorker.register("/sw.js");
+            await navigator.serviceWorker.ready;
+
+            let sub = await reg.pushManager.getSubscription();
+            if (!sub) {
+                sub = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+                });
+            }
+
+            const res = await fetch("/push-subscriptions", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": csrfToken,
+                    "Accept": "application/json"
+                },
+                body: JSON.stringify(sub.toJSON())
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                msg.style.color = "#4ade80";
+                msg.innerText = "✅ Berhasil! " + data.message + " Memuat ulang status...";
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                msg.style.color = "#f87171";
+                msg.innerText = "Gagal menyimpan di server: " + (data.message || "Error");
+            }
+        } catch (e) {
+            msg.style.color = "#f87171";
+            msg.innerText = "Terjadi kesalahan: " + e.message;
+        }
+    }
+
+    async function testNotificationToMe() {
+        const msg = document.getElementById("actionMsg");
+        msg.style.color = "#38bdf8";
+        msg.innerText = "Mengirim sinyal tes notifikasi langsung ke akun Anda...";
+        try {
+            const res = await fetch("/push-subscriptions/test", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": csrfToken,
+                    "Accept": "application/json"
+                }
+            });
+            const data = await res.json();
+            if (res.ok) {
+                msg.style.color = "#4ade80";
+                msg.innerText = "✅ " + data.message + " Cek bilah notifikasi di HP / layar laptop Anda!";
+            } else {
+                msg.style.color = "#f87171";
+                msg.innerText = "❌ " + (data.message || "Gagal mengirim notifikasi tes.");
+            }
+        } catch (e) {
+            msg.style.color = "#f87171";
+            msg.innerText = "Terjadi kesalahan: " + e.message;
+        }
+    }
+</script>
+</body>
+</html>';
+
+        return response($html);
     } catch (\Exception $e) {
         return '<h1>Gagal!</h1><pre>' . $e->getMessage() . '</pre>';
     }
