@@ -73,15 +73,15 @@ export default function GuestLayout({ children }) {
             <div className="relative z-10 w-full sm:max-w-md my-auto">
                 {/* Outer Glass Card Halo */}
                 <div className="rounded-[28px] p-[1.5px] bg-gradient-to-b from-white/60 via-slate-200/50 to-slate-300/30 dark:from-slate-700/60 dark:via-slate-800/50 dark:to-slate-900/30 shadow-2xl shadow-black/40">
-                    <div className="w-full overflow-hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-[26px] relative shadow-inner">
+                    <div className={`w-full overflow-hidden ${cardBackground ? 'bg-slate-900/5' : 'bg-white/95 dark:bg-slate-900/95'} backdrop-blur-xl rounded-[26px] relative shadow-inner`}>
                         {/* Custom Kotak Login Background Image with Soft Frosted Glass Shield */}
                         {cardBackground && (
                             <div 
                                 className="absolute inset-0 pointer-events-none bg-cover bg-center -z-0"
                                 style={{ backgroundImage: `url(${cardBackground})` }}
                             >
-                                {/* Frosted Glass / Soft Whitewash Overlay: guarantees form text, inputs, and buttons are 100% crisp & readable */}
-                                <div className="absolute inset-0 bg-white/85 dark:bg-slate-900/90 backdrop-blur-[1.5px]"></div>
+                                {/* Frosted Glass Overlay: image is vibrant and clearly visible, while form inputs & buttons stay 100% sharp */}
+                                <div className="absolute inset-0 bg-white/60 dark:bg-slate-900/75 backdrop-blur-[0.5px]"></div>
                             </div>
                         )}
 

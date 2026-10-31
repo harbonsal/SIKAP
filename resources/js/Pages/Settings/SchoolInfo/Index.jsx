@@ -9,6 +9,61 @@ import { Save, Calendar, FileImage, AlertCircle, Upload, RotateCcw, Info, Check 
 import { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 
+// Helper kompresi gambar otomatis di sisi browser agar tidak melebihi batas upload server (2MB)
+const compressImage = (file, maxWidth = 1200, maxHeight = 1600, quality = 0.85) => {
+    return new Promise((resolve) => {
+        if (!file || !file.type.startsWith('image/')) {
+            resolve(file);
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                let width = img.width;
+                let height = img.height;
+
+                if (width > maxWidth || height > maxHeight) {
+                    if (width / height > maxWidth / maxHeight) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    } else {
+                        width = Math.round((width * maxHeight) / height);
+                        height = maxHeight;
+                    }
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                canvas.toBlob(
+                    (blob) => {
+                        if (blob && (blob.size < file.size || file.size > 1.8 * 1024 * 1024)) {
+                            const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
+                                type: 'image/jpeg',
+                                lastModified: Date.now(),
+                            });
+                            resolve(compressedFile);
+                        } else {
+                            resolve(file);
+                        }
+                    },
+                    'image/jpeg',
+                    quality
+                );
+            };
+            img.onerror = () => resolve(file);
+            img.src = event.target.result;
+        };
+        reader.onerror = () => resolve(file);
+        reader.readAsDataURL(file);
+    });
+};
+
 export default function Edit({ auth, schoolInfo, appLogo, loginBackground }) {
     const { flash } = usePage().props;
     const { data, setData, post, errors, processing, recentlySuccessful } = useForm({
@@ -21,6 +76,11 @@ export default function Edit({ auth, schoolInfo, appLogo, loginBackground }) {
         sem1_weight: schoolInfo.grade_config?.sem1_weight ?? 1,
         sem2_weight: schoolInfo.grade_config?.sem2_weight ?? 2,
         _method: 'POST',
+    });
+
+    const [fileInfo, setFileInfo] = useState({
+        login_background: null,
+        app_logo: null,
     });
 
     // Watch for success flash from backend
@@ -43,19 +103,27 @@ export default function Edit({ auth, schoolInfo, appLogo, loginBackground }) {
         login_background: loginBackground ? `/storage/${loginBackground}` : null,
     });
 
-    const handleFileChange = (e, key) => {
+    const handleFileChange = async (e, key) => {
         const file = e.target.files[0];
         if (file) {
+            let processedFile = file;
+            if (key === 'login_background' || key === 'app_logo') {
+                processedFile = await compressImage(file, key === 'app_logo' ? 600 : 1200, key === 'app_logo' ? 600 : 1600, 0.85);
+                const kb = Math.round(processedFile.size / 1024);
+                setFileInfo(prev => ({ ...prev, [key]: `${kb} KB` }));
+            }
+
             setData(prev => ({
                 ...prev,
-                [key]: file,
+                [key]: processedFile,
                 ...(key === 'login_background' ? { remove_login_background: false } : {})
             }));
+
             const reader = new FileReader();
             reader.onloadend = () => {
                 setPreviews(prev => ({ ...prev, [key]: reader.result }));
             };
-            reader.readAsDataURL(file);
+            reader.readAsDataURL(processedFile);
         }
     };
 
@@ -66,6 +134,10 @@ export default function Edit({ auth, schoolInfo, appLogo, loginBackground }) {
             remove_login_background: true
         }));
         setPreviews(prev => ({
+            ...prev,
+            login_background: null
+        }));
+        setFileInfo(prev => ({
             ...prev,
             login_background: null
         }));
@@ -276,7 +348,15 @@ export default function Edit({ auth, schoolInfo, appLogo, loginBackground }) {
                                                         </button>
                                                     )}
                                                 </div>
-                                                <InputError className="mt-2" message={errors.login_background} />
+
+                                                {fileInfo.login_background && (
+                                                    <div className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 w-fit">
+                                                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                                        <span>Ukuran gambar siap disimpan: <strong>{fileInfo.login_background}</strong> (Otomatis dioptimasi)</span>
+                                                    </div>
+                                                )}
+
+                                                <InputError className="mt-1" message={errors.login_background} />
 
                                                 {/* Keterangan Spesifikasi Ukuran Khusus Kotak Login */}
                                                 <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/80 text-amber-950 text-xs space-y-2">
