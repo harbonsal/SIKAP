@@ -100,7 +100,7 @@ export default function OswanDashboard({ stats = {} }) {
                             Ahlan wa Sahlan, {user.name || 'Pengurus OSWAN'} 👋
                         </h1>
                         <p className="text-white/85 text-xs sm:text-sm max-w-2xl leading-relaxed">
-                            {currentQismu.subtitle}. Data mukholafah yang antum catat akan langsung mengurangi nilai akhlak santri di akun musyrif.
+                            {currentQismu.subtitle}.
                         </p>
                     </div>
 
@@ -166,7 +166,7 @@ export default function OswanDashboard({ stats = {} }) {
                             {monthViolations}
                         </div>
                         <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                            Akumulasi pengurangan nilai
+                            Total akumulasi pelanggaran
                         </span>
                     </div>
                     <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
@@ -220,7 +220,7 @@ export default function OswanDashboard({ stats = {} }) {
                                     Rekap & Riwayat Bulanan
                                 </div>
                                 <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
-                                    Lihat akumulasi poin pelanggaran santri
+                                    Lihat rekapitulasi data pelanggaran
                                 </div>
                             </div>
                         </div>
@@ -251,14 +251,14 @@ export default function OswanDashboard({ stats = {} }) {
             </div>
 
             {/* ── 4. PANDUAN PENGURUS RINGKAS ───────────────────────────────────── */}
-            <div className="bg-amber-500/10 border border-amber-300/40 rounded-2xl p-4 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="bg-emerald-500/10 border border-emerald-300/40 rounded-2xl p-4 text-xs text-emerald-900 dark:text-emerald-200 flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                    <p className="font-bold text-amber-950 dark:text-amber-100">
-                        Petunjuk Pencatatan Mukholafah {currentQismu.title}:
+                    <p className="font-bold text-emerald-950 dark:text-emerald-100">
+                        Amanah Pencatatan {currentQismu.title}:
                     </p>
-                    <p className="text-amber-900/85 dark:text-amber-200/90 leading-relaxed">
-                        Setiap santri memiliki modal awal <strong>100 poin</strong> pada penilaian akhlak Musyrif. Catatan mukholafah yang antum input di sini akan <strong>otomatis mengurangi poin</strong> santri tersebut pada bulan berjalan (Contoh: 5x melanggar = nilai menjadi 95).
+                    <p className="text-emerald-900/85 dark:text-emerald-200/90 leading-relaxed">
+                        Lakukan pencatatan secara teliti, adil, dan objektif sebagai bentuk tanggung jawab dalam menjaga kedisiplinan dan pembiasaan sunnah di lingkungan pesantren.
                     </p>
                 </div>
             </div>

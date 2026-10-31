@@ -64,7 +64,7 @@ export default function OswanIndex({
         bahasa: {
             title: 'Qismu Lughoh (Bahasa)',
             badge: 'Divisi Bahasa',
-            subtitle: 'Pencatatan Mukholafah Bahasa Arab & Inggris • Otomatis mengurangi Nilai Kedisiplinan Musyrif (Dasar 100)',
+            subtitle: 'Pencatatan Mukholafah Bahasa Arab & Inggris',
             gradient: 'from-purple-600 via-indigo-600 to-teal-700',
             accentColor: 'text-purple-600 dark:text-purple-400',
             bgCard: 'bg-purple-50/40 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800',
@@ -75,7 +75,7 @@ export default function OswanIndex({
         ibadah: {
             title: 'Qismu Ibadah',
             badge: 'Divisi Ibadah',
-            subtitle: 'Pencatatan Keterlambatan Salat & Jamaah • Otomatis mengurangi Nilai Ibadah Musyrif (Dasar 100)',
+            subtitle: 'Pencatatan Keterlambatan Salat & Jamaah',
             gradient: 'from-emerald-600 via-teal-600 to-cyan-700',
             accentColor: 'text-emerald-600 dark:text-emerald-400',
             bgCard: 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800',
@@ -86,7 +86,7 @@ export default function OswanIndex({
         tandzim: {
             title: 'Qismu Tandzim (Ketertiban)',
             badge: 'Divisi Ketertiban',
-            subtitle: 'Pencatatan Jam Tidur & Ketertiban Santri • Otomatis mengurangi Nilai Kepatuhan Musyrif (Dasar 100)',
+            subtitle: 'Pencatatan Jam Tidur & Ketertiban Santri',
             gradient: 'from-blue-600 via-indigo-600 to-slate-800',
             accentColor: 'text-blue-600 dark:text-blue-400',
             bgCard: 'bg-blue-50/40 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800',
