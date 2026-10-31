@@ -9,6 +9,7 @@ import SmartSearchBar from '@/Components/SmartSearchBar';
 import LoadingOverlay from '@/Components/LoadingOverlay';
 import Breadcrumb from '@/Components/Breadcrumb';
 import AppUpdateDetector from '@/Components/AppUpdateDetector';
+import AutoPushNotificationPrompt from '@/Components/AutoPushNotificationPrompt';
 import { cn } from '@/lib/utils';
 
 const flashConfig = {
@@ -429,6 +430,9 @@ export default function MainLayout({
 
             {/* App Update Detector */}
             <AppUpdateDetector />
+
+            {/* Otomatis Prompt & Silent Register Pengingat HP untuk Asatidzah */}
+            <AutoPushNotificationPrompt />
         </div>
     );
 }

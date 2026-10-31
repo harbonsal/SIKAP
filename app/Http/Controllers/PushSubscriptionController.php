@@ -151,3 +151,4 @@ class PushSubscriptionController extends Controller
         return 'Perangkat Web';
     }
 }
+

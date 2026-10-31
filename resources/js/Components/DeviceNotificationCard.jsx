@@ -358,3 +358,4 @@ export default function DeviceNotificationCard({ compact = false, className = ''
         </div>
     );
 }
+

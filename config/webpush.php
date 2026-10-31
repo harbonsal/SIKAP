@@ -7,3 +7,4 @@ return [
         'private_key' => env('VAPID_PRIVATE_KEY', 'EjRfHcHH7gS3M2Z_2rqFXWaNc5t6Ol6xsgDTnJ7DYAM'),
     ],
 ];
+
