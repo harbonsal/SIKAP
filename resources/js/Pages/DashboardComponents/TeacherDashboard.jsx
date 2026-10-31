@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { cn } from '@/lib/utils';
+import DeviceNotificationCard from '@/Components/DeviceNotificationCard';
 
 // Registry Seluruh Pintasan KBM & Sistem Tersedia
 const ALL_SHORTCUTS = [
@@ -497,6 +498,9 @@ export default function TeacherDashboard({ stats, schedule, allowedWidgets = {} 
 
     return (
         <div className="space-y-5 sm:space-y-8">
+            {/* Banner Pengingat HP Langsung */}
+            <DeviceNotificationCard compact />
+
             {/* 1. JADWAL MENGAJAR HARI INI (Langsung Muncul di Posisi Teratas) */}
             {showSchedule && can('view_academic_schedules') && canViewAcademic && (
                 <div className="space-y-3">

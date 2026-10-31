@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/Components/ui/button';
 import { Transition } from '@headlessui/react';
 import Swal from 'sweetalert2';
+import DeviceNotificationCard from '@/Components/DeviceNotificationCard';
 
 export default function Edit({ mustVerifyEmail, status, studentDetails, displayRoles }) {
     const { auth, flash } = usePage().props;
@@ -243,6 +244,9 @@ export default function Edit({ mustVerifyEmail, status, studentDetails, displayR
                         </form>
                     </CardContent>
                 </Card>
+
+                {/* Notifikasi Perangkat HP */}
+                <DeviceNotificationCard />
 
                 <div className="text-center">
                     <p className="text-xs text-muted-foreground bg-yellow-50 text-yellow-700 p-3 rounded-md border border-yellow-200 inline-block">

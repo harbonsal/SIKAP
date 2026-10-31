@@ -223,6 +223,7 @@ class HandleInertiaRequests extends Middleware
                 'app_logo' => \App\Models\Setting::where('key', 'app_logo')->value('value') ? asset('storage/' . \App\Models\Setting::where('key', 'app_logo')->value('value')) : '/images/logo.png',
                 'login_card_background' => (\App\Models\Setting::where('key', 'login_card_background')->value('value') ?: \App\Models\Setting::where('key', 'login_background')->value('value')) ? asset('storage/' . (\App\Models\Setting::where('key', 'login_card_background')->value('value') ?: \App\Models\Setting::where('key', 'login_background')->value('value'))) : null,
                 'login_background' => '/masjid_login.webp',
+                'vapid_public_key' => config('webpush.vapid.public_key'),
             ],
             'app_version' => fn() => [
                 'build_time' => file_exists(public_path('build/manifest.json')) ? filemtime(public_path('build/manifest.json')) : time(),

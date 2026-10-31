@@ -46,6 +46,19 @@ Route::get('/run-migrate-rfid', function () {
     }
 });
 
+
+Route::get('/run-migrate-push', function () {
+    try {
+        $exitCode = \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        $output = \Illuminate\Support\Facades\Artisan::output();
+        return '<h1>Status Migrasi Push Notification: ' . ($exitCode === 0 ? 'Sukses' : 'Selesai') . '</h1>' .
+            '<pre style="background:#111;color:#0f0;padding:10px;">' . htmlspecialchars($output) . '</pre>' .
+            '<a href="/dashboard">Kembali ke Dashboard</a>';
+    } catch (\Exception $e) {
+        return '<h1>Gagal!</h1><pre>' . $e->getMessage() . '</pre>';
+    }
+});
+
 Route::get('/', function () {
     return redirect()->route('login');
 });
@@ -457,7 +470,14 @@ Route::middleware('auth')->group(function () {
     Route::post('users/{user}/impersonate', [App\Http\Controllers\UserController::class, 'impersonate'])->name('users.impersonate');
     // Student Specific Routes
     Route::middleware(['auth'])->group(function () {
-        Route::get('my-grades', [App\Http\Controllers\StudentGradeController::class, 'index'])->name('students.grades.index');
+        
+    // Device Push Notification Routes
+    Route::post('/push-subscriptions', [\App\Http\Controllers\PushSubscriptionController::class, 'subscribe'])->name('push.subscribe');
+    Route::post('/push-subscriptions/unsubscribe', [\App\Http\Controllers\PushSubscriptionController::class, 'unsubscribe'])->name('push.unsubscribe');
+    Route::get('/push-subscriptions/status', [\App\Http\Controllers\PushSubscriptionController::class, 'status'])->name('push.status');
+    Route::post('/push-subscriptions/test', [\App\Http\Controllers\PushSubscriptionController::class, 'testNotification'])->name('push.test');
+
+    Route::get('my-grades', [App\Http\Controllers\StudentGradeController::class, 'index'])->name('students.grades.index');
         Route::get('my-tahfidz', [App\Http\Controllers\StudentTahfidzController::class, 'index'])->name('students.tahfidz.index');
         Route::get('my-health', [App\Http\Controllers\StudentHealthController::class, 'index'])->name('students.health.index');
     });
