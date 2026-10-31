@@ -59,6 +59,19 @@ Route::get('/run-migrate-push', function () {
     }
 });
 
+
+Route::get('/run-reminder-kbm-test', function () {
+    try {
+        $exitCode = \Illuminate\Support\Facades\Artisan::call('sikap:send-reminders', ['--type' => 'kbm', '--force' => true]);
+        $output = \Illuminate\Support\Facades\Artisan::output();
+        return '<h1>Status Uji Coba Pengingat KBM: ' . ($exitCode === 0 ? 'Selesai' : 'Peringatan') . '</h1>' .
+            '<pre style="background:#111;color:#0f0;padding:12px;border-radius:8px;">' . htmlspecialchars($output) . '</pre>' .
+            '<a href="/dashboard">Kembali ke Dashboard</a>';
+    } catch (\Exception $e) {
+        return '<h1>Gagal!</h1><pre>' . $e->getMessage() . '</pre>';
+    }
+});
+
 Route::get('/', function () {
     return redirect()->route('login');
 });
