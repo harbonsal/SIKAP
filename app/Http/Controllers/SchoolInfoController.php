@@ -12,10 +12,12 @@ class SchoolInfoController extends Controller
 {
     public function index()
     {
+        $schoolInfo = SchoolInfo::firstOrNew();
         return Inertia::render('Settings/SchoolInfo/Index', [
-            'schoolInfo' => SchoolInfo::firstOrNew(),
+            'schoolInfo' => $schoolInfo,
             'appLogo' => Setting::where('key', 'app_logo')->value('value'),
             'loginBackground' => Setting::where('key', 'login_card_background')->value('value') ?: Setting::where('key', 'login_background')->value('value'),
+            'gradeDeadline' => Setting::where('key', 'academic_grade_deadline')->value('value') ?: ($schoolInfo->grade_config['grade_deadline'] ?? ''),
         ]);
     }
 
@@ -39,6 +41,7 @@ class SchoolInfoController extends Controller
             'institution_location' => 'nullable|string|max:255',
             'sem1_weight' => 'nullable|integer|min:0',
             'sem2_weight' => 'nullable|integer|min:0',
+            'grade_deadline' => 'nullable|date',
         ]);
 
         $schoolInfo = SchoolInfo::firstOrNew();
@@ -98,7 +101,14 @@ class SchoolInfoController extends Controller
         $gradeConfig = $schoolInfo->grade_config ?? [];
         $gradeConfig['sem1_weight'] = $request->filled('sem1_weight') ? (int) $request->sem1_weight : 1;
         $gradeConfig['sem2_weight'] = $request->filled('sem2_weight') ? (int) $request->sem2_weight : 2;
+        $gradeConfig['grade_deadline'] = $request->grade_deadline;
         $schoolInfo->grade_config = $gradeConfig;
+
+        if ($request->filled('grade_deadline')) {
+            Setting::updateOrCreate(['key' => 'academic_grade_deadline'], ['value' => $request->grade_deadline]);
+        } elseif ($request->has('grade_deadline') && empty($request->grade_deadline)) {
+            Setting::where('key', 'academic_grade_deadline')->delete();
+        }
 
         $schoolInfo->save();
 

@@ -60,16 +60,21 @@ Route::get('/run-migrate-push', function () {
 });
 
 
-Route::get('/run-reminder-kbm-test', function () {
+Route::get('/run-reminder-test', function (\Illuminate\Http\Request $request) {
     try {
-        $exitCode = \Illuminate\Support\Facades\Artisan::call('sikap:send-reminders', ['--type' => 'kbm', '--force' => true]);
+        $type = $request->query('type', 'all');
+        $exitCode = \Illuminate\Support\Facades\Artisan::call('sikap:send-reminders', ['--type' => $type, '--force' => true]);
         $output = \Illuminate\Support\Facades\Artisan::output();
-        return '<h1>Status Uji Coba Pengingat KBM: ' . ($exitCode === 0 ? 'Selesai' : 'Peringatan') . '</h1>' .
-            '<pre style="background:#111;color:#0f0;padding:12px;border-radius:8px;">' . htmlspecialchars($output) . '</pre>' .
+        return '<h1>Status Uji Coba Pengingat (' . strtoupper($type) . '): ' . ($exitCode === 0 ? 'Selesai' : 'Peringatan') . '</h1>' .
+            '<p>Pilihan tes tipe: <a href="?type=all">[SEMUA]</a> | <a href="?type=kbm">[KBM 10 Menit]</a> | <a href="?type=academic">[Batas Nilai]</a> | <a href="?type=tarbiyah">[Musrif Tarbiyah]</a></p>' .
+            '<pre style="background:#111;color:#0f0;padding:14px;border-radius:8px;font-size:14px;">' . htmlspecialchars($output) . '</pre>' .
             '<a href="/dashboard">Kembali ke Dashboard</a>';
     } catch (\Exception $e) {
         return '<h1>Gagal!</h1><pre>' . $e->getMessage() . '</pre>';
     }
+});
+Route::get('/run-reminder-kbm-test', function () {
+    return redirect('/run-reminder-test?type=kbm');
 });
 
 Route::get('/', function () {

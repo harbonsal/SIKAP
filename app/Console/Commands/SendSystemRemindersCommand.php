@@ -9,6 +9,8 @@ use App\Models\Day;
 use App\Models\MusyrifTarbiyahPlotting;
 use App\Models\PushSubscription;
 use App\Models\Schedule;
+use App\Models\SchoolInfo;
+use App\Models\Setting;
 use App\Models\StudentGrade;
 use App\Models\TarbiyahGroupLog;
 use App\Models\TarbiyahIndividualLog;
@@ -33,7 +35,7 @@ class SendSystemRemindersCommand extends Command
      *
      * @var string
      */
-    protected $description = 'Kirim notifikasi pengingat otomatis ke HP asatidzah (deadline nilai, jam mengajar KBM lewat 10 menit, mutabaah tarbiyah, dll)';
+    protected $description = 'Kirim notifikasi pengingat otomatis ke HP asatidzah (deadline nilai, jam mengajar KBM lewat 10 menit, mutabaah tarbiyah santri asuh)';
 
     protected WebPushService $pushService;
 
@@ -63,12 +65,12 @@ class SendSystemRemindersCommand extends Command
             $sentCount += $this->remindKbmJournals($academicYear);
         }
 
-        // 2. Pengingat Nilai Akademik
+        // 2. Pengingat Batas Akhir Input Nilai Akademik
         if (in_array($type, ['all', 'academic'])) {
             $sentCount += $this->remindAcademicGrades($academicYear, $semester);
         }
 
-        // 3. Pengingat Musyrif Tarbiyah
+        // 3. Pengingat Musrif Tarbiyah (Bimbingan Santri Asuh)
         if (in_array($type, ['all', 'tarbiyah'])) {
             $sentCount += $this->remindMusyrifTarbiyah($academicYear);
         }
@@ -88,7 +90,7 @@ class SendSystemRemindersCommand extends Command
         Carbon::setLocale('id');
         $now = Carbon::now();
         $todayDate = $now->toDateString();
-        $dayName = $now->translatedFormat('l'); // Senin, Selasa, Rabu, Kamis, Jumat, Sabtu, Ahad
+        $dayName = $now->translatedFormat('l');
 
         $day = Day::where('name', $dayName)->first();
         if (!$day) {
@@ -96,7 +98,6 @@ class SendSystemRemindersCommand extends Command
             return 0;
         }
 
-        // Ambil seluruh jadwal mengajar pada hari ini
         $schedules = Schedule::where('academic_year_id', $academicYear->id)
             ->where('day_id', $day->id)
             ->whereNotNull('teacher_id')
@@ -123,7 +124,6 @@ class SendSystemRemindersCommand extends Command
                 continue;
             }
 
-            // Parse jam mulai dan selesai KBM
             try {
                 $lessonStart = Carbon::parse($todayDate . ' ' . $learningHour->start_time);
                 $lessonEnd = Carbon::parse($todayDate . ' ' . $learningHour->end_time);
@@ -131,7 +131,6 @@ class SendSystemRemindersCommand extends Command
                 continue;
             }
 
-            // Syarat: Sudah lewat 10 menit sejak jam mulai KBM, dan belum lewat 45 menit setelah jam selesai KBM
             $tenMinutesAfterStart = $lessonStart->copy()->addMinutes(10);
             $cutoffEnd = $lessonEnd->copy()->addMinutes(45);
 
@@ -143,7 +142,6 @@ class SendSystemRemindersCommand extends Command
 
             $hourNum = (string)$learningHour->hour_number;
 
-            // Cek apakah guru sudah menginput jurnal untuk mapel ini pada hari ini
             $hasJournal = ClassJournal::where('teacher_id', $schedule->teacher_id)
                 ->where('active_subject_id', $schedule->active_subject_id)
                 ->where('date', $todayDate)
@@ -158,13 +156,11 @@ class SendSystemRemindersCommand extends Command
                 continue;
             }
 
-            // Throttle agar tidak mengirim notifikasi berulang kali untuk jadwal yang sama di hari yang sama
             $cacheKey = "kbm_journal_reminder_sent_{$schedule->id}_{$todayDate}";
             if (!$isForce && Cache::has($cacheKey)) {
                 continue;
             }
 
-            // Cek apakah guru memiliki push subscription aktif
             $hasSubs = PushSubscription::where('user_id', $schedule->teacher_id)->exists();
             if (!$hasSubs) {
                 continue;
@@ -198,18 +194,58 @@ class SendSystemRemindersCommand extends Command
     }
 
     /**
-     * Kirim reminder pengisian nilai akademik ke guru-guru yang belum tuntas.
+     * Kirim reminder batas akhir pengisian nilai akademik ke guru-guru yang belum tuntas.
      */
     protected function remindAcademicGrades($academicYear, $semester): int
     {
-        $this->line('Memeriksa pengisian nilai akademik guru...');
+        $this->line('Memeriksa batas akhir dan kelengkapan nilai akademik guru...');
 
-        // Ambil semua guru yang memiliki mapel aktif di tahun ajaran & semester berjalan
+        Carbon::setLocale('id');
+        $today = Carbon::now()->startOfDay();
+        $todayDate = $today->toDateString();
+        $isForce = (bool)$this->option('force');
+
+        // Ambil konfigurasi deadline nilai rapor
+        $gradeDeadlineStr = Setting::where('key', 'academic_grade_deadline')->value('value')
+            ?: (SchoolInfo::first()?->grade_config['grade_deadline'] ?? null);
+
+        // Cari juga di kalender akademik jika belum disetel manual di setting
+        if (!$gradeDeadlineStr) {
+            $calendarEvent = AcademicCalendarEvent::where('academic_year_id', $academicYear->id)
+                ->where(function ($q) {
+                    $q->where('title', 'like', '%nilai%')
+                      ->orWhere('title', 'like', '%rapor%')
+                      ->orWhere('category', 'like', '%nilai%')
+                      ->orWhere('category', 'like', '%rapor%');
+                })
+                ->where('end_date', '>=', $todayDate)
+                ->orderBy('end_date', 'asc')
+                ->first();
+
+            if ($calendarEvent) {
+                $gradeDeadlineStr = $calendarEvent->end_date;
+            }
+        }
+
+        $daysLeft = null;
+        $deadlineFormatted = null;
+
+        if ($gradeDeadlineStr) {
+            try {
+                $deadlineDate = Carbon::parse($gradeDeadlineStr)->startOfDay();
+                $daysLeft = (int)$today->diffInDays($deadlineDate, false);
+                $deadlineFormatted = $deadlineDate->translatedFormat('d F Y');
+            } catch (\Throwable $e) {
+                $daysLeft = null;
+            }
+        }
+
+        // Ambil semua guru yang memiliki mapel aktif di tahun ajaran berjalan
         $activeSubjects = ActiveSubject::whereHas('activeClass', function ($q) use ($academicYear) {
             $q->where('academic_year_id', $academicYear->id);
         })
         ->whereNotNull('teacher_id')
-        ->with(['teacher', 'mapel', 'activeClass'])
+        ->with(['teacher', 'mapel', 'activeClass.kelas', 'activeClass.kelasParalel'])
         ->get();
 
         $teachersWithPendingGrades = [];
@@ -219,13 +255,11 @@ class SendSystemRemindersCommand extends Command
                 continue;
             }
 
-            // Hitung jumlah santri di kelas
             $studentsCount = $subject->activeClass?->classMembers()?->count() ?? 0;
             if ($studentsCount === 0) {
                 continue;
             }
 
-            // Hitung berapa santri yang sudah punya nilai
             $gradedCount = StudentGrade::where('active_subject_id', $subject->id)
                 ->where('semester_id', $semester->id)
                 ->distinct('student_id')
@@ -237,16 +271,26 @@ class SendSystemRemindersCommand extends Command
                     $teachersWithPendingGrades[$teacherId] = [
                         'teacher' => $subject->teacher,
                         'pending_subjects' => [],
+                        'missing_students_count' => 0,
                     ];
                 }
-                $teachersWithPendingGrades[$teacherId]['pending_subjects'][] = ($subject->mapel?->name ?? 'Mapel') . ' (' . ($subject->activeClass?->name ?? '') . ')';
+                $className = trim(($subject->activeClass?->kelas?->name ?? '') . ' ' . ($subject->activeClass?->kelasParalel?->name ?? ''));
+                $teachersWithPendingGrades[$teacherId]['pending_subjects'][] = ($subject->mapel?->name ?? 'Mapel') . ' (' . $className . ')';
+                $teachersWithPendingGrades[$teacherId]['missing_students_count'] += ($studentsCount - $gradedCount);
             }
         }
 
-        $count = 0;
+        $sentCount = 0;
+
         foreach ($teachersWithPendingGrades as $teacherId => $data) {
             $hasSubs = PushSubscription::where('user_id', $teacherId)->exists();
             if (!$hasSubs) {
+                continue;
+            }
+
+            // Throttle: Maksimal 1x notifikasi nilai per hari untuk setiap guru
+            $cacheKey = "academic_grade_reminder_sent_{$teacherId}_{$todayDate}";
+            if (!$isForce && Cache::has($cacheKey)) {
                 continue;
             }
 
@@ -255,82 +299,139 @@ class SendSystemRemindersCommand extends Command
                 $subjectListStr .= ' dan ' . (count($data['pending_subjects']) - 2) . ' kelas lainnya';
             }
 
-            $title = '📋 Pengingat Input Nilai Santri';
-            $body = 'Ustadz ' . $data['teacher']->name . ', masih ada nilai yang belum lengkap untuk ' . $subjectListStr . '. Mohon segera lengkapi di portal SIKAP.';
+            $teacherName = $data['teacher']->name;
+
+            // Variasi Pesan Berdasarkan Batas Waktu (Deadline)
+            if ($daysLeft !== null) {
+                if ($daysLeft > 0) {
+                    $title = "📋 Batas Input Nilai Tersisa {$daysLeft} Hari";
+                    $body = "Ustadz {$teacherName}, batas akhir input nilai rapor tersisa {$daysLeft} hari ({$deadlineFormatted}). Masih ada nilai santri pada {$subjectListStr} yang belum lengkap. Mohon segera diisi.";
+                } elseif ($daysLeft === 0) {
+                    $title = "🚨 HARI TERAKHIR: Batas Input Nilai Rapor";
+                    $body = "Ustadz {$teacherName}, HARI INI adalah batas akhir input nilai rapor. Mohon tuntaskan nilai santri pada {$subjectListStr} sebelum portal ditutup.";
+                } else {
+                    $absDays = abs($daysLeft);
+                    $title = "⚠️ PERINGATAN: Batas Input Nilai Terlewat";
+                    $body = "Ustadz {$teacherName}, batas akhir input nilai rapor telah terlewat {$absDays} hari. Masih ada nilai santri pada {$subjectListStr} yang kosong. Mohon segera diselesaikan hari ini.";
+                }
+            } else {
+                $title = "📋 Pengingat Input Nilai Santri";
+                $body = "Ustadz {$teacherName}, masih ada nilai santri yang belum lengkap untuk {$subjectListStr}. Mohon segera lengkapi di portal SIKAP.";
+            }
+
+            $url = route('assessments.index', [], false);
 
             $result = $this->pushService->sendToUser(
                 $teacherId,
                 $title,
                 $body,
-                '/teacher/grades',
-                ['tag' => 'sikap-grade-reminder-' . $teacherId]
+                $url,
+                ['tag' => 'sikap-grade-reminder-' . $teacherId . '-' . $todayDate]
             );
 
             if ($result['success'] > 0) {
-                $count += $result['success'];
-                $this->info("Reminder nilai terkirim ke: {$data['teacher']->name} ({$result['success']} perangkat)");
+                Cache::put($cacheKey, true, now()->addHours(18));
+                $sentCount += $result['success'];
+                $this->info("Reminder nilai terkirim ke: {$teacherName} ({$result['success']} perangkat)");
             }
         }
 
-        return $count;
+        return $sentCount;
     }
 
     /**
-     * Kirim reminder ke musyrif tarbiyah yang belum mengisi laporan mutabaah santri asuh pekan ini.
+     * Kirim reminder ke musrif tarbiyah yang santri asuhnya belum dicatat mutabaah dalam sepekan terakhir.
      */
     protected function remindMusyrifTarbiyah($academicYear): int
     {
-        $this->line('Memeriksa agenda musyrif tarbiyah...');
+        $this->line('Memeriksa bimbingan santri asuh musrif tarbiyah...');
 
         $now = Carbon::now();
-        $startOfWeek = $now->copy()->startOfWeek();
+        $todayDate = $now->toDateString();
+        $oneWeekAgo = $now->copy()->subDays(7)->toDateString();
+        $isForce = (bool)$this->option('force');
 
-        // Ambil semua user yang diplot sebagai musyrif tarbiyah
+        // Ambil seluruh musrif yang memiliki santri asuh di tahun ajaran aktif
         $musyrifIds = MusyrifTarbiyahPlotting::where('academic_year_id', $academicYear->id)
             ->distinct('user_id')
             ->pluck('user_id')
             ->toArray();
 
-        $count = 0;
-        foreach ($musyrifIds as $musyrifId) {
-            $hasSubs = PushSubscription::where('user_id', $musyrifId)->exists();
+        $sentCount = 0;
+
+        foreach ($musyrifIds as $musrifId) {
+            $hasSubs = PushSubscription::where('user_id', $musrifId)->exists();
             if (!$hasSubs) {
                 continue;
             }
 
-            // Cek apakah musyrif sudah mengisi log tarbiyah pekan ini
-            $hasIndividualLog = TarbiyahIndividualLog::where('musyrif_id', $musyrifId)
-                ->where('created_at', '>=', $startOfWeek)
-                ->exists();
+            // Throttle: 1x reminder tarbiyah per hari
+            $cacheKey = "tarbiyah_reminder_sent_{$musrifId}_{$todayDate}";
+            if (!$isForce && Cache::has($cacheKey)) {
+                continue;
+            }
 
-            $hasGroupLog = TarbiyahGroupLog::where('musyrif_id', $musyrifId)
-                ->where('created_at', '>=', $startOfWeek)
-                ->exists();
+            // Dapatkan seluruh santri asuh musrif ini
+            $plottings = MusyrifTarbiyahPlotting::where('academic_year_id', $academicYear->id)
+                ->where('user_id', $musrifId)
+                ->with('student')
+                ->get();
 
-            if (!$hasIndividualLog && !$hasGroupLog) {
-                $user = User::find($musyrifId);
+            if ($plottings->isEmpty()) {
+                continue;
+            }
+
+            $pendingStudents = [];
+
+            foreach ($plottings as $plot) {
+                $student = $plot->student;
+                if (!$student) continue;
+
+                // Periksa log tatap muka / mutabaah individual terakhir
+                $lastLog = TarbiyahIndividualLog::where('user_id', $musrifId)
+                    ->where('student_id', $plot->student_id)
+                    ->orderBy('date', 'desc')
+                    ->first();
+
+                if (!$lastLog || $lastLog->date < $oneWeekAgo) {
+                    $pendingStudents[] = $student->name;
+                }
+            }
+
+            // Jika ada santri asuh yang belum dimutaba'ah dalam 7 hari terakhir
+            if (!empty($pendingStudents)) {
+                $user = User::find($musrifId);
                 if (!$user) {
                     continue;
                 }
 
-                $title = '🤝 Pengingat Musyrif Tarbiyah';
-                $body = 'Ustadz ' . $user->name . ', antum belum mencatat agenda/mutabaah santri asuh untuk pekan ini. Mohon luangkan waktu membimbing adik asuh.';
+                $totalPending = count($pendingStudents);
+                $namesPreview = implode(', ', array_slice($pendingStudents, 0, 2));
+                if ($totalPending > 2) {
+                    $namesPreview .= ' dan ' . ($totalPending - 2) . ' santri lainnya';
+                }
+
+                $title = '🤝 Pengingat Musrif Tarbiyah';
+                $body = "Ustadz {$user->name}, antum memiliki {$totalPending} santri asuh yang belum dicatat mutaba'ahnya dalam 1 pekan terakhir ({$namesPreview}). Mohon luangkan waktu membimbing adik asuh antum.";
+
+                $url = route('musyrif-tarbiyah.index', [], false);
 
                 $result = $this->pushService->sendToUser(
-                    $musyrifId,
+                    $musrifId,
                     $title,
                     $body,
-                    '/tarbiyah/musyrif',
-                    ['tag' => 'sikap-tarbiyah-reminder-' . $musyrifId]
+                    $url,
+                    ['tag' => 'sikap-tarbiyah-reminder-' . $musrifId . '-' . $todayDate]
                 );
 
                 if ($result['success'] > 0) {
-                    $count += $result['success'];
-                    $this->info("Reminder tarbiyah terkirim ke: {$user->name} ({$result['success']} perangkat)");
+                    Cache::put($cacheKey, true, now()->addHours(18));
+                    $sentCount += $result['success'];
+                    $this->info("Reminder tarbiyah terkirim ke: {$user->name} ({$totalPending} santri asuh belum dimutaba'ah)");
                 }
             }
         }
 
-        return $count;
+        return $sentCount;
     }
 }

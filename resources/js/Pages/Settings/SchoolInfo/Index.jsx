@@ -64,7 +64,7 @@ const compressImage = (file, maxWidth = 1200, maxHeight = 1600, quality = 0.85) 
     });
 };
 
-export default function Edit({ auth, schoolInfo, appLogo, loginBackground }) {
+export default function Edit({ auth, schoolInfo, appLogo, loginBackground, gradeDeadline }) {
     const { flash } = usePage().props;
     const { data, setData, post, errors, processing, recentlySuccessful } = useForm({
         name: schoolInfo.name || '',
@@ -75,6 +75,7 @@ export default function Edit({ auth, schoolInfo, appLogo, loginBackground }) {
         remove_login_background: false,
         sem1_weight: schoolInfo.grade_config?.sem1_weight ?? 1,
         sem2_weight: schoolInfo.grade_config?.sem2_weight ?? 2,
+        grade_deadline: gradeDeadline || schoolInfo.grade_config?.grade_deadline || '',
         _method: 'POST',
     });
 
@@ -433,6 +434,33 @@ export default function Edit({ auth, schoolInfo, appLogo, loginBackground }) {
                                         <code className="text-indigo-600 font-mono mt-1 block">
                                             ((Nilai Ganjil x {data.sem1_weight}) + (Nilai Genap x {data.sem2_weight})) / {(parseInt(data.sem1_weight) || 0) + (parseInt(data.sem2_weight) || 0)}
                                         </code>
+                                    </div>
+
+                                    {/* Batas Akhir Input Nilai Rapor */}
+                                    <div className="pt-4 border-t border-gray-200">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <InputLabel htmlFor="grade_deadline" value="Batas Akhir Input Nilai Rapor (Deadline)" className="font-bold text-gray-900" />
+                                            {data.grade_deadline && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setData('grade_deadline', '')}
+                                                    className="text-xs text-red-600 hover:underline"
+                                                >
+                                                    Hapus Batas Waktu
+                                                </button>
+                                            )}
+                                        </div>
+                                        <TextInput
+                                            id="grade_deadline"
+                                            type="date"
+                                            className="mt-1 block w-full max-w-sm"
+                                            value={data.grade_deadline}
+                                            onChange={(e) => setData('grade_deadline', e.target.value)}
+                                        />
+                                        <p className="mt-1.5 text-xs text-gray-500 leading-relaxed">
+                                            Tanggal batas pengisian nilai oleh asatidzah. Sistem akan otomatis mengirimkan notifikasi pengingat hitung mundur (H-7, H-3, H-1, dan hari H) ke HP guru yang nilainya belum lengkap.
+                                        </p>
+                                        <InputError className="mt-2" message={errors.grade_deadline} />
                                     </div>
                                 </div>
                             </section>
