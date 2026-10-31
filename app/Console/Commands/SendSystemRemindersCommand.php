@@ -126,7 +126,7 @@ class SendSystemRemindersCommand extends Command
             }
 
             $title = '📋 Pengingat Input Nilai Santri';
-            $body = 'Ustadz/Ustadzah ' . $data['teacher']->name . ', masih ada nilai yang belum lengkap untuk ' . $subjectListStr . '. Mohon segera lengkapi di portal SIKAP.';
+            $body = 'Ustadz ' . $data['teacher']->name . ', masih ada nilai yang belum lengkap untuk ' . $subjectListStr . '. Mohon segera lengkapi di portal SIKAP.';
 
             $result = $this->pushService->sendToUser(
                 $teacherId,

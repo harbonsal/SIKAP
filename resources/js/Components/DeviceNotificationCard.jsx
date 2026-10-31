@@ -274,7 +274,7 @@ export default function DeviceNotificationCard({ compact = false, className = ''
                             className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold h-8 rounded-xl shadow-md shadow-emerald-600/20 flex-1 sm:flex-none"
                         >
                             <Bell className="w-3.5 h-3.5 mr-1.5" />
-                            {actionLoading ? 'Mendaftarkan...' : 'Aktifkan di HP Ini'}
+                            {actionLoading ? 'Mendaftarkan...' : 'Aktifkan di HP (Wajib - Jangan Blokir)'}
                         </Button>
                     )}
                 </div>
@@ -348,10 +348,10 @@ export default function DeviceNotificationCard({ compact = false, className = ''
                         type="button"
                         onClick={handleSubscribe}
                         disabled={actionLoading}
-                        className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs h-9 rounded-xl shadow-md"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-9 rounded-xl shadow-md shadow-emerald-600/20"
                     >
                         <Bell className="w-3.5 h-3.5 mr-1.5" />
-                        {actionLoading ? 'Mendaftarkan Perangkat...' : 'Aktifkan Notifikasi di HP Ini'}
+                        {actionLoading ? 'Mendaftarkan Perangkat...' : 'Aktifkan Pengingat HP (Wajib - Jangan Diblokir)'}
                     </Button>
                 )}
             </div>
