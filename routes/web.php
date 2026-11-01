@@ -148,6 +148,11 @@ Route::get('/run-reminder-test', function (\Illuminate\Http\Request $request) {
                 </div>
             </div>
 
+            ' . ($user && $userSubs->isEmpty() ? '
+            <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 12px; padding: 12px 16px; margin: 8px 0; font-size: 13px; color: #fca5a5;">
+                👉 <strong>Langkah Wajib:</strong> Akun Anda (<strong>' . htmlspecialchars($user->name) . '</strong>) saat ini <strong>belum memiliki perangkat HP/browser terdaftar</strong> di database. Silakan klik tombol hijau <strong>"🔔 Aktifkan / Daftarkan Browser Ini ke Notifikasi HP"</strong> di bawah, lalu pilih <strong>"Izinkan" (Allow)</strong> pada dialog browser agar notifikasi dapat masuk.
+            </div>' : '') . '
+
             <div style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px;">
                 <button type="button" id="btnRegisterThisDevice" class="btn btn-primary" onclick="registerDevice()">
                     🔔 Aktifkan / Daftarkan Browser Ini ke Notifikasi HP
@@ -195,6 +200,7 @@ Route::get('/run-reminder-test', function (\Illuminate\Http\Request $request) {
                         <th>Email</th>
                         <th>Perangkat (Device)</th>
                         <th>Waktu Registrasi</th>
+                        <th>Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -204,6 +210,7 @@ Route::get('/run-reminder-test', function (\Illuminate\Http\Request $request) {
                             <td>' . htmlspecialchars($s->user?->email ?? '-') . '</td>
                             <td>' . htmlspecialchars($s->device_name ?: 'Web Browser') . '</td>
                             <td>' . $s->created_at->format('d M Y H:i') . ' WIB</td>
+                            <td><a href="/push-subscriptions/remove/' . $s->id . '" onclick="return confirm(\'Hapus perangkat ini?\')" class="btn" style="background:#dc2626;padding:4px 8px;font-size:11px;color:#fff;">Hapus</a></td>
                         </tr>';
                     })->toArray()) . '
                 </tbody>
@@ -338,6 +345,10 @@ Route::get('/run-reminder-test', function (\Illuminate\Http\Request $request) {
         return '<h1>Terjadi Kesalahan (Server Error):</h1><pre style="background:#220000;color:#ff6666;padding:15px;border-radius:8px;font-family:monospace;font-size:13px;white-space:pre-wrap;">' . 
             htmlspecialchars($e->getMessage()) . "\n\nFile: " . $e->getFile() . ':' . $e->getLine() . "\n\nTrace:\n" . htmlspecialchars($e->getTraceAsString()) . '</pre><br><a href="/dashboard">Kembali ke Dashboard</a>';
     }
+});
+Route::get('/push-subscriptions/remove/{id}', function ($id) {
+    \App\Models\PushSubscription::where('id', $id)->delete();
+    return redirect()->back();
 });
 Route::get('/run-reminder-kbm-test', function () {
     return redirect('/run-reminder-test?type=kbm');

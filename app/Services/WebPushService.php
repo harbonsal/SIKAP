@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\PushSubscription;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
+use Minishlink\WebPush\ContentEncoding;
 use Minishlink\WebPush\Subscription;
 use Minishlink\WebPush\WebPush;
 
@@ -59,11 +60,11 @@ class WebPushService
 
     /**
      * Send notification to a single PushSubscription model.
+     * Returns array with 'success' (bool), 'reason' (string), and 'status_code' (int|null).
      */
-    public function sendToSubscription(PushSubscription $subscription, string $title, string $body, string $url = '/dashboard', array $extra = []): bool
+    public function sendToSubscription(PushSubscription $subscription, string $title, string $body, string $url = '/dashboard', array $extra = []): array
     {
-        $res = $this->dispatchNotifications(collect([$subscription]), $title, $body, $url, $extra);
-        return $res['success'] > 0;
+        return $this->dispatchSingleNotification($subscription, $title, $body, $url, $extra);
     }
 
     /**
@@ -76,15 +77,15 @@ class WebPushService
     }
 
     /**
-     * Dispatch notification payload to subscriptions list.
+     * Dispatch single notification with detailed reporting.
      */
-    protected function dispatchNotifications($subscriptions, string $title, string $body, string $url, array $extra = []): array
+    public function dispatchSingleNotification(PushSubscription $sub, string $title, string $body, string $url, array $extra = []): array
     {
-        if (!$this->webPush || $subscriptions->isEmpty()) {
+        if (!$this->webPush) {
             return [
-                'total' => 0,
-                'success' => 0,
-                'failed' => 0,
+                'success' => false,
+                'reason' => 'WebPush tidak terinisialisasi (periksa konfigurasi VAPID).',
+                'status_code' => 500,
             ];
         }
 
@@ -101,34 +102,90 @@ class WebPushService
             ],
         ]);
 
+        try {
+            // Modern WebPush (Chrome, Safari, Firefox) menggunakan aes128gcm (RFC 8291)
+            $encodingStr = $sub->content_encoding ?: 'aes128gcm';
+            try {
+                $contentEncoding = ContentEncoding::from($encodingStr);
+            } catch (\Throwable $e) {
+                $contentEncoding = ContentEncoding::aes128gcm;
+            }
+
+            $subscription = new Subscription(
+                $sub->endpoint,
+                $sub->public_key,
+                $sub->auth_token,
+                $contentEncoding
+            );
+
+            $report = $this->webPush->sendOneNotification($subscription, $payload);
+
+            if ($report->isSuccess()) {
+                return [
+                    'success' => true,
+                    'reason' => 'OK',
+                    'status_code' => 200,
+                ];
+            }
+
+            $statusCode = $report->getResponse()?->getStatusCode();
+            $reason = $report->getReason() ?: ('HTTP ' . $statusCode);
+            $respBody = $report->getResponseContent();
+            if ($respBody) {
+                $cleanBody = trim(substr(strip_tags($respBody), 0, 180));
+                if ($cleanBody) {
+                    $reason .= ' - ' . $cleanBody;
+                }
+            }
+
+            // Jika 410 atau 404 (endpoint expired / uninstalled), hapus langganan usang
+            if ($report->isSubscriptionExpired()) {
+                $sub->delete();
+                $reason .= ' [Langganan sudah kedaluwarsa & otomatis dihapus dari database]';
+            }
+
+            Log::warning("WebPush dispatch failed: [{$statusCode}] {$reason} for endpoint {$sub->endpoint}");
+
+            return [
+                'success' => false,
+                'reason' => $reason,
+                'status_code' => $statusCode,
+            ];
+        } catch (\Throwable $e) {
+            Log::error('WebPush dispatch exception: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'reason' => $e->getMessage(),
+                'status_code' => 500,
+            ];
+        }
+    }
+
+    /**
+     * Dispatch notification payload to subscriptions list.
+     */
+    protected function dispatchNotifications($subscriptions, string $title, string $body, string $url, array $extra = []): array
+    {
+        if (!$this->webPush || $subscriptions->isEmpty()) {
+            return [
+                'total' => 0,
+                'success' => 0,
+                'failed' => 0,
+                'reasons' => [],
+            ];
+        }
+
         $successCount = 0;
         $failedCount = 0;
+        $reasons = [];
 
         foreach ($subscriptions as $sub) {
-            try {
-                $subscription = new Subscription(
-                    $sub->endpoint,
-                    $sub->public_key,
-                    $sub->auth_token,
-                    $sub->content_encoding ?: 'aesgcm'
-                );
-
-                $report = $this->webPush->sendOneNotification($subscription, $payload);
-
-                if ($report->isSuccess()) {
-                    $successCount++;
-                } else {
-                    $failedCount++;
-                    Log::warning('Push notification failed for endpoint: ' . $sub->endpoint . ' - Reason: ' . $report->getReason());
-
-                    // Hapus langganan yang kadaluarsa/tidak valid lagi
-                    if ($report->isSubscriptionExpired()) {
-                        $sub->delete();
-                    }
-                }
-            } catch (\Throwable $e) {
+            $singleRes = $this->dispatchSingleNotification($sub, $title, $body, $url, $extra);
+            if ($singleRes['success']) {
+                $successCount++;
+            } else {
                 $failedCount++;
-                Log::error('WebPush dispatch exception: ' . $e->getMessage());
+                $reasons[] = ($sub->device_name ?: 'Perangkat #' . $sub->id) . ': ' . $singleRes['reason'];
             }
         }
 
@@ -136,7 +193,7 @@ class WebPushService
             'total' => $subscriptions->count(),
             'success' => $successCount,
             'failed' => $failedCount,
+            'reasons' => $reasons,
         ];
     }
 }
-

@@ -138,11 +138,12 @@ class SendSystemRemindersCommand extends Command
                 ['tag' => 'broadcast-test-' . time()]
             );
 
-            if ($result) {
+            if (!empty($result['success'])) {
                 $sent++;
                 $this->info("✅ Terkirim ke: " . ($user?->name ?? 'User #' . $sub->user_id) . " ({$sub->device_name})");
             } else {
-                $this->warn("❌ Gagal mengirim ke: " . ($user?->name ?? 'User #' . $sub->user_id) . " ({$sub->device_name})");
+                $reason = $result['reason'] ?? 'Gagal menghubungi server push provider';
+                $this->warn("❌ Gagal mengirim ke: " . ($user?->name ?? 'User #' . $sub->user_id) . " ({$sub->device_name}) -> Alasan: {$reason}");
             }
         }
 
