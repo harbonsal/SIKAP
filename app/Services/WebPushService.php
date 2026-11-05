@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\PushSubscription;
 use App\Models\User;
+use GuzzleHttp\Client as GuzzleClient;
+use GuzzleHttp\Psr7\HttpFactory;
 use Illuminate\Support\Facades\Log;
 use Minishlink\WebPush\ContentEncoding;
 use Minishlink\WebPush\Subscription;
@@ -12,28 +14,44 @@ use Minishlink\WebPush\WebPush;
 class WebPushService
 {
     protected ?WebPush $webPush = null;
+    protected ?string $initError = null;
 
     public function __construct()
     {
-        $subject = config('webpush.vapid.subject', 'mailto:admin@sikap.sinawang.my.id');
-        $publicKey = config('webpush.vapid.public_key');
-        $privateKey = config('webpush.vapid.private_key');
+        $subject = config('webpush.vapid.subject') ?: 'mailto:admin@sikap.sinawang.my.id';
+        $publicKey = config('webpush.vapid.public_key') 
+            ?: (env('VAPID_PUBLIC_KEY') ?: 'BEhkKkxBnEBGsPHG9JotYMCqLp-MEJdboXXFVuea84QhBvtzl_7JmSzISgVCm5Z_G5uKqppYQDp_iJmvbVvKbtU');
+        $privateKey = config('webpush.vapid.private_key') 
+            ?: (env('VAPID_PRIVATE_KEY') ?: 'EjRfHcHH7gS3M2Z_2rqFXWaNc5t6Ol6xsgDTnJ7DYAM');
 
-        if ($publicKey && $privateKey) {
-            $auth = [
-                'VAPID' => [
-                    'subject' => $subject,
-                    'publicKey' => $publicKey,
-                    'privateKey' => $privateKey,
-                ],
-            ];
+        if (!$publicKey || !$privateKey) {
+            $this->initError = 'Kunci VAPID public/private belum terdefinisi.';
+            Log::error($this->initError);
+            return;
+        }
 
-            try {
-                $this->webPush = new WebPush($auth);
-                $this->webPush->setAutomaticPadding(false);
-            } catch (\Throwable $e) {
-                Log::error('Failed to initialize WebPush service: ' . $e->getMessage());
-            }
+        $auth = [
+            'VAPID' => [
+                'subject' => $subject,
+                'publicKey' => $publicKey,
+                'privateKey' => $privateKey,
+            ],
+        ];
+
+        try {
+            // Sediakan client Guzzle secara eksplisit untuk mencegah kegagalan PSR-18 discovery di lingkungan shared hosting cPanel
+            $client = new GuzzleClient([
+                'timeout' => 15,
+                'connect_timeout' => 10,
+                'verify' => true,
+            ]);
+            $httpFactory = new HttpFactory();
+
+            $this->webPush = new WebPush($auth, [], $client, $httpFactory, $httpFactory);
+            $this->webPush->setAutomaticPadding(false);
+        } catch (\Throwable $e) {
+            $this->initError = 'Inisialisasi WebPush gagal (' . get_class($e) . '): ' . $e->getMessage();
+            Log::error($this->initError);
         }
     }
 
@@ -84,7 +102,7 @@ class WebPushService
         if (!$this->webPush) {
             return [
                 'success' => false,
-                'reason' => 'WebPush tidak terinisialisasi (periksa konfigurasi VAPID).',
+                'reason' => $this->initError ?: 'WebPush tidak terinisialisasi (periksa konfigurasi VAPID).',
                 'status_code' => 500,
             ];
         }

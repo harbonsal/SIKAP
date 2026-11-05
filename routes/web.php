@@ -124,8 +124,9 @@ Route::get('/run-reminder-test', function (\Illuminate\Http\Request $request) {
         <div class="title">
             <span>⚡ SIKAP Push Notification Center</span>
         </div>
-        <div>
-            <a href="/dashboard" class="btn btn-outline">← Kembali ke Dashboard</a>
+        <div style="display:flex;gap:8px;">
+            <a href="/run-clear-cache" class="btn btn-outline" style="background:#334155;">🧹 Bersihkan Cache</a>
+            <a href="/dashboard" class="btn btn-outline">← Dashboard</a>
         </div>
     </div>
 
@@ -349,6 +350,15 @@ Route::get('/run-reminder-test', function (\Illuminate\Http\Request $request) {
 Route::get('/push-subscriptions/remove/{id}', function ($id) {
     \App\Models\PushSubscription::where('id', $id)->delete();
     return redirect()->back();
+});
+Route::get('/run-clear-cache', function () {
+    try {
+        \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+        $output = \Illuminate\Support\Facades\Artisan::output();
+        return '<h1>Cache Server Berhasil Dibersihkan!</h1><pre style="background:#111;color:#0f0;padding:14px;border-radius:8px;font-family:monospace;">' . htmlspecialchars($output) . '</pre><br><a href="/run-reminder-test">← Kembali ke Penguji Notifikasi</a>';
+    } catch (\Throwable $e) {
+        return '<h1>Gagal membersihkan cache: ' . htmlspecialchars($e->getMessage()) . '</h1>';
+    }
 });
 Route::get('/run-reminder-kbm-test', function () {
     return redirect('/run-reminder-test?type=kbm');
