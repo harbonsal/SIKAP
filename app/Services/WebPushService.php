@@ -18,6 +18,8 @@ class WebPushService
 
     public function __construct()
     {
+        self::ensureAutoloaderRegistered();
+
         $subject = config('webpush.vapid.subject') ?: 'mailto:admin@sikap.sinawang.my.id';
         $publicKey = config('webpush.vapid.public_key') 
             ?: (env('VAPID_PUBLIC_KEY') ?: 'BEhkKkxBnEBGsPHG9JotYMCqLp-MEJdboXXFVuea84QhBvtzl_7JmSzISgVCm5Z_G5uKqppYQDp_iJmvbVvKbtU');
@@ -213,5 +215,40 @@ class WebPushService
             'failed' => $failedCount,
             'reasons' => $reasons,
         ];
+    }
+
+    /**
+     * Fallback PSR-4 autoloader untuk pustaka WebPush di lingkungan cPanel jika Composer autoload belum diperbarui.
+     */
+    public static function ensureAutoloaderRegistered(): void
+    {
+        if (class_exists(\Minishlink\WebPush\WebPush::class)) {
+            return;
+        }
+
+        spl_autoload_register(function ($class) {
+            $prefixes = [
+                'Minishlink\\WebPush\\' => base_path('vendor/minishlink/web-push/src/'),
+                'Jose\\' => base_path('vendor/web-token/jwt-library/src/'),
+                'Base64Url\\' => base_path('vendor/spomky-labs/base64url/src/'),
+                'Http\\Client\\' => base_path('vendor/php-http/httplug/src/'),
+                'Http\\Promise\\' => base_path('vendor/php-http/promise/src/'),
+                'Http\\Discovery\\' => base_path('vendor/php-http/discovery/src/'),
+                'Http\\Message\\MultipartStream\\' => base_path('vendor/php-http/multipart-stream-builder/src/'),
+            ];
+
+            foreach ($prefixes as $prefix => $baseDir) {
+                $len = strlen($prefix);
+                if (strncmp($prefix, $class, $len) === 0) {
+                    $relativeClass = substr($class, $len);
+                    $file = $baseDir . str_replace('\\', '/', $relativeClass) . '.php';
+                    if (file_exists($file)) {
+                        require_once $file;
+                        return true;
+                    }
+                }
+            }
+            return false;
+        });
     }
 }
