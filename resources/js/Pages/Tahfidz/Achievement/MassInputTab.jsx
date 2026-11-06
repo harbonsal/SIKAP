@@ -17,7 +17,12 @@ import {
     ArrowUpDown,
     Smartphone,
     Monitor,
-    Zap
+    Zap,
+    ChevronDown,
+    Crown,
+    Star,
+    X,
+    Users
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -74,6 +79,48 @@ export default function MassInputTab({ musyrifs = [], defaultMusyrifId = '' }) {
     const [batchJuz, setBatchJuz] = useState('30');
     const [sortMode, setSortMode] = useState('mutabaah'); // 'mutabaah', 'name', 'nis', 'progress'
     const [viewMode, setViewMode] = useState('auto'); // 'auto', 'card', 'table'
+    const [updatingRole, setUpdatingRole] = useState(false);
+    const [showRoleModal, setShowRoleModal] = useState(false);
+
+    // Ubah Peran Santri (Musrif Halaqoh, Ketua Halaqoh, Anggota)
+    const handleRoleChange = async (studentId, memberId, newRole) => {
+        if (!memberId) {
+            alert('ID keanggotaan halaqoh tidak ditemukan.');
+            return;
+        }
+        setUpdatingRole(true);
+        try {
+            await axios.patch(route('tahfidz.halaqoh-settings.members.update-role', memberId), {
+                role: newRole
+            });
+
+            // Perbarui state lokal santri
+            setStudentsData(prev => prev.map(s => {
+                if (s.id === studentId) {
+                    return { ...s, role: newRole };
+                }
+                // Jika dijadikan musrif atau ketua, santri lain dengan peran yang sama kembali jadi anggota
+                if ((newRole === 'musyrif' || newRole === 'ketua') && s.role === newRole) {
+                    return { ...s, role: 'anggota' };
+                }
+                return s;
+            }));
+
+            const roleLabel = newRole === 'musyrif' ? '📖 Musrif Halaqoh' : (newRole === 'ketua' ? '⭐ Ketua Halaqoh' : 'Anggota Biasa');
+            setNotification({
+                type: 'success',
+                message: `Alhamdulillah! Peran santri berhasil diubah menjadi ${roleLabel}. Urutan tabel otomatis disesuaikan.`
+            });
+        } catch (err) {
+            console.error('Gagal memperbarui peran santri:', err);
+            setNotification({
+                type: 'error',
+                message: err.response?.data?.message || 'Gagal mengubah peran santri. Pastikan Anda memiliki akses.'
+            });
+        } finally {
+            setUpdatingRole(false);
+        }
+    };
 
     // Fetch data ketika musyrif atau tipe setoran berubah
     const fetchMassData = async () => {
@@ -667,6 +714,17 @@ export default function MassInputTab({ musyrifs = [], defaultMusyrifId = '' }) {
                                 type="button"
                                 size="sm"
                                 variant="outline"
+                                onClick={() => setShowRoleModal(true)}
+                                className="h-8 text-xs px-2.5 bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100 font-semibold"
+                                title="Atur Musrif Santri & Ketua Halaqoh"
+                            >
+                                <Crown className="w-3.5 h-3.5 mr-1 text-amber-600" />
+                                Atur Peran
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
                                 onClick={handleCheckAllStudents}
                                 className="h-8 text-xs px-2.5 bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100 font-semibold"
                             >
@@ -750,6 +808,17 @@ export default function MassInputTab({ musyrifs = [], defaultMusyrifId = '' }) {
                                                             ⭐ Ketua
                                                         </span>
                                                     )}
+                                                    <select
+                                                        value={student.role || 'anggota'}
+                                                        onChange={(e) => handleRoleChange(student.id, student.member_id, e.target.value)}
+                                                        disabled={updatingRole}
+                                                        title="Ubah peran santri"
+                                                        className="text-[10px] font-bold py-0.5 px-1.5 rounded border border-slate-200 bg-slate-50 text-slate-600 focus:outline-none cursor-pointer"
+                                                    >
+                                                        <option value="anggota">Anggota</option>
+                                                        <option value="ketua">⭐ Ketua</option>
+                                                        <option value="musyrif">📖 Musrif</option>
+                                                    </select>
                                                 </div>
                                                 <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-500">
                                                     <span>{student.class_name}</span>
@@ -842,16 +911,16 @@ export default function MassInputTab({ musyrifs = [], defaultMusyrifId = '' }) {
                                 <table className="w-full text-xs text-left border-collapse">
                                     <thead>
                                         <tr className="bg-slate-100/95 backdrop-blur-xs text-slate-700 font-bold sticky top-0 z-30 border-b shadow-2xs">
-                                            <th className="px-3 py-3.5 border-r text-center w-12 bg-slate-100 sticky left-0 z-40">
+                                            <th className="px-3 py-3.5 border-r text-center w-12 min-w-[48px] bg-slate-100 sticky left-0 z-40 shrink-0">
                                                 No.
                                             </th>
-                                            <th className="px-4 py-3.5 border-r min-w-[220px] bg-slate-100 sticky left-12 z-30 shadow-[2px_0_4px_rgba(0,0,0,0.04)]">
+                                            <th className="px-4 py-3.5 border-r min-w-[220px] bg-slate-100 sticky left-12 z-30 shadow-[2px_0_4px_rgba(0,0,0,0.04)] shrink-0">
                                                 Nama Santri & Kelas
                                             </th>
-                                            <th className="px-3 py-3.5 border-r text-center w-28 min-w-[100px] whitespace-nowrap bg-slate-100">
+                                            <th className="px-3 py-3.5 border-r text-center w-[125px] min-w-[125px] whitespace-nowrap bg-slate-100 shrink-0">
                                                 Pilih Juz
                                             </th>
-                                            <th className="px-2 py-3.5 border-r text-center w-20 min-w-[70px] whitespace-nowrap bg-slate-100">
+                                            <th className="px-2 py-3.5 border-r text-center w-[85px] min-w-[85px] whitespace-nowrap bg-slate-100 shrink-0">
                                                 Aksi
                                             </th>
                                             {/* KOLOM HALAMAN 1 S/D MAX */}
@@ -885,9 +954,9 @@ export default function MassInputTab({ musyrifs = [], defaultMusyrifId = '' }) {
                                                     </td>
 
                                                     {/* NAMA SANTRI & KELAS */}
-                                                    <td className="px-4 py-2.5 border-r sticky left-12 bg-white group-hover:bg-slate-50 z-10 shadow-[2px_0_4px_rgba(0,0,0,0.04)]">
+                                                    <td className="px-4 py-2.5 border-r sticky left-12 bg-white group-hover:bg-slate-50 z-10 shadow-[2px_0_4px_rgba(0,0,0,0.04)] shrink-0">
                                                         <div className="flex items-center gap-1.5 flex-wrap">
-                                                            <span className="font-bold text-slate-900 truncate max-w-[190px]">
+                                                            <span className="font-bold text-slate-900 truncate max-w-[170px]">
                                                                 {student.name}
                                                             </span>
                                                             {student.role === 'musyrif' && (
@@ -900,6 +969,17 @@ export default function MassInputTab({ musyrifs = [], defaultMusyrifId = '' }) {
                                                                     ⭐ Ketua
                                                                 </span>
                                                             )}
+                                                            <select
+                                                                value={student.role || 'anggota'}
+                                                                onChange={(e) => handleRoleChange(student.id, student.member_id, e.target.value)}
+                                                                disabled={updatingRole}
+                                                                title="Ubah peran santri dalam halaqoh"
+                                                                className="text-[9px] font-bold py-0.5 px-1.5 rounded border border-slate-200 bg-slate-50 text-slate-600 hover:border-indigo-300 focus:outline-none cursor-pointer"
+                                                            >
+                                                                <option value="anggota">Anggota</option>
+                                                                <option value="ketua">⭐ Ketua</option>
+                                                                <option value="musyrif">📖 Musrif</option>
+                                                            </select>
                                                         </div>
                                                         <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-slate-500">
                                                             <span>{student.class_name}</span>
@@ -920,24 +1000,27 @@ export default function MassInputTab({ musyrifs = [], defaultMusyrifId = '' }) {
                                                         </div>
                                                     </td>
 
-                                                    {/* DROPDOWN JUZ PER SANTRI */}
-                                                    <td className="px-2 py-2.5 border-r text-center min-w-[100px] w-28 bg-white group-hover:bg-slate-50">
-                                                        <select
-                                                            value={student.current_juz}
-                                                            onChange={(e) => handleStudentJuzChange(student.id, e.target.value)}
-                                                            className="w-full min-w-[85px] h-8 px-2 py-1 text-xs font-bold text-indigo-700 bg-indigo-50/70 border border-indigo-200 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none cursor-pointer"
-                                                        >
-                                                            {Array.from({ length: 30 }, (_, i) => 30 - i).map(j => (
-                                                                <option key={j} value={j}>
-                                                                    Juz {j}
-                                                                </option>
-                                                            ))}
-                                                        </select>
+                                                    {/* DROPDOWN JUZ PER SANTRI (LEBAR LEGA & TIDAK KEGENCET) */}
+                                                    <td className="px-2.5 py-2 border-r text-center w-[125px] min-w-[125px] max-w-[130px] shrink-0 bg-white group-hover:bg-slate-50">
+                                                        <div className="w-[105px] mx-auto relative">
+                                                            <select
+                                                                value={student.current_juz}
+                                                                onChange={(e) => handleStudentJuzChange(student.id, e.target.value)}
+                                                                className="w-full h-8 pl-3 pr-6 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100/80 border border-indigo-200 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none cursor-pointer appearance-none transition-colors text-center shadow-2xs"
+                                                            >
+                                                                {Array.from({ length: 30 }, (_, i) => 30 - i).map(j => (
+                                                                    <option key={j} value={j} className="text-slate-800 font-semibold text-xs">
+                                                                        Juz {j}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                            <ChevronDown className="w-3.5 h-3.5 text-indigo-500 absolute right-2 top-2.5 pointer-events-none" />
+                                                        </div>
                                                     </td>
 
                                                     {/* TOMBOL AKSI CEPAT (PENUH / RESET) */}
-                                                    <td className="px-1.5 py-2.5 border-r text-center min-w-[70px] w-20 bg-white group-hover:bg-slate-50 whitespace-nowrap">
-                                                        <div className="flex items-center justify-center gap-1">
+                                                    <td className="px-2 py-2 border-r text-center w-[85px] min-w-[85px] shrink-0 bg-white group-hover:bg-slate-50 whitespace-nowrap">
+                                                        <div className="w-[75px] mx-auto flex items-center justify-center gap-1">
                                                             <button
                                                                 type="button"
                                                                 title="Centang 1 Juz Penuh"
@@ -1003,6 +1086,84 @@ export default function MassInputTab({ musyrifs = [], defaultMusyrifId = '' }) {
                                 {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                                 Simpan Semua Capaian
                             </Button>
+                        </div>
+                    </div>
+                )}
+                {/* ── MODAL KELOLA PERAN HALAQOH (MUSRIF & KETUA) ── */}
+                {showRoleModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden">
+                            <div className="bg-gradient-to-r from-indigo-700 to-indigo-900 px-5 py-4 text-white flex items-center justify-between">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="p-2 bg-white/10 rounded-lg">
+                                        <Crown className="w-5 h-5 text-amber-300" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-base">Atur Peran Halaqoh</h3>
+                                        <p className="text-xs text-indigo-200">Tentukan Musrif Santri & Ketua Halaqoh</p>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => setShowRoleModal(false)}
+                                    className="p-1.5 text-indigo-200 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+                                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 text-xs flex items-start gap-2">
+                                    <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                                    <div>
+                                        <strong>Struktur Urutan Halaqoh:</strong>
+                                        <ol className="list-decimal ml-4 mt-1 space-y-0.5 text-slate-700 font-medium">
+                                            <li><strong className="text-indigo-800">Musrif Halaqoh</strong> (Santri pendamping halaqoh)</li>
+                                            <li><strong className="text-amber-800">Ketua Halaqoh</strong> (Ketua santri)</li>
+                                            <li><strong>Anggota MTW</strong> (Tingkat 1, 2, 3)</li>
+                                            <li><strong>Anggota Tsanawy</strong> (Tingkat 1, 2, 3)</li>
+                                        </ol>
+                                    </div>
+                                </div>
+
+                                <div className="divide-y divide-slate-100 border rounded-xl overflow-hidden bg-slate-50/50">
+                                    {studentsData.map((s, idx) => (
+                                        <div key={s.id} className="p-3 flex items-center justify-between gap-3 bg-white hover:bg-slate-50 transition-colors">
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                <span className="text-xs font-mono font-bold text-slate-400 w-5 shrink-0">
+                                                    {idx + 1}.
+                                                </span>
+                                                <div className="min-w-0">
+                                                    <p className="font-bold text-xs text-slate-800 truncate">{s.name}</p>
+                                                    <p className="text-[10px] text-slate-500">{s.class_name} • NIS: {s.nis}</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="shrink-0">
+                                                <select
+                                                    value={s.role || 'anggota'}
+                                                    onChange={(e) => handleRoleChange(s.id, s.member_id, e.target.value)}
+                                                    disabled={updatingRole}
+                                                    className="text-xs font-bold py-1.5 pl-2.5 pr-8 rounded-lg border border-slate-300 bg-white text-slate-700 focus:ring-2 focus:ring-indigo-400 cursor-pointer shadow-2xs"
+                                                >
+                                                    <option value="anggota">Anggota Biasa</option>
+                                                    <option value="ketua">⭐ Ketua Halaqoh</option>
+                                                    <option value="musyrif">📖 Musrif Halaqoh</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="bg-slate-50 px-5 py-3 border-t flex justify-end">
+                                <Button
+                                    type="button"
+                                    onClick={() => setShowRoleModal(false)}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs"
+                                >
+                                    Selesai
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 )}

@@ -269,12 +269,33 @@ class TahfidzHalaqohSettingsController extends Controller
 
     public function updateMemberRole(Request $request, $id)
     {
-        $this->authorizeTahfidzManager();
+        $user = auth()->user();
+        if (!$user) {
+            abort(401);
+        }
+
+        $member = \App\Models\TahfidzHalaqohMember::with('musyrif')->findOrFail($id);
+
+        $levelName = $user->userLevel?->name ?? '';
+        $additionalLevels = $user->additionalLevels ? $user->additionalLevels->pluck('name')->toArray() : [];
+        $allLevels = array_merge([$levelName], $additionalLevels);
+
+        $isManager = in_array('Administrator', $allLevels)
+            || in_array('Manager Tahfidz', $allLevels)
+            || in_array('Manager', $allLevels)
+            || (method_exists($user, 'hasRole') && $user->hasRole(['Administrator', 'Manager Tahfidz', 'Manager']))
+            || $user->hasPermission('manage_tahfidz_testers')
+            || $user->hasPermission('manage_tahfidz_settings');
+
+        $isHisHalaqoh = $member->musyrif && $member->musyrif->user_id === $user->id;
+
+        if (!$isManager && !$isHisHalaqoh) {
+            abort(403, 'Akses Ditolak. Anda hanya dapat mengatur peran santri di halaqoh Anda sendiri.');
+        }
+
         $request->validate([
             'role' => 'required|in:musyrif,ketua,anggota',
         ]);
-
-        $member = \App\Models\TahfidzHalaqohMember::findOrFail($id);
 
         if (in_array($request->role, ['musyrif', 'ketua'])) {
             \App\Models\TahfidzHalaqohMember::where('musyrif_id', $member->musyrif_id)
@@ -290,6 +311,15 @@ class TahfidzHalaqohSettingsController extends Controller
             'ketua' => 'Ketua Halaqoh',
             default => 'Anggota'
         };
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Peran santri berhasil diubah menjadi {$roleLabel}.",
+                'member_id' => $member->id,
+                'role' => $member->role,
+            ]);
+        }
 
         return redirect()->back()->with('success', "Peran santri berhasil diubah menjadi {$roleLabel}.");
     }
