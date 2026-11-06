@@ -528,20 +528,26 @@ class SendSystemRemindersCommand extends Command
     }
 
     /**
-     * Kirim reminder ke musrif tarbiyah yang santri asuhnya belum dicatat mutabaah dalam sepekan terakhir.
+     * Kirim reminder ke musrif tarbiyah berdasarkan 2 tagihan baku:
+     * 1. Tagihan pertemuan kelompok: minimal 1 kali per bulan kalender.
+     * 2. Tagihan pertemuan personal: minimal 2 kali per bulan per santri asuh.
      */
     protected function remindMusyrifTarbiyah($academicYear, ?int $toUserId = null): int
     {
-        $this->info("--- [3] PENGECEKAN BIMBINGAN SANTRI ASUH MUSRIF TARBIYAH ---");
+        $this->info("--- [3] PENGECEKAN BIMBINGAN SANTRI ASUH MUSRIF TARBIYAH (KELOMPOK & PERSONAL) ---");
 
         // Jika mode simulasi langsung ke user tertentu
         if ($toUserId) {
             return $this->simulateTarbiyahReminder($toUserId);
         }
 
+        Carbon::setLocale('id');
         $now = Carbon::now();
         $todayDate = $now->toDateString();
-        $oneWeekAgo = $now->copy()->subDays(7)->toDateString();
+        $currentYear = $now->year;
+        $currentMonth = $now->month;
+        $monthName = $now->translatedFormat('F Y');
+        $dayOfMonth = $now->day;
         $isForce = (bool)$this->option('force');
 
         // Ambil seluruh musrif yang memiliki santri asuh di tahun ajaran aktif
@@ -550,6 +556,8 @@ class SendSystemRemindersCommand extends Command
             ->pluck('user_id')
             ->toArray();
 
+        $this->line("-> Bulan Evaluasi: {$monthName} (Tanggal {$dayOfMonth})");
+        $this->line("-> Standar Tagihan: Pertemuan Kelompok min. 1x/bulan | Pertemuan Personal min. 2x/bulan/santri");
         $this->line("-> Total musrif tarbiyah terdata: " . count($musyrifIds) . " orang.");
 
         if (empty($musyrifIds)) {
@@ -575,36 +583,62 @@ class SendSystemRemindersCommand extends Command
                 continue;
             }
 
-            $pendingStudents = [];
+            $totalSantriAsuh = $plottings->count();
+
+            // 1. EVALUASI TAGIHAN PERTEMUAN KELOMPOK (Min. 1x per bulan)
+            $groupCount = TarbiyahGroupLog::where('user_id', $musrifId)
+                ->whereYear('date', $currentYear)
+                ->whereMonth('date', $currentMonth)
+                ->count();
+
+            $isGroupPending = ($groupCount < 1);
+
+            // 2. EVALUASI TAGIHAN PERTEMUAN PERSONAL (Min. 2x per bulan per santri asuh)
+            $pendingPersonalStudents = [];
 
             foreach ($plottings as $plot) {
                 $student = $plot->student;
                 if (!$student) continue;
 
-                // Periksa log tatap muka / mutabaah individual terakhir
-                $lastLog = TarbiyahIndividualLog::where('user_id', $musrifId)
+                $personalCount = TarbiyahIndividualLog::where('user_id', $musrifId)
                     ->where('student_id', $plot->student_id)
-                    ->orderBy('date', 'desc')
-                    ->first();
+                    ->whereYear('date', $currentYear)
+                    ->whereMonth('date', $currentMonth)
+                    ->count();
 
-                if (!$lastLog || $lastLog->date < $oneWeekAgo) {
-                    $pendingStudents[] = $student->name;
+                // Santri belum mencapai kuota 2x di bulan ini
+                if ($personalCount < 2) {
+                    $pendingPersonalStudents[] = [
+                        'name' => $student->name,
+                        'current' => $personalCount,
+                    ];
                 }
             }
 
-            if (empty($pendingStudents)) {
-                $this->line("   • [Musrif] {$user->name}: Seluruh santri asuh ({$plottings->count()} santri) sudah dibimbing dalam sepekan terakhir.");
+            $totalPendingPersonal = count($pendingPersonalStudents);
+
+            // Jika kedua tagihan sudah tuntas terpenuhi bulan ini
+            if (!$isGroupPending && $totalPendingPersonal === 0) {
+                $this->line("   • [Musrif] {$user->name}: Alhamdulillah, seluruh tagihan bulan {$monthName} tuntas (Kelompok {$groupCount}x, Personal {$totalSantriAsuh} santri memenuhi kuota).");
                 continue;
             }
 
-            $totalPending = count($pendingStudents);
-            $namesPreview = implode(', ', array_slice($pendingStudents, 0, 2));
-            if ($totalPending > 2) {
-                $namesPreview .= ' dan ' . ($totalPending - 2) . ' santri lainnya';
+            // Susun detail kekurangan tagihan
+            $tagihanDetails = [];
+            if ($isGroupPending) {
+                $tagihanDetails[] = "Pertemuan kelompok belum tercatat (0/1)";
+            }
+            if ($totalPendingPersonal > 0) {
+                $previewSantri = implode(', ', array_slice(array_column($pendingPersonalStudents, 'name'), 0, 2));
+                if ($totalPendingPersonal > 2) {
+                    $previewSantri .= ' dan ' . ($totalPendingPersonal - 2) . ' santri lainnya';
+                }
+                $tagihanDetails[] = "{$totalPendingPersonal} santri asuh belum memenuhi target personal min. 2x ({$previewSantri})";
             }
 
             $subsCount = PushSubscription::where('user_id', $musrifId)->count();
-            $this->line("   • [Musrif] {$user->name}: Ada {$totalPending} santri asuh belum dimutabaah sepekan terakhir ({$namesPreview})");
+            $tagihanSummary = implode(' & ', $tagihanDetails);
+            $this->line("   • [Musrif] {$user->name}: Belum tuntas -> {$tagihanSummary}");
 
             if ($subsCount === 0) {
                 $this->warn("     -> Dilewati: Musrif {$user->name} BELUM mengaktifkan notifikasi di HP (0 perangkat terdaftar).");
@@ -618,8 +652,21 @@ class SendSystemRemindersCommand extends Command
                 continue;
             }
 
-            $title = '🤝 Pengingat Musrif Tarbiyah';
-            $body = "Ustadz {$user->name}, antum memiliki {$totalPending} santri asuh yang belum dicatat mutaba'ahnya dalam 1 pekan terakhir ({$namesPreview}). Mohon luangkan waktu membimbing adik asuh antum.";
+            // Susun pesan notifikasi yang santun, jelas, dan edukatif
+            $title = "🤝 Pengingat Bimbingan Tarbiyah";
+            
+            if ($isGroupPending && $totalPendingPersonal > 0) {
+                $body = "Ustadz {$user->name}, tagihan bimbingan bulan {$monthName}: Pertemuan kelompok belum terlaksana & masih ada {$totalPendingPersonal} santri asuh yang belum mencapai target personal minimal 2x. Mohon luangkan waktu membimbing adik asuh antum.";
+            } elseif ($isGroupPending) {
+                $body = "Ustadz {$user->name}, pertemuan kelompok bulanan santri asuh (target 1x/bulan) untuk bulan {$monthName} belum tercatat. Mohon segera jadwalkan halaqoh kelompok bersama santri asuh antum.";
+            } else {
+                $previewSantri = implode(', ', array_slice(array_column($pendingPersonalStudents, 'name'), 0, 2));
+                if ($totalPendingPersonal > 2) {
+                    $previewSantri .= ' dan ' . ($totalPendingPersonal - 2) . ' lainnya';
+                }
+                $body = "Ustadz {$user->name}, masih ada {$totalPendingPersonal} santri asuh ({$previewSantri}) yang belum memenuhi target bimbingan personal bulan {$monthName} (minimal 2x/bulan). Mohon segera luangkan waktu tatap muka.";
+            }
+
             $url = route('musyrif-tarbiyah.index', [], false);
 
             $result = $this->pushService->sendToUser(
@@ -697,7 +744,7 @@ class SendSystemRemindersCommand extends Command
         }
 
         $title = "🤝 [TES SIMULASI] Pengingat Musrif Tarbiyah";
-        $body = "Ustadz {$user->name}, antum memiliki santri asuh yang belum dicatat mutaba'ahnya. Ini adalah simulasi pengingat bimbingan santri ke HP antum.";
+        $body = "Ustadz {$user->name}, tagihan bimbingan bulan ini: Pertemuan kelompok (target 1x/bulan) & bimbingan personal santri asuh (min. 2x/bulan). Ini adalah simulasi pengingat ke HP antum.";
         $url = route('musyrif-tarbiyah.index', [], false);
 
         $result = $this->pushService->sendToUser($userId, $title, $body, $url, ['tag' => 'simulasi-tarbiyah-' . time()]);
