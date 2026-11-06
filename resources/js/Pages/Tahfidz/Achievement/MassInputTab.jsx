@@ -807,10 +807,10 @@ export default function MassInputTab({ musyrifs = [], defaultMusyrifId = '' }) {
                                             <th className="px-4 py-3.5 border-r min-w-[220px] bg-slate-100 sticky left-12 z-30 shadow-[2px_0_4px_rgba(0,0,0,0.04)]">
                                                 Nama Santri & Kelas
                                             </th>
-                                            <th className="px-3 py-3.5 border-r text-center w-28 bg-slate-100">
+                                            <th className="px-3 py-3.5 border-r text-center w-28 min-w-[100px] whitespace-nowrap bg-slate-100">
                                                 Pilih Juz
                                             </th>
-                                            <th className="px-2 py-3.5 border-r text-center w-20 bg-slate-100">
+                                            <th className="px-2 py-3.5 border-r text-center w-20 min-w-[70px] whitespace-nowrap bg-slate-100">
                                                 Aksi
                                             </th>
                                             {/* KOLOM HALAMAN 1 S/D MAX */}
@@ -868,11 +868,11 @@ export default function MassInputTab({ musyrifs = [], defaultMusyrifId = '' }) {
                                                     </td>
 
                                                     {/* DROPDOWN JUZ PER SANTRI */}
-                                                    <td className="px-2 py-2.5 border-r text-center bg-white group-hover:bg-slate-50">
+                                                    <td className="px-2 py-2.5 border-r text-center min-w-[100px] w-28 bg-white group-hover:bg-slate-50">
                                                         <select
                                                             value={student.current_juz}
                                                             onChange={(e) => handleStudentJuzChange(student.id, e.target.value)}
-                                                            className="w-full h-8 px-2 py-1 text-xs font-bold text-indigo-700 bg-indigo-50/70 border border-indigo-200 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none cursor-pointer"
+                                                            className="w-full min-w-[85px] h-8 px-2 py-1 text-xs font-bold text-indigo-700 bg-indigo-50/70 border border-indigo-200 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none cursor-pointer"
                                                         >
                                                             {Array.from({ length: 30 }, (_, i) => 30 - i).map(j => (
                                                                 <option key={j} value={j}>
@@ -883,7 +883,7 @@ export default function MassInputTab({ musyrifs = [], defaultMusyrifId = '' }) {
                                                     </td>
 
                                                     {/* TOMBOL AKSI CEPAT (PENUH / RESET) */}
-                                                    <td className="px-1.5 py-2.5 border-r text-center bg-white group-hover:bg-slate-50 whitespace-nowrap">
+                                                    <td className="px-1.5 py-2.5 border-r text-center min-w-[70px] w-20 bg-white group-hover:bg-slate-50 whitespace-nowrap">
                                                         <div className="flex items-center justify-center gap-1">
                                                             <button
                                                                 type="button"
