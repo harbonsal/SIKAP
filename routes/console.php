@@ -17,5 +17,6 @@ Schedule::command('sikap:send-reminders --type=kbm')
     ->between('06:45', '16:30');
 
 // 2. Pengingat Rekap Nilai Akademik & Mutaba'ah Tarbiyah Asatidzah
-Schedule::command('sikap:send-reminders --type=academic')->dailyAt('08:00');
-Schedule::command('sikap:send-reminders --type=tarbiyah')->dailyAt('16:00');
+// Dijalankan otomatis setiap hari pukul 13:00 WIB
+Schedule::command('sikap:send-reminders --type=academic')->dailyAt('13:00');
+Schedule::command('sikap:send-reminders --type=tarbiyah')->dailyAt('13:00');

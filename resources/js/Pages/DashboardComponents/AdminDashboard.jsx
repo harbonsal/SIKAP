@@ -5,7 +5,7 @@ import {
     Users, GraduationCap, School, Activity, CalendarDays, User, Calendar, 
     Heart, Stethoscope, FileText, Search, ClipboardCheck, CheckSquare, ShieldAlert, Book, BookOpen, 
     HeartPulse, BarChart2, CalendarRange, Sparkles, Bot, BookOpenCheck, Key, Plus,
-    Wallet, Download, UserCheck
+    Wallet, Download, UserCheck, BellRing
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -39,6 +39,20 @@ export default function AdminDashboard({ stats, allowedWidgets = {}, activities 
             borderHover: 'hover:border-purple-200',
             textHover: 'group-hover:text-purple-700',
             shadow: 'shadow-purple-500/30 ring-purple-50',
+            default: true,
+        },
+        // 1b. Pengingat HP & Push Notifikasi
+        {
+            id: 'shortcut_reminders',
+            alias: 'reminders',
+            title: 'Pengingat HP',
+            subtitle: 'Notifikasi & Pengingat 13:00',
+            href: '/run-reminder-test',
+            icon: BellRing,
+            gradient: 'from-emerald-600 to-teal-700',
+            borderHover: 'hover:border-emerald-200',
+            textHover: 'group-hover:text-emerald-700',
+            shadow: 'shadow-emerald-500/30 ring-emerald-50',
             default: true,
         },
         // 2. Kesehatan Santri (UKS) - Prioritas untuk Bagian Kesehatan & UKS
@@ -393,6 +407,46 @@ export default function AdminDashboard({ stats, allowedWidgets = {}, activities 
                     </CardContent>
                 </Card>
             )}
+
+            {/* Notification & Reminder Control Panel for Admin */}
+            <Card className="border-none shadow-md bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900 text-white overflow-hidden relative">
+                <div className="absolute right-0 top-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/3"></div>
+                <CardContent className="p-5 sm:p-6 relative z-10">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        <div className="flex items-start sm:items-center gap-4">
+                            <div className="p-3 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-2xl shadow-inner shrink-0">
+                                <BellRing className="h-6 w-6 sm:h-7 sm:w-7 animate-pulse" />
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">Pusat Notifikasi & Pengingat HP</h3>
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                        ⏰ Jadwal Otomatis: 13:00 WIB
+                                    </span>
+                                </div>
+                                <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                                    Pengingat otomatis dievaluasi dan dikirim ke seluruh HP asatidzah setiap pukul 13:00 WIB (KBM 10 menit, batas nilai rapor, & bimbingan santri asuh).
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap shrink-0">
+                            <a
+                                href="/run-reminder-test"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-lg shadow-emerald-900/30 transition-all hover:-translate-y-0.5"
+                            >
+                                <BellRing className="w-4 h-4" />
+                                Buka Pusat Notifikasi
+                            </a>
+                            <a
+                                href="/run-reminder-test?type=broadcast"
+                                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all"
+                            >
+                                Tes Broadcast ke HP
+                            </a>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
 
             {/* Quick Actions (Shortcuts) */}
             {(allowedWidgets.quick_actions ?? true) && (

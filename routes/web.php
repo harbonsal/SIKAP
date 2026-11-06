@@ -60,7 +60,7 @@ Route::get('/run-migrate-push', function () {
 });
 
 
-Route::get('/run-reminder-test', function (\Illuminate\Http\Request $request) {
+Route::name('reminders.index')->get('/run-reminder-test', function (\Illuminate\Http\Request $request) {
     try {
         $type = $request->query('type', 'all');
         $user = auth()->user();

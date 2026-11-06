@@ -214,6 +214,7 @@ const navItems = [
                 roles: ['Administrator'],
                 children: [
                     { title: "Fitur Pendukung", href: "settings.sync.grades.index", activeRoutes: ['settings.sync.grades.index', 'settings.sync.akhlak.index'] },
+                    { title: "Pengingat HP & Notifikasi", href: "reminders.index", fallbackPath: "/run-reminder-test" },
                 ]
             },
             {
