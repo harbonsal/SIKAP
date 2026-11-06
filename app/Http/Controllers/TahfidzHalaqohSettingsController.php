@@ -59,7 +59,7 @@ class TahfidzHalaqohSettingsController extends Controller
             'student.latestClassMember.activeClass.kelasParalel',
             'user',
             'members.student.user',
-            'members.student.latestClassMember.activeClass.kelas',
+            'members.student.latestClassMember.activeClass.kelas.jenjang',
             'members.student.latestClassMember.activeClass.kelasParalel'
         ])->where('is_active', true)->get();
 

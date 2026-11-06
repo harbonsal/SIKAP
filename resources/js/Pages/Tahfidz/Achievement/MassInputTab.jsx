@@ -34,6 +34,27 @@ const getJuzPageInfo = (juzNumber) => {
     return { startPage, totalPages: 20, endPage: startPage + 19 };
 };
 
+// Helper: Kalkulasi bobot urutan jenjang & kelas:
+// MTW (1, 2, 3) -> 11, 12, 13
+// Tsanawy (1, 2, 3) -> 21, 22, 23
+const getClassSortScore = (className = '') => {
+    const text = (className || '').toLowerCase();
+    let jenjangOrder = 3;
+    if (text.includes('mutawassith') || text.includes('mtw') || text.includes('smp') || text.includes('mts')) {
+        jenjangOrder = 1;
+    } else if (text.includes('tsanaw') || text.includes('tsa') || text.includes('aliyah') || text.includes('sma') || text.includes('ma')) {
+        jenjangOrder = 2;
+    }
+
+    let tingkat = 9;
+    const match = text.match(/(?:kelas\s*|tingkat\s*|^)([1-3])/i) || text.match(/([1-3])/);
+    if (match) {
+        tingkat = parseInt(match[1], 10);
+    }
+
+    return (jenjangOrder * 10) + tingkat;
+};
+
 export default function MassInputTab({ musyrifs = [], defaultMusyrifId = '' }) {
     // Inisialisasi musyrif terpilih dari defaultMusyrifId jika ada
     const [selectedMusyrif, setSelectedMusyrif] = useState(() => {
@@ -383,11 +404,16 @@ export default function MassInputTab({ musyrifs = [], defaultMusyrifId = '' }) {
         // 2. Sorting
         list.sort((a, b) => {
             if (sortMode === 'mutabaah') {
-                // Urutan sesuai struktur mutabaah: Musrif -> Ketua -> Anggota (lalu Kelas & Nama)
+                // 1. Musrif -> 2. Ketua -> 3. Anggota MTW (1,2,3) -> 4. Anggota Tsanawy (1,2,3)
                 const roleWeights = { musyrif: 1, ketua: 2, anggota: 3 };
                 const wA = roleWeights[a.role || 'anggota'] || 3;
                 const wB = roleWeights[b.role || 'anggota'] || 3;
                 if (wA !== wB) return wA - wB;
+
+                // Bobot kelas: MTW 1,2,3 -> skor 11,12,13; Tsanawy 1,2,3 -> skor 21,22,23
+                const scoreA = getClassSortScore(a.class_name);
+                const scoreB = getClassSortScore(b.class_name);
+                if (scoreA !== scoreB) return scoreA - scoreB;
 
                 if ((a.class_name || '') !== (b.class_name || '')) {
                     return (a.class_name || '').localeCompare(b.class_name || '');

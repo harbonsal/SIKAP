@@ -312,7 +312,7 @@ class TahfidzAchievementController extends Controller
 
         $members = \App\Models\TahfidzHalaqohMember::with([
             'student.user',
-            'student.classMembers.activeClass.kelas',
+            'student.classMembers.activeClass.kelas.jenjang',
             'student.classMembers.activeClass.kelasParalel'
         ])
         ->where('musyrif_id', $musyrifId)
@@ -335,18 +335,54 @@ class TahfidzAchievementController extends Controller
             return 'anggota';
         };
 
+        // Helper penghitung skor urutan jenjang & kelas:
+        // MTW (1, 2, 3) -> skor 11, 12, 13
+        // Tsanawy (1, 2, 3) -> skor 21, 22, 23
+        $getClassSortScore = function ($member) {
+            $classMember = $member->student?->classMembers->sortByDesc('id')->first();
+            $kelasName = $classMember?->activeClass?->kelas?->name ?? '';
+            $jenjangName = $classMember?->activeClass?->kelas?->jenjang?->name ?? '';
+            $combined = strtolower($kelasName . ' ' . $jenjangName);
+
+            // Tentukan jenjang: 1 = MTW, 2 = Tsanawy, 3 = Lainnya
+            $jenjangOrder = 3;
+            if (str_contains($combined, 'mutawassith') || str_contains($combined, 'mtw') || str_contains($combined, 'smp') || str_contains($combined, 'mts')) {
+                $jenjangOrder = 1;
+            } elseif (str_contains($combined, 'tsanaw') || str_contains($combined, 'tsa') || str_contains($combined, 'aliyah') || str_contains($combined, 'sma') || str_contains($combined, 'ma')) {
+                $jenjangOrder = 2;
+            }
+
+            // Tentukan tingkat kelas (1, 2, 3)
+            $tingkat = 9;
+            if (preg_match('/(?:kelas\s*|tingkat\s*|^)([1-3])/i', $kelasName, $matches)) {
+                $tingkat = (int)$matches[1];
+            } elseif (preg_match('/([1-3])/', $kelasName, $matches)) {
+                $tingkat = (int)$matches[1];
+            }
+
+            $parallel = strtolower($classMember?->activeClass?->kelasParalel?->name ?? '');
+
+            return [
+                'score' => ($jenjangOrder * 10) + $tingkat,
+                'parallel' => $parallel,
+                'class_name' => trim($kelasName . ' ' . $parallel)
+            ];
+        };
+
         // Urutkan anggota halaqoh sesuai Struktur Baku Mutabaah:
-        // Prioritas 1: Musrif Halaqoh (role === 'musyrif')
-        // Prioritas 2: Ketua Halaqoh (role === 'ketua')
-        // Prioritas 3: Anggota Biasa (role === 'anggota')
-        // Di dalam kelompok peran yang sama: urutkan Kelas lalu Nama Santri
+        // 1. Musrif Halaqoh (role === 'musyrif')
+        // 2. Ketua Halaqoh (role === 'ketua')
+        // 3. Anggota MTW (Tingkat 1, 2, 3)
+        // 4. Anggota Tsanawy (Tingkat 1, 2, 3)
+        // Di dalam tingkat yang sama: urut paralel lalu alfabetis nama santri
         $roleWeights = [
             'musyrif' => 1,
             'ketua' => 2,
             'anggota' => 3,
         ];
 
-        $members = $members->sort(function ($a, $b) use ($getEffectiveRole, $roleWeights) {
+        $members = $members->sort(function ($a, $b) use ($getEffectiveRole, $roleWeights, $getClassSortScore) {
+            // 1. Prioritas Peran: Musrif (1) lalu Ketua (2)
             $roleWeightA = $roleWeights[$getEffectiveRole($a)] ?? 3;
             $roleWeightB = $roleWeights[$getEffectiveRole($b)] ?? 3;
 
@@ -354,21 +390,20 @@ class TahfidzAchievementController extends Controller
                 return $roleWeightA - $roleWeightB;
             }
 
-            $classMemberA = $a->student?->classMembers->sortByDesc('id')->first();
-            $classMemberB = $b->student?->classMembers->sortByDesc('id')->first();
-            
-            $kelasNameA = $classMemberA?->activeClass?->kelas?->name ?? '';
-            $parallelNameA = $classMemberA?->activeClass?->kelasParalel?->name ?? '';
-            $classNameA = trim($kelasNameA . ' ' . $parallelNameA);
+            // 2. Prioritas Jenjang & Tingkat Kelas (MTW 1,2,3 lalu Tsanawy 1,2,3)
+            $classInfoA = $getClassSortScore($a);
+            $classInfoB = $getClassSortScore($b);
 
-            $kelasNameB = $classMemberB?->activeClass?->kelas?->name ?? '';
-            $parallelNameB = $classMemberB?->activeClass?->kelasParalel?->name ?? '';
-            $classNameB = trim($kelasNameB . ' ' . $parallelNameB);
-
-            if ($classNameA !== $classNameB) {
-                return strcmp($classNameA, $classNameB);
+            if ($classInfoA['score'] !== $classInfoB['score']) {
+                return $classInfoA['score'] - $classInfoB['score'];
             }
 
+            // 3. Urutkan berdasarkan paralel (A, B, C...)
+            if ($classInfoA['parallel'] !== $classInfoB['parallel']) {
+                return strcmp($classInfoA['parallel'], $classInfoB['parallel']);
+            }
+
+            // 4. Urutkan alfabetis nama santri
             $nameA = $a->student?->user?->name ?? $a->student?->name ?? '';
             $nameB = $b->student?->user?->name ?? $b->student?->name ?? '';
             return strcasecmp($nameA, $nameB);
