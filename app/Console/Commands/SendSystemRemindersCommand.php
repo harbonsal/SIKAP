@@ -75,8 +75,17 @@ class SendSystemRemindersCommand extends Command
         $academicYear = AcademicStateService::activeAcademicYear();
         $semester = AcademicStateService::activeSemester();
 
-        if (!$academicYear || !$semester) {
+                if (!$academicYear || !$semester) {
             $this->error('Tahun ajaran atau semester aktif tidak ditemukan di sistem.');
+            return Command::SUCCESS;
+        }
+
+        // Cek status toggle switch Reminder Sistem (ON / OFF) dari Dashboard Admin
+        $schoolInfo = SchoolInfo::first();
+        $isReminderActive = $schoolInfo?->schedule_config['reminder_active'] ?? true;
+        if (!$isReminderActive && !$this->option('force') && !$toUserId) {
+            $this->warn('⚠️ Fitur Pengingat Sistem (Reminder) saat ini dalam status NONAKTIF (OFF) di Dashboard.');
+            $this->line('Aktifkan tombol toggle "REMINDER" di Dashboard Admin untuk menjalankan pengingat otomatis.');
             return Command::SUCCESS;
         }
 

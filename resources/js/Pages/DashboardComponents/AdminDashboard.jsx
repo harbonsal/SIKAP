@@ -1,5 +1,7 @@
 
+import React, { useState } from 'react';
 import { Link, usePage } from '@inertiajs/react';
+import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { 
     Users, GraduationCap, School, Activity, CalendarDays, User, Calendar, 
@@ -9,7 +11,24 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export default function AdminDashboard({ stats, allowedWidgets = {}, activities = [] }) {
+export default function AdminDashboard({ stats, allowedWidgets = {}, activities = [], initialReminderActive = true }) {
+    const [reminderActive, setReminderActive] = useState(initialReminderActive ?? true);
+    const [toggling, setToggling] = useState(false);
+
+    const handleToggleReminder = async () => {
+        const nextState = !reminderActive;
+        setToggling(true);
+        try {
+            const res = await axios.post('/settings/reminder/toggle', { active: nextState });
+            if (res.data?.success) {
+                setReminderActive(res.data.reminder_active);
+            }
+        } catch (err) {
+            console.error("Gagal mengubah status reminder:", err);
+        } finally {
+            setToggling(false);
+        }
+    };
     const { auth } = usePage().props;
 
     // Defaults if allowedWidgets is empty
@@ -408,45 +427,40 @@ export default function AdminDashboard({ stats, allowedWidgets = {}, activities 
                 </Card>
             )}
 
-            {/* Notification & Reminder Control Panel for Admin */}
-            <Card className="border-none shadow-md bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900 text-white overflow-hidden relative">
-                <div className="absolute right-0 top-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/3"></div>
-                <CardContent className="p-5 sm:p-6 relative z-10">
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                        <div className="flex items-start sm:items-center gap-4">
-                            <div className="p-3 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-2xl shadow-inner shrink-0">
-                                <BellRing className="h-6 w-6 sm:h-7 sm:w-7 animate-pulse" />
-                            </div>
-                            <div>
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">Pusat Notifikasi & Pengingat HP</h3>
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                                        ⏰ Jadwal Otomatis: 13:00 WIB
-                                    </span>
-                                </div>
-                                <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl leading-relaxed">
-                                    Pengingat otomatis dievaluasi dan dikirim ke seluruh HP asatidzah setiap pukul 13:00 WIB (KBM 10 menit, batas nilai rapor, & bimbingan santri asuh).
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2 flex-wrap shrink-0">
-                            <a
-                                href="/run-reminder-test"
-                                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-lg shadow-emerald-900/30 transition-all hover:-translate-y-0.5"
-                            >
-                                <BellRing className="w-4 h-4" />
-                                Buka Pusat Notifikasi
-                            </a>
-                            <a
-                                href="/run-reminder-test?type=broadcast"
-                                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all"
-                            >
-                                Tes Broadcast ke HP
-                            </a>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
+            {/* Super Ringkas: REMINDER [ON / OFF] */}
+            <div className="flex items-center justify-between px-3.5 py-1.5 bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 rounded-xl shadow-2xs">
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-black tracking-wider text-slate-700 dark:text-slate-200 uppercase flex items-center gap-1.5">
+                        <BellRing className={`w-3.5 h-3.5 ${reminderActive ? 'text-emerald-500 animate-pulse' : 'text-slate-400'}`} />
+                        REMINDER
+                    </span>
+                    <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">
+                        • Otomatis 13:00 WIB
+                    </span>
+                </div>
+                <div className="flex items-center gap-2.5">
+                    <span className={`text-[11px] font-black tracking-wider ${reminderActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
+                        {reminderActive ? 'ON' : 'OFF'}
+                    </span>
+                    <button
+                        type="button"
+                        role="switch"
+                        aria-checked={reminderActive}
+                        disabled={toggling}
+                        onClick={handleToggleReminder}
+                        className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 ${
+                            reminderActive ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-700'
+                        } ${toggling ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        title={`Klik untuk ${reminderActive ? 'mematikan (OFF)' : 'mengaktifkan (ON)'} pengingat otomatis`}
+                    >
+                        <span
+                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
+                                reminderActive ? 'translate-x-5' : 'translate-x-0'
+                            }`}
+                        />
+                    </button>
+                </div>
+            </div>
 
             {/* Quick Actions (Shortcuts) */}
             {(allowedWidgets.quick_actions ?? true) && (

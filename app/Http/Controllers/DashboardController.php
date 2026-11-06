@@ -672,6 +672,9 @@ class DashboardController extends Controller
             }
         }
 
+        $schoolInfo = \App\Models\SchoolInfo::first();
+        $reminderActive = $schoolInfo?->schedule_config['reminder_active'] ?? true;
+
         return Inertia::render('Dashboard', [
             'stats' => $stats,
             'schedule' => $schedule,
@@ -679,6 +682,7 @@ class DashboardController extends Controller
             'allowed_widgets' => $userWidgets,
             'available_dashboards' => array_values($availableDashboards), // Pass as array
             'is_tahfidz_active' => $isTahfidzExamPeriod,
+            'reminder_active' => (bool)$reminderActive,
         ]);
     }
 }

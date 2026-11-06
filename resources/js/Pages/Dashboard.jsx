@@ -7,7 +7,7 @@ import StudentDashboard from './DashboardComponents/StudentDashboard';
 import StudentHolidayDashboard from './DashboardComponents/StudentHolidayDashboard';
 import OswanDashboard from './DashboardComponents/OswanDashboard';
 
-export default function Dashboard({ stats, schedule, dashboard_type, allowed_widgets, available_dashboards }) {
+export default function Dashboard({ stats, schedule, dashboard_type, allowed_widgets, available_dashboards, reminder_active }) {
     // If dashboard_type is not provided (legacy), try to guess
     const type = dashboard_type || (stats.role === 'teacher' ? 'Teacher' : (stats.role === 'oswan' ? 'Oswan' : 'Admin'));
 
@@ -18,7 +18,7 @@ export default function Dashboard({ stats, schedule, dashboard_type, allowed_wid
             case 'Teacher':
                 return <TeacherDashboard stats={stats} schedule={schedule} allowedWidgets={allowed_widgets} />;
             case 'Admin':
-                return <AdminDashboard stats={stats} allowedWidgets={allowed_widgets} />;
+                return <AdminDashboard stats={stats} allowedWidgets={allowed_widgets} initialReminderActive={reminder_active} />;
             case 'Student':
                 if (stats.active_holiday) {
                     return <StudentHolidayDashboard stats={stats} />;
@@ -26,7 +26,7 @@ export default function Dashboard({ stats, schedule, dashboard_type, allowed_wid
                 return <StudentDashboard stats={stats} schedule={schedule} allowedWidgets={allowed_widgets} />;
             default:
                 // Fallback to Admin or generic
-                return <AdminDashboard stats={stats} allowedWidgets={allowed_widgets} />;
+                return <AdminDashboard stats={stats} allowedWidgets={allowed_widgets} initialReminderActive={reminder_active} />;
         }
     };
 

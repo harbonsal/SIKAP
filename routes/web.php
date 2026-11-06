@@ -516,6 +516,26 @@ Route::middleware('auth')->group(function () {
     // Smart Search
     Route::post('/smart-search', [App\Http\Controllers\SmartSearchController::class, 'search'])->name('smart-search.query');
 
+    // Toggle Status Reminder Sistem (ON / OFF)
+    Route::post('/settings/reminder/toggle', function (\Illuminate\Http\Request $request) {
+        $schoolInfo = \App\Models\SchoolInfo::first();
+        if (!$schoolInfo) {
+            $schoolInfo = \App\Models\SchoolInfo::create(['name' => 'Pesantren']);
+        }
+        $config = $schoolInfo->schedule_config ?? [];
+        $currentState = $config['reminder_active'] ?? true;
+        $newState = $request->has('active') ? (bool)$request->active : !$currentState;
+        $config['reminder_active'] = $newState;
+        $schoolInfo->schedule_config = $config;
+        $schoolInfo->save();
+
+        return response()->json([
+            'success' => true,
+            'reminder_active' => $newState,
+            'message' => 'Status reminder berhasil diubah menjadi ' . ($newState ? 'ON' : 'OFF')
+        ]);
+    })->name('settings.reminder.toggle');
+
     // TEMPORARY SYNC ROUTE
     Route::get('/sync-ganjil-tahunan', function () {
         $targetYear = \App\Services\AcademicStateService::currentAcademicYear()
