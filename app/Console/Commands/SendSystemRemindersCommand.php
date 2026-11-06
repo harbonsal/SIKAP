@@ -274,22 +274,31 @@ class SendSystemRemindersCommand extends Command
 
     /**
      * Kirim reminder batas akhir pengisian nilai akademik ke guru-guru yang belum tuntas.
+     * Mendukung evaluasi granular batas waktu per komponen: UH1, UTS, UH2, UAS, dan Rapor.
      */
     protected function remindAcademicGrades($academicYear, $semester, ?int $toUserId = null): int
     {
-        $this->info("--- [2] PENGECEKAN BATAS AKHIR INPUT NILAI AKADEMIK ---");
+        $this->info("--- [2] PENGECEKAN BATAS AKHIR INPUT NILAI AKADEMIK (UH1, UTS, UH2, UAS) ---");
 
         Carbon::setLocale('id');
         $today = Carbon::now()->startOfDay();
         $todayDate = $today->toDateString();
         $isForce = (bool)$this->option('force');
 
-        // Ambil konfigurasi deadline nilai rapor
-        $gradeDeadlineStr = Setting::where('key', 'academic_grade_deadline')->value('value')
-            ?: (SchoolInfo::first()?->grade_config['grade_deadline'] ?? null);
+        $schoolInfo = SchoolInfo::first();
+        $gradeConfig = $schoolInfo?->grade_config ?? [];
+
+        // 1. Ambil deadline masing-masing komponen penilaian
+        $deadlines = [
+            'uh1' => Setting::where('key', 'academic_deadline_uh1')->value('value') ?: ($gradeConfig['deadline_uh1'] ?? null),
+            'uts' => Setting::where('key', 'academic_deadline_uts')->value('value') ?: ($gradeConfig['deadline_uts'] ?? null),
+            'uh2' => Setting::where('key', 'academic_deadline_uh2')->value('value') ?: ($gradeConfig['deadline_uh2'] ?? null),
+            'uas' => Setting::where('key', 'academic_deadline_uas')->value('value') ?: ($gradeConfig['deadline_uas'] ?? null),
+            'rapor' => Setting::where('key', 'academic_grade_deadline')->value('value') ?: ($gradeConfig['grade_deadline'] ?? null),
+        ];
 
         // Cari juga di kalender akademik jika belum disetel manual di setting
-        if (!$gradeDeadlineStr) {
+        if (!$deadlines['rapor']) {
             $calendarEvent = AcademicCalendarEvent::where('academic_year_id', $academicYear->id)
                 ->where(function ($q) {
                     $q->where('title', 'like', '%nilai%')
@@ -302,29 +311,44 @@ class SendSystemRemindersCommand extends Command
                 ->first();
 
             if ($calendarEvent) {
-                $gradeDeadlineStr = $calendarEvent->end_date;
+                $deadlines['rapor'] = $calendarEvent->end_date;
             }
         }
 
-        $daysLeft = null;
-        $deadlineFormatted = null;
-
-        if ($gradeDeadlineStr) {
+        // Tampilkan status batas waktu setiap komponen di terminal
+        $activeDeadlines = [];
+        foreach ($deadlines as $comp => $dStr) {
+            if (!$dStr) continue;
             try {
-                $deadlineDate = Carbon::parse($gradeDeadlineStr)->startOfDay();
-                $daysLeft = (int)$today->diffInDays($deadlineDate, false);
-                $deadlineFormatted = $deadlineDate->translatedFormat('d F Y');
-                $this->line("-> Konfigurasi Batas Akhir (Deadline): {$gradeDeadlineStr} ({$deadlineFormatted}) | Tersisa: {$daysLeft} hari.");
-            } catch (\Throwable $e) {
-                $daysLeft = null;
-            }
-        } else {
-            $this->warn("-> [INFO] Batas akhir input nilai rapor belum ditentukan di Pengaturan Lembaga (/settings/school-info).");
+                $dDate = Carbon::parse($dStr)->startOfDay();
+                $diff = (int)$today->diffInDays($dDate, false);
+                $activeDeadlines[$comp] = [
+                    'key' => $comp,
+                    'label' => strtoupper($comp),
+                    'date' => $dStr,
+                    'formatted' => $dDate->translatedFormat('d F Y'),
+                    'days_left' => $diff,
+                    'is_overdue' => $diff < 0,
+                    'is_today' => $diff === 0,
+                    'is_urgent' => $diff <= 3, // Terlewat atau tersisa <= 3 hari
+                ];
+                $statusTxt = $diff < 0 ? "LEWAT (" . abs($diff) . " hari lalu)" : ($diff === 0 ? "HARI TERAKHIR (Hari H)" : "Tersisa {$diff} hari");
+                $this->line("   • Batas Nilai {$activeDeadlines[$comp]['label']}: {$dStr} ({$activeDeadlines[$comp]['formatted']}) -> {$statusTxt}");
+            } catch (\Throwable $e) {}
+        }
+
+        if (empty($activeDeadlines)) {
+            $this->warn("-> [INFO] Belum ada batas waktu penilaian (UH1, UTS, UH2, UAS, atau Rapor) yang ditentukan di Pengaturan Lembaga (/settings/school-info).");
         }
 
         // Jika mode simulasi langsung ke user tertentu
         if ($toUserId) {
-            return $this->simulateAcademicReminder($toUserId, $daysLeft, $deadlineFormatted);
+            $firstDeadline = reset($activeDeadlines);
+            return $this->simulateAcademicReminder(
+                $toUserId, 
+                $firstDeadline ? $firstDeadline['days_left'] : null, 
+                $firstDeadline ? $firstDeadline['formatted'] : null
+            );
         }
 
         // Ambil semua guru yang memiliki mapel aktif di tahun ajaran berjalan
@@ -337,7 +361,13 @@ class SendSystemRemindersCommand extends Command
 
         $this->line("-> Total mata pelajaran aktif di semester ini: " . $activeSubjects->count());
 
+        // Cache grade weights untuk tahun ajaran & semester aktif
+        $gradeWeights = \App\Models\GradeWeight::where('academic_year_id', $academicYear->id)->get();
+
         $teachersWithPendingGrades = [];
+
+        // Cek apakah ada komponen spesifik yang berstatus urgent / overdue
+        $urgentComponents = array_filter($activeDeadlines, fn($item) => $item['is_urgent']);
 
         foreach ($activeSubjects as $subject) {
             if (!$subject->teacher) {
@@ -349,32 +379,88 @@ class SendSystemRemindersCommand extends Command
                 continue;
             }
 
-            // Hitung santri yang sudah memiliki nilai riil (bukan null)
-            $gradedCount = StudentGrade::where('active_subject_id', $subject->id)
-                ->where('semester_id', $semester->id)
-                ->whereNotNull('score')
-                ->distinct('student_id')
-                ->count('student_id');
+            $className = trim(($subject->activeClass?->kelas?->name ?? '') . ' ' . ($subject->activeClass?->kelasParalel?->name ?? ''));
+            $mapelName = $subject->mapel?->name ?? 'Mata Pelajaran';
 
-            if ($gradedCount < $studentsCount) {
-                $teacherId = $subject->teacher_id;
-                if (!isset($teachersWithPendingGrades[$teacherId])) {
-                    $teachersWithPendingGrades[$teacherId] = [
-                        'teacher' => $subject->teacher,
-                        'pending_subjects' => [],
-                        'missing_students_count' => 0,
-                    ];
+            // Jika ada deadline per komponen yang aktif & urgent (sudah lewat / mendekati H-3)
+            if (!empty($urgentComponents)) {
+                foreach ($urgentComponents as $compKey => $compInfo) {
+                    if ($compKey === 'rapor') continue;
+
+                    // Cari GradeWeight yang sesuai dengan komponen ini
+                    $matchedWeight = $gradeWeights->first(function ($gw) use ($compKey) {
+                        $name = strtolower($gw->name);
+                        switch ($compKey) {
+                            case 'uh1':
+                                return str_contains($name, 'uh1') || str_contains($name, 'uh 1') || str_contains($name, 'harian 1');
+                            case 'uts':
+                                return str_contains($name, 'uts') || str_contains($name, 'pts') || str_contains($name, 'tengah');
+                            case 'uh2':
+                                return str_contains($name, 'uh2') || str_contains($name, 'uh 2') || str_contains($name, 'harian 2');
+                            case 'uas':
+                                return str_contains($name, 'uas') || str_contains($name, 'pas') || str_contains($name, 'pat') || str_contains($name, 'ukk') || str_contains($name, 'akhir');
+                            default:
+                                return false;
+                        }
+                    });
+
+                    // Jika bobot penilaian ditemukan
+                    if ($matchedWeight) {
+                        $gradedCount = StudentGrade::where('active_subject_id', $subject->id)
+                            ->where('grade_weight_id', $matchedWeight->id)
+                            ->whereNotNull('score')
+                            ->count();
+
+                        if ($gradedCount < $studentsCount) {
+                            $missing = $studentsCount - $gradedCount;
+                            $teacherId = $subject->teacher_id;
+                            if (!isset($teachersWithPendingGrades[$teacherId])) {
+                                $teachersWithPendingGrades[$teacherId] = [
+                                    'teacher' => $subject->teacher,
+                                    'pending_components' => [],
+                                    'pending_subjects' => [],
+                                    'missing_total' => 0,
+                                    'worst_days_left' => 999,
+                                ];
+                            }
+                            $teachersWithPendingGrades[$teacherId]['pending_components'][$compInfo['label']] = true;
+                            $teachersWithPendingGrades[$teacherId]['pending_subjects'][] = "{$compInfo['label']} {$mapelName} ({$className}) [{$missing} santri]";
+                            $teachersWithPendingGrades[$teacherId]['missing_total'] += $missing;
+                            if ($compInfo['days_left'] < $teachersWithPendingGrades[$teacherId]['worst_days_left']) {
+                                $teachersWithPendingGrades[$teacherId]['worst_days_left'] = $compInfo['days_left'];
+                            }
+                        }
+                    }
                 }
-                $className = trim(($subject->activeClass?->kelas?->name ?? '') . ' ' . ($subject->activeClass?->kelasParalel?->name ?? ''));
-                $teachersWithPendingGrades[$teacherId]['pending_subjects'][] = ($subject->mapel?->name ?? 'Mapel') . ' (' . $className . ')';
-                $teachersWithPendingGrades[$teacherId]['missing_students_count'] += ($studentsCount - $gradedCount);
+            } else {
+                // Fallback: Jika belum ada deadline per komponen yang urgent, evaluasi kelengkapan nilai secara umum
+                $gradedCount = StudentGrade::where('active_subject_id', $subject->id)
+                    ->where('semester_id', $semester->id)
+                    ->whereNotNull('score')
+                    ->distinct('student_id')
+                    ->count('student_id');
+
+                if ($gradedCount < $studentsCount) {
+                    $teacherId = $subject->teacher_id;
+                    if (!isset($teachersWithPendingGrades[$teacherId])) {
+                        $teachersWithPendingGrades[$teacherId] = [
+                            'teacher' => $subject->teacher,
+                            'pending_components' => [],
+                            'pending_subjects' => [],
+                            'missing_total' => 0,
+                            'worst_days_left' => $activeDeadlines['rapor']['days_left'] ?? null,
+                        ];
+                    }
+                    $teachersWithPendingGrades[$teacherId]['pending_subjects'][] = "{$mapelName} ({$className})";
+                    $teachersWithPendingGrades[$teacherId]['missing_total'] += ($studentsCount - $gradedCount);
+                }
             }
         }
 
         $this->line("-> Guru terdeteksi memiliki nilai belum lengkap: " . count($teachersWithPendingGrades) . " orang.");
 
         if (empty($teachersWithPendingGrades)) {
-            $this->info("-> Alhamdulillah, seluruh guru telah melengkapi nilai santri di tahun ajaran & semester aktif ini!");
+            $this->info("-> Alhamdulillah, seluruh guru telah melengkapi nilai santri pada komponen yang dievaluasi!");
             return 0;
         }
 
@@ -384,41 +470,41 @@ class SendSystemRemindersCommand extends Command
             $teacherName = $data['teacher']->name;
             $subsCount = PushSubscription::where('user_id', $teacherId)->count();
 
-            $subjectListStr = implode(', ', array_slice($data['pending_subjects'], 0, 2));
+            $subjectSummary = implode(', ', array_slice($data['pending_subjects'], 0, 2));
             if (count($data['pending_subjects']) > 2) {
-                $subjectListStr .= ' dan ' . (count($data['pending_subjects']) - 2) . ' kelas lainnya';
+                $subjectSummary .= ' dan ' . (count($data['pending_subjects']) - 2) . ' mapel lainnya';
             }
 
-            $this->line("   • [Guru] {$teacherName}: Belum lengkap pada {$subjectListStr} ({$data['missing_students_count']} santri)");
+            $compNames = !empty($data['pending_components']) ? implode(', ', array_keys($data['pending_components'])) : 'Rapor';
+            $this->line("   • [Guru] {$teacherName}: Belum tuntas {$compNames} -> {$subjectSummary}");
 
             if ($subsCount === 0) {
                 $this->warn("     -> Dilewati: Ustadz {$teacherName} BELUM mengaktifkan notifikasi di HP (0 perangkat terdaftar).");
                 continue;
             }
 
-            // Throttle: Maksimal 1x notifikasi nilai per hari untuk setiap guru
+            // Throttle: Maksimal 1x notifikasi per hari per guru
             $cacheKey = "academic_grade_reminder_sent_{$teacherId}_{$todayDate}";
             if (!$isForce && Cache::has($cacheKey)) {
                 $this->line("     -> Dilewati: Sudah dikirim hari ini (Throttle). Gunakan --force untuk mengabaikan.");
                 continue;
             }
 
-            // Variasi Pesan Berdasarkan Batas Waktu (Deadline)
-            if ($daysLeft !== null) {
-                if ($daysLeft > 0) {
-                    $title = "📋 Batas Input Nilai Tersisa {$daysLeft} Hari";
-                    $body = "Ustadz {$teacherName}, batas akhir input nilai rapor tersisa {$daysLeft} hari ({$deadlineFormatted}). Masih ada nilai santri pada {$subjectListStr} yang belum lengkap. Mohon segera diisi.";
-                } elseif ($daysLeft === 0) {
-                    $title = "🚨 HARI TERAKHIR: Batas Input Nilai Rapor";
-                    $body = "Ustadz {$teacherName}, HARI INI adalah batas akhir input nilai rapor. Mohon tuntaskan nilai santri pada {$subjectListStr} sebelum portal ditutup.";
-                } else {
-                    $absDays = abs($daysLeft);
-                    $title = "⚠️ PERINGATAN: Batas Input Nilai Terlewat";
-                    $body = "Ustadz {$teacherName}, batas akhir input nilai rapor telah terlewat {$absDays} hari. Masih ada nilai santri pada {$subjectListStr} yang kosong. Mohon segera diselesaikan hari ini.";
-                }
+            $daysLeft = $data['worst_days_left'];
+
+            if ($daysLeft !== null && $daysLeft < 0) {
+                $absDays = abs($daysLeft);
+                $title = "⚠️ Batas Nilai {$compNames} Terlewat";
+                $body = "Ustadz {$teacherName}, batas waktu input nilai {$compNames} telah terlewat {$absDays} hari. Masih ada nilai santri pada {$subjectSummary} yang belum lengkap. Mohon segera diselesaikan.";
+            } elseif ($daysLeft !== null && $daysLeft === 0) {
+                $title = "🚨 HARI TERAKHIR: Batas Nilai {$compNames}";
+                $body = "Ustadz {$teacherName}, HARI INI adalah batas akhir input nilai {$compNames}. Mohon segera lengkapi nilai santri pada {$subjectSummary}.";
+            } elseif ($daysLeft !== null && $daysLeft > 0) {
+                $title = "⏳ Batas Nilai {$compNames} Tersisa {$daysLeft} Hari";
+                $body = "Ustadz {$teacherName}, batas akhir input nilai {$compNames} tersisa {$daysLeft} hari. Mohon segera lengkapi nilai santri pada {$subjectSummary}.";
             } else {
-                $title = "📋 Pengingat Input Nilai Santri";
-                $body = "Ustadz {$teacherName}, masih ada nilai santri yang belum lengkap untuk {$subjectListStr}. Mohon segera lengkapi di portal SIKAP.";
+                $title = "📋 Pengingat Input Nilai: {$compNames}";
+                $body = "Ustadz {$teacherName}, masih ada nilai santri pada {$subjectSummary} yang belum lengkap. Mohon segera diinput di portal SIKAP.";
             }
 
             $url = route('assessments.index', [], false);

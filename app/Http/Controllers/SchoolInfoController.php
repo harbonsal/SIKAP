@@ -18,6 +18,10 @@ class SchoolInfoController extends Controller
             'appLogo' => Setting::where('key', 'app_logo')->value('value'),
             'loginBackground' => Setting::where('key', 'login_card_background')->value('value') ?: Setting::where('key', 'login_background')->value('value'),
             'gradeDeadline' => Setting::where('key', 'academic_grade_deadline')->value('value') ?: ($schoolInfo->grade_config['grade_deadline'] ?? ''),
+            'deadlineUh1' => Setting::where('key', 'academic_deadline_uh1')->value('value') ?: ($schoolInfo->grade_config['deadline_uh1'] ?? ''),
+            'deadlineUts' => Setting::where('key', 'academic_deadline_uts')->value('value') ?: ($schoolInfo->grade_config['deadline_uts'] ?? ''),
+            'deadlineUh2' => Setting::where('key', 'academic_deadline_uh2')->value('value') ?: ($schoolInfo->grade_config['deadline_uh2'] ?? ''),
+            'deadlineUas' => Setting::where('key', 'academic_deadline_uas')->value('value') ?: ($schoolInfo->grade_config['deadline_uas'] ?? ''),
         ]);
     }
 
@@ -42,6 +46,10 @@ class SchoolInfoController extends Controller
             'sem1_weight' => 'nullable|integer|min:0',
             'sem2_weight' => 'nullable|integer|min:0',
             'grade_deadline' => 'nullable|date',
+            'deadline_uh1' => 'nullable|date',
+            'deadline_uts' => 'nullable|date',
+            'deadline_uh2' => 'nullable|date',
+            'deadline_uas' => 'nullable|date',
         ]);
 
         $schoolInfo = SchoolInfo::firstOrNew();
@@ -102,12 +110,26 @@ class SchoolInfoController extends Controller
         $gradeConfig['sem1_weight'] = $request->filled('sem1_weight') ? (int) $request->sem1_weight : 1;
         $gradeConfig['sem2_weight'] = $request->filled('sem2_weight') ? (int) $request->sem2_weight : 2;
         $gradeConfig['grade_deadline'] = $request->grade_deadline;
+        $gradeConfig['deadline_uh1'] = $request->deadline_uh1;
+        $gradeConfig['deadline_uts'] = $request->deadline_uts;
+        $gradeConfig['deadline_uh2'] = $request->deadline_uh2;
+        $gradeConfig['deadline_uas'] = $request->deadline_uas;
         $schoolInfo->grade_config = $gradeConfig;
 
-        if ($request->filled('grade_deadline')) {
-            Setting::updateOrCreate(['key' => 'academic_grade_deadline'], ['value' => $request->grade_deadline]);
-        } elseif ($request->has('grade_deadline') && empty($request->grade_deadline)) {
-            Setting::where('key', 'academic_grade_deadline')->delete();
+        $deadlineMap = [
+            'academic_grade_deadline' => 'grade_deadline',
+            'academic_deadline_uh1'   => 'deadline_uh1',
+            'academic_deadline_uts'   => 'deadline_uts',
+            'academic_deadline_uh2'   => 'deadline_uh2',
+            'academic_deadline_uas'   => 'deadline_uas',
+        ];
+
+        foreach ($deadlineMap as $settingKey => $reqField) {
+            if ($request->filled($reqField)) {
+                Setting::updateOrCreate(['key' => $settingKey], ['value' => $request->input($reqField)]);
+            } elseif ($request->has($reqField) && empty($request->input($reqField))) {
+                Setting::where('key', $settingKey)->delete();
+            }
         }
 
         $schoolInfo->save();

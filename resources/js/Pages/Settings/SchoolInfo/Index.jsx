@@ -64,7 +64,7 @@ const compressImage = (file, maxWidth = 1200, maxHeight = 1600, quality = 0.85) 
     });
 };
 
-export default function Edit({ auth, schoolInfo, appLogo, loginBackground, gradeDeadline }) {
+export default function Edit({ auth, schoolInfo, appLogo, loginBackground, gradeDeadline, deadlineUh1, deadlineUts, deadlineUh2, deadlineUas }) {
     const { flash } = usePage().props;
     const { data, setData, post, errors, processing, recentlySuccessful } = useForm({
         name: schoolInfo.name || '',
@@ -76,6 +76,10 @@ export default function Edit({ auth, schoolInfo, appLogo, loginBackground, grade
         sem1_weight: schoolInfo.grade_config?.sem1_weight ?? 1,
         sem2_weight: schoolInfo.grade_config?.sem2_weight ?? 2,
         grade_deadline: gradeDeadline || schoolInfo.grade_config?.grade_deadline || '',
+        deadline_uh1: deadlineUh1 || schoolInfo.grade_config?.deadline_uh1 || '',
+        deadline_uts: deadlineUts || schoolInfo.grade_config?.deadline_uts || '',
+        deadline_uh2: deadlineUh2 || schoolInfo.grade_config?.deadline_uh2 || '',
+        deadline_uas: deadlineUas || schoolInfo.grade_config?.deadline_uas || '',
         _method: 'POST',
     });
 
@@ -436,31 +440,139 @@ export default function Edit({ auth, schoolInfo, appLogo, loginBackground, grade
                                         </code>
                                     </div>
 
-                                    {/* Batas Akhir Input Nilai Rapor */}
-                                    <div className="pt-4 border-t border-gray-200">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <InputLabel htmlFor="grade_deadline" value="Batas Akhir Input Nilai Rapor (Deadline)" className="font-bold text-gray-900" />
-                                            {data.grade_deadline && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setData('grade_deadline', '')}
-                                                    className="text-xs text-red-600 hover:underline"
-                                                >
-                                                    Hapus Batas Waktu
-                                                </button>
-                                            )}
+                                    {/* Batas Akhir Input Nilai Asatidzah (UH1, UTS, UH2, UAS, & Rapor) */}
+                                    <div className="pt-5 border-t border-gray-200">
+                                        <div className="mb-4">
+                                            <h4 className="font-bold text-gray-900 text-base">Batas Akhir Input Nilai Asatidzah</h4>
+                                            <p className="mt-1 text-xs text-gray-500 leading-relaxed">
+                                                Tentukan tanggal batas pengisian untuk setiap penilaian (UH1, UTS, UH2, UAS). Setiap pukul 13:00 WIB, sistem akan otomatis mengirim notifikasi pengingat ke HP asatidzah yang nilai santrinya belum tuntas pada komponen yang telah lewat waktunya.
+                                            </p>
                                         </div>
-                                        <TextInput
-                                            id="grade_deadline"
-                                            type="date"
-                                            className="mt-1 block w-full max-w-sm"
-                                            value={data.grade_deadline}
-                                            onChange={(e) => setData('grade_deadline', e.target.value)}
-                                        />
-                                        <p className="mt-1.5 text-xs text-gray-500 leading-relaxed">
-                                            Tanggal batas pengisian nilai oleh asatidzah. Sistem akan otomatis mengirimkan notifikasi pengingat hitung mundur (H-7, H-3, H-1, dan hari H) ke HP guru yang nilainya belum lengkap.
-                                        </p>
-                                        <InputError className="mt-2" message={errors.grade_deadline} />
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 border border-slate-200 rounded-xl mb-4">
+                                            {/* UH 1 */}
+                                            <div className="bg-white p-3.5 rounded-lg border border-gray-200 shadow-sm">
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <InputLabel htmlFor="deadline_uh1" value="1. Batas Nilai UH 1" className="font-semibold text-gray-800 text-xs uppercase" />
+                                                    {data.deadline_uh1 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setData('deadline_uh1', '')}
+                                                            className="text-[11px] text-red-600 hover:underline"
+                                                        >
+                                                            Hapus
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <TextInput
+                                                    id="deadline_uh1"
+                                                    type="date"
+                                                    className="mt-1 block w-full text-sm"
+                                                    value={data.deadline_uh1}
+                                                    onChange={(e) => setData('deadline_uh1', e.target.value)}
+                                                />
+                                                <InputError className="mt-1 text-xs" message={errors.deadline_uh1} />
+                                            </div>
+
+                                            {/* UTS / PTS */}
+                                            <div className="bg-white p-3.5 rounded-lg border border-gray-200 shadow-sm">
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <InputLabel htmlFor="deadline_uts" value="2. Batas Nilai UTS / PTS" className="font-semibold text-gray-800 text-xs uppercase" />
+                                                    {data.deadline_uts && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setData('deadline_uts', '')}
+                                                            className="text-[11px] text-red-600 hover:underline"
+                                                        >
+                                                            Hapus
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <TextInput
+                                                    id="deadline_uts"
+                                                    type="date"
+                                                    className="mt-1 block w-full text-sm"
+                                                    value={data.deadline_uts}
+                                                    onChange={(e) => setData('deadline_uts', e.target.value)}
+                                                />
+                                                <InputError className="mt-1 text-xs" message={errors.deadline_uts} />
+                                            </div>
+
+                                            {/* UH 2 */}
+                                            <div className="bg-white p-3.5 rounded-lg border border-gray-200 shadow-sm">
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <InputLabel htmlFor="deadline_uh2" value="3. Batas Nilai UH 2" className="font-semibold text-gray-800 text-xs uppercase" />
+                                                    {data.deadline_uh2 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setData('deadline_uh2', '')}
+                                                            className="text-[11px] text-red-600 hover:underline"
+                                                        >
+                                                            Hapus
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <TextInput
+                                                    id="deadline_uh2"
+                                                    type="date"
+                                                    className="mt-1 block w-full text-sm"
+                                                    value={data.deadline_uh2}
+                                                    onChange={(e) => setData('deadline_uh2', e.target.value)}
+                                                />
+                                                <InputError className="mt-1 text-xs" message={errors.deadline_uh2} />
+                                            </div>
+
+                                            {/* UAS / PAS / UKK */}
+                                            <div className="bg-white p-3.5 rounded-lg border border-gray-200 shadow-sm">
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <InputLabel htmlFor="deadline_uas" value="4. Batas Nilai UAS / PAS" className="font-semibold text-gray-800 text-xs uppercase" />
+                                                    {data.deadline_uas && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setData('deadline_uas', '')}
+                                                            className="text-[11px] text-red-600 hover:underline"
+                                                        >
+                                                            Hapus
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <TextInput
+                                                    id="deadline_uas"
+                                                    type="date"
+                                                    className="mt-1 block w-full text-sm"
+                                                    value={data.deadline_uas}
+                                                    onChange={(e) => setData('deadline_uas', e.target.value)}
+                                                />
+                                                <InputError className="mt-1 text-xs" message={errors.deadline_uas} />
+                                            </div>
+                                        </div>
+
+                                        {/* Batas Akhir Final Rapor (Keseluruhan) */}
+                                        <div className="p-3.5 bg-amber-50/60 border border-amber-200 rounded-lg">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <InputLabel htmlFor="grade_deadline" value="5. Batas Akhir Rapor Keseluruhan (Final)" className="font-bold text-amber-900 text-xs uppercase" />
+                                                {data.grade_deadline && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setData('grade_deadline', '')}
+                                                        className="text-[11px] text-red-600 hover:underline"
+                                                    >
+                                                        Hapus
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <TextInput
+                                                id="grade_deadline"
+                                                type="date"
+                                                className="mt-1 block w-full max-w-sm text-sm"
+                                                value={data.grade_deadline}
+                                                onChange={(e) => setData('grade_deadline', e.target.value)}
+                                            />
+                                            <p className="mt-1 text-[11px] text-amber-800/80 leading-relaxed">
+                                                Batas penutupan final pengisian rapor santri untuk seluruh mata pelajaran.
+                                            </p>
+                                            <InputError className="mt-1 text-xs" message={errors.grade_deadline} />
+                                        </div>
                                     </div>
                                 </div>
                             </section>
