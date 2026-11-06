@@ -266,4 +266,31 @@ class TahfidzHalaqohSettingsController extends Controller
         $member->delete();
         return redirect()->back()->with('success', 'Anggota berhasil dihapus.');
     }
+
+    public function updateMemberRole(Request $request, $id)
+    {
+        $this->authorizeTahfidzManager();
+        $request->validate([
+            'role' => 'required|in:musyrif,ketua,anggota',
+        ]);
+
+        $member = \App\Models\TahfidzHalaqohMember::findOrFail($id);
+
+        if (in_array($request->role, ['musyrif', 'ketua'])) {
+            \App\Models\TahfidzHalaqohMember::where('musyrif_id', $member->musyrif_id)
+                ->where('role', $request->role)
+                ->where('id', '!=', $member->id)
+                ->update(['role' => 'anggota']);
+        }
+
+        $member->update(['role' => $request->role]);
+
+        $roleLabel = match($request->role) {
+            'musyrif' => 'Musrif Halaqoh',
+            'ketua' => 'Ketua Halaqoh',
+            default => 'Anggota'
+        };
+
+        return redirect()->back()->with('success', "Peran santri berhasil diubah menjadi {$roleLabel}.");
+    }
 }

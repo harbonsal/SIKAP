@@ -383,7 +383,12 @@ export default function MassInputTab({ musyrifs = [], defaultMusyrifId = '' }) {
         // 2. Sorting
         list.sort((a, b) => {
             if (sortMode === 'mutabaah') {
-                // Urutan sesuai buku mutabaah: Kelas lalu Nama Santri
+                // Urutan sesuai struktur mutabaah: Musrif -> Ketua -> Anggota (lalu Kelas & Nama)
+                const roleWeights = { musyrif: 1, ketua: 2, anggota: 3 };
+                const wA = roleWeights[a.role || 'anggota'] || 3;
+                const wB = roleWeights[b.role || 'anggota'] || 3;
+                if (wA !== wB) return wA - wB;
+
                 if ((a.class_name || '') !== (b.class_name || '')) {
                     return (a.class_name || '').localeCompare(b.class_name || '');
                 }
@@ -568,7 +573,7 @@ export default function MassInputTab({ musyrifs = [], defaultMusyrifId = '' }) {
                             onChange={(e) => setSortMode(e.target.value)}
                             className="w-full h-[38px] px-3 text-xs font-semibold border border-slate-300 rounded-md bg-white focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                         >
-                            <option value="mutabaah">📋 Sesuai Mutabaah (Kelas & Nama)</option>
+                            <option value="mutabaah">📋 Sesuai Mutabaah (Musrif, Ketua & Anggota)</option>
                             <option value="name">🔤 Nama Santri (A - Z)</option>
                             <option value="nis">🔢 Nomor Induk (NIS)</option>
                             <option value="progress">⭐ Capaian Tertinggi</option>
@@ -702,13 +707,23 @@ export default function MassInputTab({ musyrifs = [], defaultMusyrifId = '' }) {
                                         {/* Header Kartu: Nama, Kelas, Status */}
                                         <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2.5">
                                             <div>
-                                                <div className="flex items-center gap-1.5">
+                                                <div className="flex items-center gap-1.5 flex-wrap">
                                                     <span className="text-xs font-mono font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">
                                                         #{index + 1}
                                                     </span>
                                                     <h4 className="font-bold text-sm text-slate-900 leading-tight">
                                                         {student.name}
                                                     </h4>
+                                                    {student.role === 'musyrif' && (
+                                                        <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-800 border border-indigo-200 rounded text-[10px] font-bold">
+                                                            📖 Musrif
+                                                        </span>
+                                                    )}
+                                                    {student.role === 'ketua' && (
+                                                        <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-200 rounded text-[10px] font-bold">
+                                                            ⭐ Ketua
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-500">
                                                     <span>{student.class_name}</span>
@@ -845,8 +860,20 @@ export default function MassInputTab({ musyrifs = [], defaultMusyrifId = '' }) {
 
                                                     {/* NAMA SANTRI & KELAS */}
                                                     <td className="px-4 py-2.5 border-r sticky left-12 bg-white group-hover:bg-slate-50 z-10 shadow-[2px_0_4px_rgba(0,0,0,0.04)]">
-                                                        <div className="font-bold text-slate-900 truncate max-w-[200px]">
-                                                            {student.name}
+                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                            <span className="font-bold text-slate-900 truncate max-w-[190px]">
+                                                                {student.name}
+                                                            </span>
+                                                            {student.role === 'musyrif' && (
+                                                                <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-800 border border-indigo-200 rounded text-[9px] font-bold shrink-0">
+                                                                    📖 Musrif
+                                                                </span>
+                                                            )}
+                                                            {student.role === 'ketua' && (
+                                                                <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-200 rounded text-[9px] font-bold shrink-0">
+                                                                    ⭐ Ketua
+                                                                </span>
+                                                            )}
                                                         </div>
                                                         <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-slate-500">
                                                             <span>{student.class_name}</span>

@@ -9,7 +9,7 @@ class TahfidzHalaqohMember extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['musyrif_id', 'student_id'];
+    protected $fillable = ['musyrif_id', 'student_id', 'role'];
 
     public function musyrif()
     {

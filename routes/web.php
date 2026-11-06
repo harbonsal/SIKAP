@@ -1068,6 +1068,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/tahfidz/halaqoh-settings/officer/{officer}', [App\Http\Controllers\TahfidzHalaqohSettingsController::class, 'destroyOfficer'])->name('tahfidz.halaqoh-settings.officer.destroy');
     // Halaqoh Members Route
     Route::post('/tahfidz/halaqoh-settings/members', [App\Http\Controllers\TahfidzHalaqohSettingsController::class, 'storeMember'])->name('tahfidz.halaqoh-settings.members.store');
+    Route::patch('/tahfidz/halaqoh-settings/members/{id}/role', [App\Http\Controllers\TahfidzHalaqohSettingsController::class, 'updateMemberRole'])->name('tahfidz.halaqoh-settings.members.update-role');
     Route::delete('/tahfidz/halaqoh-settings/members/{id}', [App\Http\Controllers\TahfidzHalaqohSettingsController::class, 'destroyMember'])->name('tahfidz.halaqoh-settings.members.destroy');
 
     // Pengaturan Tahfidz (Merged: Exam Period & Testers)

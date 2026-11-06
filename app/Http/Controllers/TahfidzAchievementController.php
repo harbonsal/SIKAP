@@ -318,8 +318,42 @@ class TahfidzAchievementController extends Controller
         ->where('musyrif_id', $musyrifId)
         ->get();
 
-        // Urutkan anggota halaqoh sesuai Mutabaah: Kelas (Tingkat & Paralel) lalu Nama Santri
-        $members = $members->sort(function ($a, $b) {
+        // Deteksi santri yang terdaftar sebagai Musrif Santri di tabel tahfidz_musyrifs
+        $musrifStudentIds = \App\Models\TahfidzMusyrif::where('is_active', true)
+            ->whereNotNull('student_id')
+            ->pluck('student_id')
+            ->toArray();
+
+        // Helper fungsi penentu peran efektif
+        $getEffectiveRole = function ($member) use ($musrifStudentIds) {
+            if (!empty($member->role) && in_array($member->role, ['musyrif', 'ketua'])) {
+                return $member->role;
+            }
+            if (in_array($member->student_id, $musrifStudentIds)) {
+                return 'musyrif';
+            }
+            return 'anggota';
+        };
+
+        // Urutkan anggota halaqoh sesuai Struktur Baku Mutabaah:
+        // Prioritas 1: Musrif Halaqoh (role === 'musyrif')
+        // Prioritas 2: Ketua Halaqoh (role === 'ketua')
+        // Prioritas 3: Anggota Biasa (role === 'anggota')
+        // Di dalam kelompok peran yang sama: urutkan Kelas lalu Nama Santri
+        $roleWeights = [
+            'musyrif' => 1,
+            'ketua' => 2,
+            'anggota' => 3,
+        ];
+
+        $members = $members->sort(function ($a, $b) use ($getEffectiveRole, $roleWeights) {
+            $roleWeightA = $roleWeights[$getEffectiveRole($a)] ?? 3;
+            $roleWeightB = $roleWeights[$getEffectiveRole($b)] ?? 3;
+
+            if ($roleWeightA !== $roleWeightB) {
+                return $roleWeightA - $roleWeightB;
+            }
+
             $classMemberA = $a->student?->classMembers->sortByDesc('id')->first();
             $classMemberB = $b->student?->classMembers->sortByDesc('id')->first();
             
@@ -474,8 +508,11 @@ class TahfidzAchievementController extends Controller
             $completedPages = $memsByJuz[$currentJuz]['completed_pages'] ?? [];
             $halfPages = $halfPagesByJuz[$currentJuz] ?? [];
 
+            $role = $getEffectiveRole($member);
             $studentsData[] = [
                 'id' => $student->id,
+                'member_id' => $member->id,
+                'role' => $role,
                 'nis' => $student->user?->nomor_induk ?? $student->nis ?? '-',
                 'name' => $student->user?->name ?? $student->name,
                 'class_name' => $className,

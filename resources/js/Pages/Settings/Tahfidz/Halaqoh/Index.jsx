@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import MainLayout from '@/Layouts/MainLayout';
 import { Head, useForm, router } from '@inertiajs/react';
 import { Plus, Trash2, Edit, Save, X, Search, Filter, User, Users, Clipboard } from 'lucide-react';
@@ -145,6 +145,27 @@ export default function Index({ sessions, officers, musyrifs, users, students, f
             });
         }
     };
+
+    const handleRoleChange = (memberId, newRole) => {
+        router.patch(route('tahfidz.halaqoh-settings.members.update-role', memberId), {
+            role: newRole
+        }, {
+            preserveScroll: true,
+        });
+    };
+
+    const sortedMembers = useMemo(() => {
+        if (!activeMusyrif?.members) return [];
+        const roleWeights = { musyrif: 1, ketua: 2, anggota: 3 };
+        return [...activeMusyrif.members].sort((a, b) => {
+            const wA = roleWeights[a.role || 'anggota'] || 3;
+            const wB = roleWeights[b.role || 'anggota'] || 3;
+            if (wA !== wB) return wA - wB;
+            const nameA = a.student?.user?.name || a.student?.name || '';
+            const nameB = b.student?.user?.name || b.student?.name || '';
+            return nameA.localeCompare(nameB);
+        });
+    }, [activeMusyrif]);
 
 
     const formatDate = (dateString) => {
@@ -385,33 +406,62 @@ export default function Index({ sessions, officers, musyrifs, users, students, f
                                         </form>
                                     </div>
 
-                                    <div className="border rounded-lg overflow-hidden">
+                                    <div className="border rounded-lg overflow-hidden shadow-xs">
                                         <table className="min-w-full divide-y divide-gray-200">
                                             <thead className="bg-gray-50">
                                                 <tr>
-                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase w-10">No</th>
-                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">NIS</th>
-                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nama Santri</th>
-                                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Kelas</th>
-                                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Aksi</th>
+                                                    <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase w-10">No</th>
+                                                    <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">NIS</th>
+                                                    <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Nama Santri</th>
+                                                    <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Kelas</th>
+                                                    <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Peran / Struktur</th>
+                                                    <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase">Aksi</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="bg-white divide-y divide-gray-200">
-                                                {activeMusyrif.members && activeMusyrif.members.length > 0 ? activeMusyrif.members.map((mem, index) => (
-                                                    <tr key={mem.id}>
-                                                        <td className="px-4 py-3 text-sm text-gray-500 text-center">{index + 1}</td>
-                                                        <td className="px-4 py-3 text-sm text-gray-500">{mem.student?.user?.nomor_induk || '-'}</td>
-                                                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{mem.student?.name}</td>
-                                                        <td className="px-4 py-3 text-sm text-gray-500">{mem.student?.kelas_name || '-'}</td>
-                                                        <td className="px-4 py-3 text-right">
-                                                            <button onClick={() => handleDeleteMember(mem.id)} className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded">
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                )) : (
+                                                {sortedMembers && sortedMembers.length > 0 ? sortedMembers.map((mem, index) => {
+                                                    const role = mem.role || 'anggota';
+                                                    return (
+                                                        <tr key={mem.id} className={role === 'musyrif' ? 'bg-indigo-50/40 hover:bg-indigo-50/70 transition-colors' : (role === 'ketua' ? 'bg-amber-50/40 hover:bg-amber-50/70 transition-colors' : 'hover:bg-gray-50 transition-colors')}>
+                                                            <td className="px-4 py-3 text-sm text-gray-500 text-center font-mono font-medium">{index + 1}</td>
+                                                            <td className="px-4 py-3 text-sm text-gray-500 font-mono">{mem.student?.user?.nomor_induk || '-'}</td>
+                                                            <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span>{mem.student?.name}</span>
+                                                                    {role === 'musyrif' && (
+                                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
+                                                                            📖 Musrif Halaqoh
+                                                                        </span>
+                                                                    )}
+                                                                    {role === 'ketua' && (
+                                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                                                                            ⭐ Ketua Halaqoh
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-sm text-gray-500">{mem.student?.kelas_name || '-'}</td>
+                                                            <td className="px-4 py-3 text-sm">
+                                                                <select
+                                                                    value={role}
+                                                                    onChange={(e) => handleRoleChange(mem.id, e.target.value)}
+                                                                    className="text-xs font-medium rounded-lg border-gray-300 py-1 pl-2 pr-7 focus:ring-indigo-500 focus:border-indigo-500 bg-white shadow-2xs cursor-pointer"
+                                                                >
+                                                                    <option value="anggota">Anggota Biasa</option>
+                                                                    <option value="ketua">⭐ Ketua Halaqoh</option>
+                                                                    <option value="musyrif">📖 Musrif Halaqoh</option>
+                                                                </select>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-right">
+                                                                <button onClick={() => handleDeleteMember(mem.id)} className="text-red-500 hover:text-red-700 p-1.5 hover:bg-red-50 rounded-lg transition-colors" title="Hapus dari halaqoh">
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                }) : (
                                                     <tr>
-                                                        <td colSpan="5" className="px-4 py-8 text-center text-gray-400">
+                                                        <td colSpan="6" className="px-4 py-8 text-center text-gray-400">
                                                             Belum ada anggota di halaqoh ini.
                                                         </td>
                                                     </tr>
