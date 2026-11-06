@@ -221,6 +221,7 @@ class SendSystemRemindersCommand extends Command
 
             $hourNum = (string)$learningHour->hour_number;
 
+            // 1. Cek apakah ada jurnal yang mencakup jam ke-X ini secara eksplisit
             $hasJournal = ClassJournal::where('teacher_id', $schedule->teacher_id)
                 ->where('active_subject_id', $schedule->active_subject_id)
                 ->where('date', $todayDate)
@@ -230,6 +231,26 @@ class SendSystemRemindersCommand extends Command
                       ->orWhereNull('jam_ke');
                 })
                 ->exists();
+
+            // 2. Jika ustadz mengajar 2 jam atau lebih untuk mapel & kelas yang sama hari ini (jam bersambung),
+            // dan ustadz sudah mengisi minimal 1 jurnal untuk mapel tersebut hari ini (misal di jam awal),
+            // maka jam-jam sisanya otomatis dianggap sudah tercover dan TIDAK terkena reminder.
+            if (!$hasJournal) {
+                $hasAnyJournalToday = ClassJournal::where('teacher_id', $schedule->teacher_id)
+                    ->where('active_subject_id', $schedule->active_subject_id)
+                    ->where('date', $todayDate)
+                    ->exists();
+
+                if ($hasAnyJournalToday) {
+                    $sameSubjectCount = $schedules->where('teacher_id', $schedule->teacher_id)
+                        ->where('active_subject_id', $schedule->active_subject_id)
+                        ->count();
+
+                    if ($sameSubjectCount > 1) {
+                        $hasJournal = true;
+                    }
+                }
+            }
 
             if ($hasJournal) {
                 continue;
