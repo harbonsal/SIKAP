@@ -177,6 +177,7 @@ class SendSystemRemindersCommand extends Command
         $todayDate = $now->toDateString();
         $dayNameId = $now->translatedFormat('l');
         $dayNameEn = $now->format('l');
+        $dayName = $dayNameId;
 
         $day = Day::where('name', $dayNameId)
             ->orWhereRaw('LOWER(name) = ?', [strtolower($dayNameId)])
@@ -201,11 +202,11 @@ class SendSystemRemindersCommand extends Command
             ])
             ->get();
 
-        $this->line("-> Hari ini: {$dayName}, {$todayDate}");
+        $this->line("-> Hari ini: {$dayNameId}, {$todayDate}");
         $this->line("-> Total jadwal KBM terdaftar hari ini: " . $schedules->count() . " sesi");
 
         if ($schedules->isEmpty()) {
-            $this->line("-> Tidak ada jadwal KBM aktif untuk hari {$dayName}.");
+            $this->line("-> Tidak ada jadwal KBM aktif untuk hari {$dayNameId}.");
             return 0;
         }
 
