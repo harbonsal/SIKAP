@@ -253,22 +253,33 @@ class UhAssessmentController extends Controller
         $studentIds = $activeSubject->activeClass->classMembers->pluck('student_id');
 
         foreach ($studentIds as $studentId) {
-            $avgQuiz = 0;
-            if ($quizGroups->has($studentId)) {
-                $avgQuiz = $quizGroups[$studentId]->avg('score');
-            }
+            $hasQuiz = $quizGroups->has($studentId) && $quizGroups[$studentId]->count() > 0;
+            $hasPart = $participationGroups->has($studentId) && $participationGroups[$studentId]->score !== null;
 
-            $partScore = 0;
-            if ($participationGroups->has($studentId)) {
-                $partScore = $participationGroups[$studentId]->score;
-            }
-
-            // Jika kuis atau partisipasi belum lengkap, lewati tanpa menghapus nilai yang sudah ada sebelumnya
-            if (!$quizGroups->has($studentId) || !$participationGroups->has($studentId)) {
+            // Jika pemahaman dan musyarokah/partisipasi dua-duanya kosong:
+            if (!$hasQuiz && !$hasPart) {
+                StudentGrade::where([
+                    'active_subject_id' => $activeSubjectId,
+                    'student_id' => $studentId,
+                    'grade_weight_id' => $gradeWeight->id,
+                    'semester_id' => $activeSemester->id,
+                ])->delete();
                 continue;
             }
 
-            $finalScore = ($avgQuiz * 0.5) + ($partScore * 0.5);
+            $avgQuiz = $hasQuiz ? $quizGroups[$studentId]->avg('score') : null;
+            $partScore = $hasPart ? $participationGroups[$studentId]->score : null;
+
+            if ($hasQuiz && $hasPart) {
+                // Jika kedua komponen terisi: 50% Pemahaman + 50% Musyarokah / Partisipasi
+                $finalScore = ($avgQuiz * 0.5) + ($partScore * 0.5);
+            } elseif ($hasQuiz) {
+                // Jika bagian musyarokah dikosongkan/dibiarkan, nilai diambil 100% dari nilai Pemahaman
+                $finalScore = $avgQuiz;
+            } else {
+                // Jika hanya ada musyarokah, nilai diambil 100% dari Musyarokah
+                $finalScore = $partScore;
+            }
 
             $existingGrade = StudentGrade::where([
                 'active_subject_id' => $activeSubjectId,

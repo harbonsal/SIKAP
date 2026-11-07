@@ -123,9 +123,11 @@ export default function UhInput({ activeSubject, semester, uhType, quizCount, qu
     const calcFinal = (studentId) => {
         const rawAvg = getRawAvgQuiz(studentId);
         const partStr = localPart[studentId];
-        const hasPart = partStr !== undefined && partStr !== '';
+        const hasPart = partStr !== undefined && partStr !== '' && partStr !== null;
         
-        if (rawAvg === null || !hasPart) return '-';
+        if (rawAvg === null && !hasPart) return '-';
+        if (rawAvg !== null && !hasPart) return rawAvg.toFixed(1);
+        if (rawAvg === null && hasPart) return parseFloat(partStr).toFixed(1);
 
         const part = parseFloat(partStr);
         return ((rawAvg * 0.5) + (part * 0.5)).toFixed(1);
@@ -199,12 +201,14 @@ export default function UhInput({ activeSubject, semester, uhType, quizCount, qu
                 </div>
 
                 <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-blue-800 flex items-start gap-3">
-                    <Info className="h-5 w-5 mt-0.5" />
+                    <Info className="h-5 w-5 mt-0.5 shrink-0" />
                     <div>
                         <h4 className="font-semibold text-blue-900">Formula Nilai {uhType}</h4>
                         <p className="text-sm mt-1">
-                            Nilai {uhType} diambil dari <strong>50% Rata-rata Penilaian Pemahaman</strong> + <strong>50% Nilai Partisipasi</strong>.<br/>
-                            Anda bisa menambah kolom penilaian sesuai jumlah pertemuan. Nilai final akan otomatis disinkronkan ke halaman Input Nilai utama.<br/>
+                            Nilai {uhType} dihitung dari <strong>Penilaian Pemahaman</strong> dan <strong>Musyarokah / Partisipasi</strong>.<br/>
+                            • Jika kedua bagian terisi: <strong>50% Pemahaman + 50% Musyarokah</strong>.<br/>
+                            • Jika bagian Musyarokah dikosongkan/dibiarkan: Nilai otomatis diambil <strong>100% dari Pemahaman</strong>.<br/>
+                            Nilai final otomatis tersimpan dan disinkronkan ke halaman Input Nilai utama {uhType}.<br/>
                             <span className="text-blue-700 bg-blue-100 px-2 py-0.5 rounded inline-block mt-1">💡 Tips: Anda bisa <strong>Copy-Paste</strong> data langsung dari Microsoft Excel. Klik di kolom pertama, lalu Paste (Ctrl+V).</span>
                         </p>
                     </div>
@@ -274,17 +278,17 @@ export default function UhInput({ activeSubject, semester, uhType, quizCount, qu
                         </CardContent>
                     </Card>
 
-                    {/* PARTISIPASI & FINAL */}
+                    {/* PARTISIPASI / MUSYAROKAH & FINAL */}
                     <Card className="shadow-md border-none">
                         <div className="bg-gray-100 p-4 border-b border-gray-200 flex justify-between items-center">
-                            <h3 className="font-bold text-gray-800">Bagian 2: Partisipasi & Final</h3>
+                            <h3 className="font-bold text-gray-800">Bagian 2: Musyarokah / Partisipasi & Final</h3>
                         </div>
                         <CardContent className="p-0 overflow-x-auto">
                             <table className="w-full text-sm text-left border-collapse">
                                 <thead className="text-xs uppercase bg-gray-50 text-gray-700">
                                     <tr>
                                         <th className="px-4 py-3 border-b border-r sticky left-0 bg-gray-50">Siswa</th>
-                                        <th className="px-4 py-3 border-b border-r text-center w-[120px]">Partisipasi<br/>(50%)</th>
+                                        <th className="px-4 py-3 border-b border-r text-center w-[130px]">Musyarokah /<br/>Partisipasi (50%)</th>
                                         <th className="px-4 py-3 border-b text-center bg-blue-50 text-blue-800 w-[120px]">NILAI {uhType} FINAL</th>
                                     </tr>
                                 </thead>
