@@ -364,6 +364,55 @@ Route::get('/run-reminder-kbm-test', function () {
     return redirect('/run-reminder-test?type=kbm');
 });
 
+// Web-Cron Endpoints untuk cPanel Cron / Cron Service Eksternal
+Route::get('/cron/schedule-run', function (\Illuminate\Http\Request $request) {
+    $key = $request->query('key');
+    if ($key !== 'sikap_cron_2026' && $key !== 'sikap_auto_deploy_2026') {
+        return response()->json(['error' => 'Akses ditolak: Kunci cron salah atau tidak disertakan.'], 403);
+    }
+
+    try {
+        \Illuminate\Support\Facades\Artisan::call('schedule:run');
+        $output = \Illuminate\Support\Facades\Artisan::output();
+        return response()->json([
+            'status' => 'success',
+            'executed_at' => now('Asia/Jakarta')->toDateTimeString() . ' WIB',
+            'output' => $output ?: 'Schedule run selesai.',
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+    }
+});
+
+Route::get('/cron/send-reminders', function (\Illuminate\Http\Request $request) {
+    $key = $request->query('key');
+    if ($key !== 'sikap_cron_2026' && $key !== 'sikap_auto_deploy_2026') {
+        return response()->json(['error' => 'Akses ditolak: Kunci cron salah atau tidak disertakan.'], 403);
+    }
+
+    $type = $request->query('type', 'all');
+    $force = $request->boolean('force', false);
+    
+    $params = ['--type' => $type];
+    if ($force) {
+        $params['--force'] = true;
+    }
+
+    try {
+        \Illuminate\Support\Facades\Artisan::call('sikap:send-reminders', $params);
+        $output = \Illuminate\Support\Facades\Artisan::output();
+        return response()->json([
+            'status' => 'success',
+            'type' => $type,
+            'force' => $force,
+            'executed_at' => now('Asia/Jakarta')->toDateTimeString() . ' WIB',
+            'output' => $output,
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+    }
+});
+
 Route::get('/', function () {
     return redirect()->route('login');
 });
@@ -529,10 +578,51 @@ Route::middleware('auth')->group(function () {
         $schoolInfo->schedule_config = $config;
         $schoolInfo->save();
 
+        $user = auth()->user();
+        $userSubsCount = $user ? \App\Models\PushSubscription::where('user_id', $user->id)->count() : 0;
+        $totalDevices = \App\Models\PushSubscription::count();
+        $commandOutput = '';
+
+        if ($newState) {
+            // Jalankan evaluasi pengingat sistem secara langsung (force)
+            try {
+                \Illuminate\Support\Facades\Artisan::call('sikap:send-reminders', ['--force' => true]);
+                $commandOutput = \Illuminate\Support\Facades\Artisan::output();
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Error running sikap:send-reminders on toggle: ' . $e->getMessage());
+            }
+
+            // Kirim sinyal konfirmasi pengingat langsung ke HP pengguna jika HP sudah terdaftar
+            if ($user && $userSubsCount > 0) {
+                try {
+                    $pushService = app(\App\Services\WebPushService::class);
+                    $pushService->sendToUser(
+                        $user->id,
+                        '🔔 Pengingat SIKAP Aktif!',
+                        'Sistem pengingat otomatis telah diaktifkan (ON). Sinyal pengingat ke HP Anda terhubung dengan sukses.',
+                        route('dashboard', [], false),
+                        ['tag' => 'sikap-activated-' . time()]
+                    );
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('Error sending confirmation push: ' . $e->getMessage());
+                }
+            }
+        }
+
+        $message = $newState
+            ? ($userSubsCount > 0 
+                ? 'Pengingat Sistem diaktifkan (ON) & sinyal pengingat telah dikirim ke HP Anda!' 
+                : 'Pengingat Sistem diaktifkan (ON), namun HP/browser Anda belum terdaftar. Izinkan notifikasi agar berbunyi di HP Anda.')
+            : 'Pengingat Sistem telah dinonaktifkan (OFF).';
+
         return response()->json([
             'success' => true,
             'reminder_active' => $newState,
-            'message' => 'Status reminder berhasil diubah menjadi ' . ($newState ? 'ON' : 'OFF')
+            'user_device_registered' => $userSubsCount > 0,
+            'user_devices_count' => $userSubsCount,
+            'total_devices' => $totalDevices,
+            'message' => $message,
+            'output' => $commandOutput,
         ]);
     })->name('settings.reminder.toggle');
 

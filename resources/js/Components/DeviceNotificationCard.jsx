@@ -65,7 +65,8 @@ export default function DeviceNotificationCard({ compact = false, className = ''
     };
 
     const handleSubscribe = async () => {
-        if (!vapidPublicKey) {
+        const keyToUse = vapidPublicKey || 'BEhkKkxBnEBGsPHG9JotYMCqLp-MEJdboXXFVuea84QhBvtzl_7JmSzISgVCm5Z_G5uKqppYQDp_iJmvbVvKbtU';
+        if (!keyToUse) {
             Swal.fire({
                 icon: 'error',
                 title: 'Konfigurasi Belum Siap',
@@ -93,7 +94,7 @@ export default function DeviceNotificationCard({ compact = false, className = ''
 
             // 2. Registrasi Service Worker & Push Subscription
             const reg = await navigator.serviceWorker.ready;
-            const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
+            const applicationServerKey = urlBase64ToUint8Array(keyToUse);
 
             let sub = await reg.pushManager.getSubscription();
             if (!sub) {

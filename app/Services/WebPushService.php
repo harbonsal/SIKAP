@@ -112,8 +112,8 @@ class WebPushService
         $payload = json_encode([
             'title' => $title,
             'body' => $body,
-            'icon' => $extra['icon'] ?? '/assets/icons/icon-192x192.png',
-            'badge' => $extra['badge'] ?? '/assets/icons/icon-72x72.png',
+            'icon' => $extra['icon'] ?? '/pwa-192x192.png',
+            'badge' => $extra['badge'] ?? '/favicon-96x96.png',
             'url' => $url,
             'tag' => $extra['tag'] ?? 'sikap-' . uniqid(),
             'data' => [

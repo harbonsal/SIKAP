@@ -41,8 +41,8 @@ self.addEventListener('push', function (event) {
   let data = {
     title: 'SIKAP Pesantren',
     body: 'Ada pengingat baru dari sistem SIKAP.',
-    icon: '/assets/icons/icon-192x192.png',
-    badge: '/assets/icons/icon-72x72.png',
+    icon: '/pwa-192x192.png',
+    badge: '/favicon-96x96.png',
     url: '/dashboard'
   };
 
@@ -57,8 +57,8 @@ self.addEventListener('push', function (event) {
 
   const options = {
     body: data.body,
-    icon: data.icon || '/assets/icons/icon-192x192.png',
-    badge: data.badge || '/assets/icons/icon-72x72.png',
+    icon: data.icon || '/pwa-192x192.png',
+    badge: data.badge || '/favicon-96x96.png',
     vibrate: [200, 100, 200, 100, 200],
     data: {
       url: data.url || (data.data && data.data.url) || '/dashboard',

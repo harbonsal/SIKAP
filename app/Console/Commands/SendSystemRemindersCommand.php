@@ -179,10 +179,13 @@ class SendSystemRemindersCommand extends Command
         $dayNameEn = $now->format('l');
         $dayName = $dayNameId;
 
-        $day = Day::where('name', $dayNameId)
-            ->orWhereRaw('LOWER(name) = ?', [strtolower($dayNameId)])
-            ->orWhere('name', $dayNameEn)
-            ->orWhereRaw('LOWER(name) = ?', [strtolower($dayNameEn)])
+        $searchDays = array_unique([$dayNameId, $dayNameEn, 'Ahad', 'Minggu']);
+        $day = Day::whereIn('name', $searchDays)
+            ->orWhere(function ($q) use ($searchDays) {
+                foreach ($searchDays as $d) {
+                    $q->orWhereRaw('LOWER(TRIM(name)) = ?', [strtolower($d)]);
+                }
+            })
             ->first();
 
         if (!$day) {

@@ -2,34 +2,166 @@
 import React, { useState } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { 
     Users, GraduationCap, School, Activity, CalendarDays, User, Calendar, 
     Heart, Stethoscope, FileText, Search, ClipboardCheck, CheckSquare, ShieldAlert, Book, BookOpen, 
     HeartPulse, BarChart2, CalendarRange, Sparkles, Bot, BookOpenCheck, Key, Plus,
-    Wallet, Download, UserCheck, BellRing
+    Wallet, Download, UserCheck, BellRing, Send, Settings, Smartphone
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
 export default function AdminDashboard({ stats, allowedWidgets = {}, activities = [], initialReminderActive = true }) {
+    const { auth, app_settings } = usePage().props;
     const [reminderActive, setReminderActive] = useState(initialReminderActive ?? true);
     const [toggling, setToggling] = useState(false);
+    const [testingPush, setTestingPush] = useState(false);
+
+    const subscribeDevice = async (vapidKey) => {
+        if (typeof window === 'undefined') return false;
+        if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+            return false;
+        }
+        try {
+            const perm = await Notification.requestPermission();
+            if (perm !== 'granted') return false;
+
+            const reg = await navigator.serviceWorker.ready;
+            const appServerKey = urlBase64ToUint8Array(vapidKey);
+            let sub = await reg.pushManager.getSubscription();
+            if (!sub) {
+                sub = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: appServerKey,
+                });
+            }
+            await axios.post('/push-subscriptions', sub.toJSON());
+            return true;
+        } catch (e) {
+            console.warn("Gagal mendaftarkan push subscription:", e);
+            return false;
+        }
+    };
 
     const handleToggleReminder = async () => {
         const nextState = !reminderActive;
         setToggling(true);
+        const vapidKey = app_settings?.vapid_public_key || 'BEhkKkxBnEBGsPHG9JotYMCqLp-MEJdboXXFVuea84QhBvtzl_7JmSzISgVCm5Z_G5uKqppYQDp_iJmvbVvKbtU';
+
+        // Jika mengaktifkan (ON), otomatis mintakan izin notifikasi browser jika belum
+        if (nextState && 'Notification' in window && Notification.permission !== 'granted') {
+            await subscribeDevice(vapidKey);
+        }
+
         try {
             const res = await axios.post('/settings/reminder/toggle', { active: nextState });
             if (res.data?.success) {
                 setReminderActive(res.data.reminder_active);
+
+                if (res.data.reminder_active) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Pengingat Sistem Aktif! 🎉',
+                        html: `<div class="text-xs text-left space-y-1.5 leading-relaxed">
+                            <p>${res.data.message}</p>
+                            <p class="text-slate-500">Total perangkat terdaftar: <strong>${res.data.total_devices || 0} perangkat</strong></p>
+                            ${res.data.user_device_registered 
+                                ? '<p class="text-emerald-600 font-bold">✅ Sinyal pengingat telah dikirim ke bilah notifikasi HP Anda!</p>' 
+                                : '<p class="text-amber-600 font-bold">⚠️ Catatan: Perangkat ini belum diizinkan menerima notifikasi. Klik tombol <strong>Tes HP</strong> di samping toggle untuk mendaftarkan HP ini.</p>'}
+                        </div>`,
+                        confirmButtonColor: '#059669',
+                        confirmButtonText: 'Alhamdulillah',
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Pengingat Dinonaktifkan (OFF)',
+                        text: res.data.message,
+                        timer: 2000,
+                        showConfirmButton: false,
+                    });
+                }
             }
         } catch (err) {
             console.error("Gagal mengubah status reminder:", err);
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal',
+                text: 'Terjadi kesalahan saat mengubah status pengingat sistem.',
+            });
         } finally {
             setToggling(false);
         }
     };
-    const { auth } = usePage().props;
+
+    const handleTestPush = async () => {
+        setTestingPush(true);
+        const vapidKey = app_settings?.vapid_public_key || 'BEhkKkxBnEBGsPHG9JotYMCqLp-MEJdboXXFVuea84QhBvtzl_7JmSzISgVCm5Z_G5uKqppYQDp_iJmvbVvKbtU';
+        
+        if ('Notification' in window && Notification.permission !== 'granted') {
+            const registered = await subscribeDevice(vapidKey);
+            if (!registered) {
+                setTestingPush(false);
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Izin Notifikasi Belum Diberikan',
+                    text: 'Silakan klik Izinkan (Allow) pada pop-up notifikasi peramban atau buka Setelan Situs di HP Anda.',
+                });
+                return;
+            }
+        }
+
+        try {
+            const res = await axios.post('/push-subscriptions/test');
+            Swal.fire({
+                icon: 'success',
+                title: 'Tes Terkirim! 📲',
+                text: res.data.message || 'Sinyal pengingat telah dikirim ke HP Anda (disertai suara & getar).',
+                timer: 3500,
+                showConfirmButton: false,
+                toast: true,
+                position: 'top-end',
+            });
+        } catch (err) {
+            const msg = err.response?.data?.message || 'Gagal mengirim sinyal tes ke perangkat.';
+            if (msg.includes('Belum ada perangkat')) {
+                const registered = await subscribeDevice(vapidKey);
+                if (registered) {
+                    try {
+                        const retryRes = await axios.post('/push-subscriptions/test');
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'HP Terdaftar & Tes Terkirim! 📲',
+                            text: retryRes.data.message,
+                            timer: 3500,
+                            showConfirmButton: false,
+                        });
+                        setTestingPush(false);
+                        return;
+                    } catch (e) {}
+                }
+            }
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal Mengirim Tes',
+                text: msg,
+            });
+        } finally {
+            setTestingPush(false);
+        }
+    };
 
     // Defaults if allowedWidgets is empty
     const showWelcome = allowedWidgets.welcome_card ?? true;
@@ -450,6 +582,24 @@ export default function AdminDashboard({ stats, allowedWidgets = {}, activities 
                                     }`}
                                 />
                             </button>
+                            <span className="w-px h-3.5 bg-white/20 mx-0.5"></span>
+                            <button
+                                type="button"
+                                disabled={testingPush}
+                                onClick={handleTestPush}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/15 hover:bg-white/25 text-white text-[10px] font-bold transition-all disabled:opacity-50 cursor-pointer"
+                                title="Kirim sinyal tes langsung ke HP Anda sekarang (suara/getar)"
+                            >
+                                <Send className="w-2.5 h-2.5" />
+                                <span>{testingPush ? 'Mengirim...' : 'Tes HP'}</span>
+                            </button>
+                            <Link
+                                href="/run-reminder-test"
+                                className="text-slate-300 hover:text-white p-0.5 rounded hover:bg-white/15 transition-colors"
+                                title="Buka Pusat Kendali Notifikasi & Pengingat"
+                            >
+                                <Settings className="w-3.5 h-3.5" />
+                            </Link>
                         </div>
                     </CardContent>
                 </Card>
@@ -472,10 +622,10 @@ export default function AdminDashboard({ stats, allowedWidgets = {}, activities 
                                 </div>
                             </div>
                             {!showWelcome && (
-                                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-slate-700">
+                                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200">
                                     <BellRing className={`w-3.5 h-3.5 ${reminderActive ? 'text-emerald-500 animate-pulse' : 'text-slate-400'}`} />
                                     <span className="text-xs font-black uppercase">REMINDER</span>
-                                    <span className={`text-[11px] font-black ${reminderActive ? 'text-emerald-600' : 'text-slate-400'}`}>{reminderActive ? 'ON' : 'OFF'}</span>
+                                    <span className={`text-[11px] font-black ${reminderActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>{reminderActive ? 'ON' : 'OFF'}</span>
                                     <button
                                         type="button"
                                         role="switch"
@@ -483,7 +633,7 @@ export default function AdminDashboard({ stats, allowedWidgets = {}, activities 
                                         disabled={toggling}
                                         onClick={handleToggleReminder}
                                         className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                                            reminderActive ? 'bg-emerald-600' : 'bg-slate-300'
+                                            reminderActive ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-600'
                                         } ${toggling ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         title={`Klik untuk ${reminderActive ? 'mematikan (OFF)' : 'mengaktifkan (ON)'} pengingat otomatis`}
                                     >
@@ -493,6 +643,24 @@ export default function AdminDashboard({ stats, allowedWidgets = {}, activities 
                                             }`}
                                         />
                                     </button>
+                                    <span className="w-px h-3.5 bg-slate-300 dark:bg-slate-600 mx-0.5"></span>
+                                    <button
+                                        type="button"
+                                        disabled={testingPush}
+                                        onClick={handleTestPush}
+                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold transition-all disabled:opacity-50 cursor-pointer"
+                                        title="Kirim sinyal tes langsung ke HP Anda sekarang (suara/getar)"
+                                    >
+                                        <Send className="w-2.5 h-2.5" />
+                                        <span>{testingPush ? 'Mengirim...' : 'Tes HP'}</span>
+                                    </button>
+                                    <Link
+                                        href="/run-reminder-test"
+                                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                                        title="Buka Pusat Kendali Notifikasi & Pengingat"
+                                    >
+                                        <Settings className="w-3.5 h-3.5" />
+                                    </Link>
                                 </div>
                             )}
                         </CardHeader>
