@@ -259,10 +259,11 @@ export default function UhInput({ activeSubject, semester, uhType, quizCount, qu
                     <div>
                         <h4 className="font-semibold text-blue-900">Formula Nilai {uhType}</h4>
                         <p className="text-sm mt-1">
-                            Nilai {uhType} dihitung dari <strong>Penilaian Pemahaman</strong> dan <strong>Musyarokah / Partisipasi</strong>.<br/>
+                            Nilai {uhType} dihitung dari <strong>Penilaian Pemahaman (50%)</strong> dan <strong>Musyarokah / Partisipasi (50%)</strong>.<br/>
+                            • Masing-masing bagian berdiri sendiri sebagai nilai tersendiri.<br/>
                             • Jika kedua bagian terisi: <strong>50% Pemahaman + 50% Musyarokah</strong>.<br/>
-                            • Jika bagian Musyarokah dikosongkan/dibiarkan: Nilai otomatis diambil <strong>100% dari Pemahaman</strong>.<br/>
-                            Nilai final otomatis tersimpan dan disinkronkan ke halaman Input Nilai utama {uhType}.<br/>
+                            • Jika hanya salah satu bagian yang diisi: Nilai final otomatis diambil <strong>100% dari bagian yang terisi</strong> dan bagian yang kosong tetap kosong.<br/>
+                            Nilai final otomatis tersimpan dan disinkronkan ke Buku Nilai utama {uhType}.<br/>
                             <span className="text-blue-700 bg-blue-100 px-2 py-0.5 rounded inline-block mt-1">💡 Tips: Anda bisa <strong>Copy-Paste</strong> data langsung dari Microsoft Excel. Klik di kolom pertama, lalu Paste (Ctrl+V).</span>
                         </p>
                     </div>
