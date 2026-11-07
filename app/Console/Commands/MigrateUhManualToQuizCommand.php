@@ -51,7 +51,13 @@ class MigrateUhManualToQuizCommand extends Command
                     ->where('quiz_number', 1)
                     ->first();
 
-                if (!$quiz1) {
+                // Jangan buat quiz 1 otomatis jika siswa sudah memiliki partisipasi/musyarokah
+                // atau jika session sudah dimodifikasi
+                $hasAnyParticipation = \App\Models\UhParticipationScore::where('uh_session_id', $session->id)
+                    ->where('student_id', $grade->student_id)
+                    ->exists();
+
+                if (!$quiz1 && !$hasAnyParticipation) {
                     UhQuizScore::create([
                         'uh_session_id' => $session->id,
                         'student_id' => $grade->student_id,

@@ -16,6 +16,14 @@ export default function UhInput({ activeSubject, semester, uhType, quizCount, qu
     const [localPart, setLocalPart] = useState(participationScores || {});
     const [isSaving, setIsSaving] = useState(false);
 
+    useEffect(() => {
+        setLocalQuiz(quizScores || {});
+    }, [quizScores]);
+
+    useEffect(() => {
+        setLocalPart(participationScores || {});
+    }, [participationScores]);
+
     const members = activeSubject?.active_class?.class_members || [];
 
     const sanitizeGrade = (val) => {
