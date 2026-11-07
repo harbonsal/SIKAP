@@ -18,21 +18,75 @@ export default function UhInput({ activeSubject, semester, uhType, quizCount, qu
 
     const members = activeSubject?.active_class?.class_members || [];
 
-    const handleQuizChange = (studentId, num, value) => {
-        setLocalQuiz(prev => ({
-            ...prev,
-            [studentId]: {
-                ...(prev[studentId] || {}),
-                [num]: value
+    const sanitizeGrade = (val) => {
+        let clean = val.replace(',', '.');
+        if (clean === '') return '';
+        if (/^\d*\.?\d*$/.test(clean)) {
+            if (!clean.endsWith('.') && parseFloat(clean) > 100) {
+                return '100';
             }
-        }));
+            return clean;
+        }
+        return null;
+    };
+
+    const handleQuizChange = (studentId, num, value) => {
+        const clean = sanitizeGrade(value);
+        if (clean !== null) {
+            setLocalQuiz(prev => ({
+                ...prev,
+                [studentId]: {
+                    ...(prev[studentId] || {}),
+                    [num]: clean
+                }
+            }));
+        }
     };
 
     const handlePartChange = (studentId, value) => {
-        setLocalPart(prev => ({
-            ...prev,
-            [studentId]: value
-        }));
+        const clean = sanitizeGrade(value);
+        if (clean !== null) {
+            setLocalPart(prev => ({
+                ...prev,
+                [studentId]: clean
+            }));
+        }
+    };
+
+    const handleQuizKeyDown = (e, mIndex, quizNum) => {
+        if (e.key === 'ArrowDown' || e.key === 'Enter') {
+            e.preventDefault();
+            if (mIndex < members.length - 1) {
+                const nextEl = document.getElementById(`uh-quiz-input-${mIndex + 1}-${quizNum}`);
+                nextEl?.focus();
+                nextEl?.select();
+            }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (mIndex > 0) {
+                const prevEl = document.getElementById(`uh-quiz-input-${mIndex - 1}-${quizNum}`);
+                prevEl?.focus();
+                prevEl?.select();
+            }
+        }
+    };
+
+    const handlePartKeyDown = (e, mIndex) => {
+        if (e.key === 'ArrowDown' || e.key === 'Enter') {
+            e.preventDefault();
+            if (mIndex < members.length - 1) {
+                const nextEl = document.getElementById(`uh-part-input-${mIndex + 1}`);
+                nextEl?.focus();
+                nextEl?.select();
+            }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (mIndex > 0) {
+                const prevEl = document.getElementById(`uh-part-input-${mIndex - 1}`);
+                prevEl?.focus();
+                prevEl?.select();
+            }
+        }
     };
 
     const handlePasteQuiz = (e, startIndex, num) => {
@@ -260,11 +314,17 @@ export default function UhInput({ activeSubject, semester, uhType, quizCount, qu
                                             </td>
                                             {Array.from({ length: quizCount }).map((_, i) => (
                                                 <td key={i} className="p-1 border-r">
-                                                    <Input type="number" min="0" max="100" step="0.01"
+                                                    <Input
+                                                        type="text"
+                                                        inputMode="decimal"
+                                                        id={`uh-quiz-input-${mIndex}-${i+1}`}
                                                         className="h-8 w-full text-center font-bold px-1"
                                                         value={localQuiz[m.student.id]?.[i+1] ?? ''}
                                                         onChange={e => handleQuizChange(m.student.id, i+1, e.target.value)}
                                                         onPaste={e => handlePasteQuiz(e, mIndex, i+1)}
+                                                        onKeyDown={e => handleQuizKeyDown(e, mIndex, i+1)}
+                                                        onFocus={e => e.target.select()}
+                                                        onWheel={e => e.target.blur()}
                                                     />
                                                 </td>
                                             ))}
@@ -308,11 +368,17 @@ export default function UhInput({ activeSubject, semester, uhType, quizCount, qu
                                                 </div>
                                             </td>
                                             <td className="p-1 border-r">
-                                                <Input type="number" min="0" max="100" step="0.01"
+                                                <Input
+                                                    type="text"
+                                                    inputMode="decimal"
+                                                    id={`uh-part-input-${mIndex}`}
                                                     className="h-8 w-full text-center font-bold px-1"
                                                     value={localPart[m.student.id] ?? ''}
                                                     onChange={e => handlePartChange(m.student.id, e.target.value)}
                                                     onPaste={e => handlePastePart(e, mIndex)}
+                                                    onKeyDown={e => handlePartKeyDown(e, mIndex)}
+                                                    onFocus={e => e.target.select()}
+                                                    onWheel={e => e.target.blur()}
                                                 />
                                             </td>
                                             <td className="px-4 py-2 text-center font-extrabold bg-blue-50 text-blue-700 text-lg">

@@ -35,13 +35,19 @@ export default function Show({ activeSubject, gradeWeights, semester, previousPa
     }, [activeSubject, gradeWeights]);
 
     const handleGradeChange = (studentId, weightId, value) => {
-        setGrades(prev => ({
-            ...prev,
-            [studentId]: {
-                ...prev[studentId],
-                [weightId]: value
+        let cleanVal = value.replace(',', '.');
+        if (cleanVal === '' || /^\d*\.?\d*$/.test(cleanVal)) {
+            if (cleanVal !== '' && !cleanVal.endsWith('.') && parseFloat(cleanVal) > 100) {
+                cleanVal = '100';
             }
-        }));
+            setGrades(prev => ({
+                ...prev,
+                [studentId]: {
+                    ...prev[studentId],
+                    [weightId]: cleanVal
+                }
+            }));
+        }
     };
 
 
@@ -370,12 +376,9 @@ export default function Show({ activeSubject, gradeWeights, semester, previousPa
                                                         {gradeWeights.map(weight => (
                                                             <td key={weight.id} className="p-2 text-center border-r border-gray-300 relative">
                                                                 <Input
-                                                                    type="number"
+                                                                    type="text"
                                                                     inputMode="decimal"
                                                                     id={`grade-input-${member.student.id}-${weight.id}`}
-                                                                    min="0"
-                                                                    max="100"
-                                                                    step="0.01"
                                                                     disabled={isReadOnly || !activeColumns[weight.id]}
                                                                     className={`h-9 w-full min-w-[60px] text-center font-bold focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary px-1 transition-all ${isReadOnly ? 'bg-muted/40 text-foreground border-border/60 cursor-default' : (activeColumns[weight.id] ? 'bg-white border-gray-300 shadow-sm' : 'bg-gray-100 text-gray-400 cursor-not-allowed border-transparent')} ${(grades[member.student.id]?.[weight.id] !== '' && parseFloat(grades[member.student.id]?.[weight.id] || 0) < kkmValue) ? 'text-red-500' : ''}`}
                                                                     value={grades[member.student.id]?.[weight.id] ?? ''}
