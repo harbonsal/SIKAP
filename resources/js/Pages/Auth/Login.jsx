@@ -168,7 +168,7 @@ export default function Login({ status, canResetPassword }) {
             {/* Jelas & Kontras: Last Update Badge */}
             <div className="mt-5 pt-3 border-t border-slate-200/80 dark:border-slate-700/80 text-center">
                 <span className="inline-flex items-center px-3.5 py-1 rounded-full bg-white/95 dark:bg-slate-800/95 border border-slate-200/90 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-mono font-semibold shadow-2xs backdrop-blur-xs">
-                    ⚡ Last Update: 07 Nov 2026 14:19 WIB
+                    ⚡ Last Update: 07 Nov 2026 14:43 WIB
                 </span>
             </div>
         </GuestLayout>

@@ -414,59 +414,52 @@ export default function AdminDashboard({ stats, allowedWidgets = {}, activities 
                     <div className="absolute top-0 right-0 w-[40rem] h-[40rem] bg-indigo-500/10 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl pointer-events-none"></div>
                     <div className="absolute bottom-0 left-0 w-[30rem] h-[30rem] bg-purple-500/10 rounded-full translate-y-1/3 -translate-x-1/4 blur-3xl pointer-events-none"></div>
 
-                    <CardContent className="p-8 md:p-10 relative z-10">
-                        <div className="flex flex-col gap-3">
-                            <h2 className="text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-tight text-white drop-shadow-sm">
-                                Selamat datang, {auth.user.name} <span className="text-indigo-200 font-medium text-xl md:text-2xl ml-2">({(auth.user.roles && auth.user.roles.length > 0) ? auth.user.roles.join(', ') : (auth.user.user_level?.name || 'Administrator')})</span> 👋
+                    <CardContent className="p-6 md:p-8 relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex flex-col gap-2">
+                            <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white drop-shadow-sm">
+                                Selamat datang, {auth.user.name} <span className="text-indigo-200 font-medium text-lg md:text-xl ml-2">({(auth.user.roles && auth.user.roles.length > 0) ? auth.user.roles.join(', ') : (auth.user.user_level?.name || 'Administrator')})</span> 👋
                             </h2>
-                            <p className="text-slate-300 text-lg max-w-2xl hidden md:block mt-1">
+                            <p className="text-slate-300 text-sm md:text-base max-w-2xl hidden md:block">
                                 Berikut adalah ringkasan aktivitas dan statistik terkini di satuan pendidikan Anda hari ini.
                             </p>
+                        </div>
+
+                        {/* Super Ringkas: REMINDER [ON / OFF] menyatu di dalam Welcome Banner */}
+                        <div className="shrink-0 self-start md:self-auto flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 dark:bg-black/30 backdrop-blur-md border border-white/20 shadow-inner">
+                            <BellRing className={`w-3.5 h-3.5 ${reminderActive ? 'text-emerald-400 animate-pulse' : 'text-slate-400'}`} />
+                            <span className="text-xs font-black tracking-wider text-white uppercase">
+                                REMINDER
+                            </span>
+                            <span className={`text-[11px] font-black tracking-wider px-1.5 py-0.5 rounded-md ${reminderActive ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/40' : 'bg-slate-700/50 text-slate-400'}`}>
+                                {reminderActive ? 'ON' : 'OFF'}
+                            </span>
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked={reminderActive}
+                                disabled={toggling}
+                                onClick={handleToggleReminder}
+                                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                    reminderActive ? 'bg-emerald-500' : 'bg-slate-600'
+                                } ${toggling ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                title={`Klik untuk ${reminderActive ? 'mematikan (OFF)' : 'mengaktifkan (ON)'} pengingat otomatis`}
+                            >
+                                <span
+                                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out ${
+                                        reminderActive ? 'translate-x-4' : 'translate-x-0'
+                                    }`}
+                                />
+                            </button>
                         </div>
                     </CardContent>
                 </Card>
             )}
 
-            {/* Super Ringkas: REMINDER [ON / OFF] */}
-            <div className="flex items-center justify-between px-3.5 py-1.5 bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 rounded-xl shadow-2xs">
-                <div className="flex items-center gap-2">
-                    <span className="text-xs font-black tracking-wider text-slate-700 dark:text-slate-200 uppercase flex items-center gap-1.5">
-                        <BellRing className={`w-3.5 h-3.5 ${reminderActive ? 'text-emerald-500 animate-pulse' : 'text-slate-400'}`} />
-                        REMINDER
-                    </span>
-                    <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">
-                        • Otomatis 13:00 WIB
-                    </span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                    <span className={`text-[11px] font-black tracking-wider ${reminderActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
-                        {reminderActive ? 'ON' : 'OFF'}
-                    </span>
-                    <button
-                        type="button"
-                        role="switch"
-                        aria-checked={reminderActive}
-                        disabled={toggling}
-                        onClick={handleToggleReminder}
-                        className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 ${
-                            reminderActive ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-700'
-                        } ${toggling ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        title={`Klik untuk ${reminderActive ? 'mematikan (OFF)' : 'mengaktifkan (ON)'} pengingat otomatis`}
-                    >
-                        <span
-                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
-                                reminderActive ? 'translate-x-5' : 'translate-x-0'
-                            }`}
-                        />
-                    </button>
-                </div>
-            </div>
-
             {/* Quick Actions (Shortcuts) */}
             {(allowedWidgets.quick_actions ?? true) && (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
                     <Card className="col-span-full lg:col-span-7 border-none shadow-md bg-white">
-                        <CardHeader className="border-b border-gray-100 bg-gray-50/50 rounded-t-xl">
+                        <CardHeader className="border-b border-gray-100 bg-gray-50/50 rounded-t-xl flex flex-row items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
                                     <Activity className="h-5 w-5" />
@@ -478,6 +471,30 @@ export default function AdminDashboard({ stats, allowedWidgets = {}, activities 
                                     </CardDescription>
                                 </div>
                             </div>
+                            {!showWelcome && (
+                                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-slate-700">
+                                    <BellRing className={`w-3.5 h-3.5 ${reminderActive ? 'text-emerald-500 animate-pulse' : 'text-slate-400'}`} />
+                                    <span className="text-xs font-black uppercase">REMINDER</span>
+                                    <span className={`text-[11px] font-black ${reminderActive ? 'text-emerald-600' : 'text-slate-400'}`}>{reminderActive ? 'ON' : 'OFF'}</span>
+                                    <button
+                                        type="button"
+                                        role="switch"
+                                        aria-checked={reminderActive}
+                                        disabled={toggling}
+                                        onClick={handleToggleReminder}
+                                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                            reminderActive ? 'bg-emerald-600' : 'bg-slate-300'
+                                        } ${toggling ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        title={`Klik untuk ${reminderActive ? 'mematikan (OFF)' : 'mengaktifkan (ON)'} pengingat otomatis`}
+                                    >
+                                        <span
+                                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out ${
+                                                reminderActive ? 'translate-x-4' : 'translate-x-0'
+                                            }`}
+                                        />
+                                    </button>
+                                </div>
+                            )}
                         </CardHeader>
                         <CardContent className="p-6">
                             {activeShortcuts.length > 0 ? (
