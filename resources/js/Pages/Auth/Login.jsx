@@ -89,21 +89,13 @@ export default function Login({ status, canResetPassword }) {
 
                 {/* Field 2: Password */}
                 <div>
-                    <div className="flex items-center justify-between mb-1.5">
+                    <div className="mb-1.5">
                         <label
                             htmlFor="password"
                             className="block text-xs font-bold text-slate-700 dark:text-slate-300"
                         >
                             Kata Sandi (Password)
                         </label>
-                        {canResetPassword && (
-                            <Link
-                                href={route('password.request')}
-                                className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:underline transition-colors"
-                            >
-                                Lupa sandi?
-                            </Link>
-                        )}
                     </div>
 
                     <div className="relative">
@@ -173,10 +165,10 @@ export default function Login({ status, canResetPassword }) {
                 </div>
             </form>
 
-            {/* Clean Subtle Last Update */}
-            <div className="mt-5 pt-3 border-t border-slate-200/70 dark:border-slate-800 text-center">
-                <span className="text-[11px] font-mono text-slate-400 dark:text-slate-500">
-                    ⚡ Last Update: 06 Nov 2026 21:33 WIB
+            {/* Jelas & Kontras: Last Update Badge */}
+            <div className="mt-5 pt-3 border-t border-slate-200/80 dark:border-slate-700/80 text-center">
+                <span className="inline-flex items-center px-3.5 py-1 rounded-full bg-white/95 dark:bg-slate-800/95 border border-slate-200/90 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-mono font-semibold shadow-2xs backdrop-blur-xs">
+                    ⚡ Last Update: 07 Nov 2026 07:25 WIB
                 </span>
             </div>
         </GuestLayout>
