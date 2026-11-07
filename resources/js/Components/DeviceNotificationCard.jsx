@@ -216,67 +216,37 @@ export default function DeviceNotificationCard({ compact = false, className = ''
 
     if (compact) {
         return (
-            <div className={`rounded-2xl border border-border/80 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm ${className}`}>
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/20">
-                        {isSubscribed ? <BellRing className="w-5 h-5 animate-bounce" /> : <Bell className="w-5 h-5" />}
-                    </div>
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <h4 className="text-sm font-bold text-foreground">Pengingat Langsung di Layar HP</h4>
-                            {isSubscribed ? (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
-                                    <CheckCircle className="w-3 h-3" /> Aktif
-                                </span>
-                            ) : (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                                    Belum Aktif
-                                </span>
-                            )}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                            {isSubscribed
-                                ? 'Notifikasi deadline nilai & tugas akan otomatis muncul di HP ini.'
-                                : 'Aktifkan agar pengingat jadwal nilai & mutabaah santri muncul di HP.'}
-                        </p>
-                    </div>
+            <div className={`flex items-center justify-between px-3.5 py-1.5 bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 rounded-xl shadow-2xs ${className}`}>
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-black tracking-wider text-slate-700 dark:text-slate-200 uppercase flex items-center gap-1.5">
+                        <BellRing className={`w-3.5 h-3.5 ${isSubscribed ? 'text-emerald-500 animate-pulse' : 'text-slate-400'}`} />
+                        REMINDER
+                    </span>
+                    <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">
+                        • Pengingat HP
+                    </span>
                 </div>
-
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                    {isSubscribed ? (
-                        <>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={handleTestNotification}
-                                disabled={testLoading}
-                                className="text-xs font-semibold h-8 rounded-xl border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 flex-1 sm:flex-none"
-                            >
-                                <Send className="w-3 h-3 mr-1" />
-                                {testLoading ? 'Mengirim...' : 'Tes di HP'}
-                            </Button>
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={handleUnsubscribe}
-                                disabled={actionLoading}
-                                className="text-xs text-muted-foreground hover:text-red-600 h-8 rounded-xl px-2.5"
-                                title="Nonaktifkan"
-                            >
-                                <XCircle className="w-3.5 h-3.5" />
-                            </Button>
-                        </>
-                    ) : (
-                        <Button
-                            size="sm"
-                            onClick={handleSubscribe}
-                            disabled={actionLoading}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold h-8 rounded-xl shadow-md shadow-emerald-600/20 flex-1 sm:flex-none"
-                        >
-                            <Bell className="w-3.5 h-3.5 mr-1.5" />
-                            {actionLoading ? 'Mendaftarkan...' : 'Aktifkan di HP (Wajib - Jangan Blokir)'}
-                        </Button>
-                    )}
+                <div className="flex items-center gap-2.5">
+                    <span className={`text-[11px] font-black tracking-wider ${isSubscribed ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
+                        {isSubscribed ? 'ON' : 'OFF'}
+                    </span>
+                    <button
+                        type="button"
+                        role="switch"
+                        aria-checked={isSubscribed}
+                        disabled={actionLoading || loading}
+                        onClick={isSubscribed ? handleUnsubscribe : handleSubscribe}
+                        className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 ${
+                            isSubscribed ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-700'
+                        } ${(actionLoading || loading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        title={`Klik untuk ${isSubscribed ? 'mematikan (OFF)' : 'mengaktifkan (ON)'} pengingat di HP ini`}
+                    >
+                        <span
+                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${
+                                isSubscribed ? 'translate-x-5' : 'translate-x-0'
+                            }`}
+                        />
+                    </button>
                 </div>
             </div>
         );
