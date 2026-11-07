@@ -173,13 +173,19 @@ class SendSystemRemindersCommand extends Command
         }
 
         Carbon::setLocale('id');
-        $now = Carbon::now();
+        $now = Carbon::now('Asia/Jakarta');
         $todayDate = $now->toDateString();
-        $dayName = $now->translatedFormat('l');
+        $dayNameId = $now->translatedFormat('l');
+        $dayNameEn = $now->format('l');
 
-        $day = Day::where('name', $dayName)->first();
+        $day = Day::where('name', $dayNameId)
+            ->orWhereRaw('LOWER(name) = ?', [strtolower($dayNameId)])
+            ->orWhere('name', $dayNameEn)
+            ->orWhereRaw('LOWER(name) = ?', [strtolower($dayNameEn)])
+            ->first();
+
         if (!$day) {
-            $this->line("Hari {$dayName} tidak terdaftar di data master hari.");
+            $this->line("Hari {$dayNameId} tidak terdaftar di data master hari.");
             return 0;
         }
 
@@ -213,8 +219,8 @@ class SendSystemRemindersCommand extends Command
             }
 
             try {
-                $lessonStart = Carbon::parse($todayDate . ' ' . $learningHour->start_time);
-                $lessonEnd = Carbon::parse($todayDate . ' ' . $learningHour->end_time);
+                $lessonStart = Carbon::parse($todayDate . ' ' . $learningHour->start_time, 'Asia/Jakarta');
+                $lessonEnd = Carbon::parse($todayDate . ' ' . $learningHour->end_time, 'Asia/Jakarta');
             } catch (\Throwable $e) {
                 continue;
             }
@@ -311,7 +317,7 @@ class SendSystemRemindersCommand extends Command
         $this->info("--- [2] PENGECEKAN BATAS AKHIR INPUT NILAI AKADEMIK (UH1, UTS, UH2, UAS) ---");
 
         Carbon::setLocale('id');
-        $today = Carbon::now()->startOfDay();
+        $today = Carbon::now('Asia/Jakarta')->startOfDay();
         $todayDate = $today->toDateString();
         $isForce = (bool)$this->option('force');
 
@@ -572,7 +578,7 @@ class SendSystemRemindersCommand extends Command
         }
 
         Carbon::setLocale('id');
-        $now = Carbon::now();
+        $now = Carbon::now('Asia/Jakarta');
         $todayDate = $now->toDateString();
         $currentYear = $now->year;
         $currentMonth = $now->month;
